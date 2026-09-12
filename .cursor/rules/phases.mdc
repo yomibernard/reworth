@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 0 (Foundations)** — target tag `v0.0-scaffold`.
+**Current phase: 1 (Accounts, Auth & Identity)** — target tag `v0.1-auth`.
 
 Do **not** implement features from later phases in the same PR.
 

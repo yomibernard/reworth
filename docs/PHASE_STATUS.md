@@ -2,46 +2,59 @@
 
 | Field | Value |
 | --- | --- |
-| Current phase | **0 — Foundations** |
-| Prompt | Prompt 1 (`CURSOR-PROMPT.md`) |
-| Target tag | `v0.0-scaffold` |
-| Branch | `phase-0-foundations` |
-| Status | **Complete (pending PR merge)** |
+| Current phase | **1 — Accounts, Auth & Identity** |
+| Prompt | Prompt 2 (`CURSOR-PROMPT.md`) |
+| Target tag | `v0.1-auth` |
+| Branch | `phase-1-auth` |
+| Status | **Complete (pending PR merge)** — code + tests green; migrate/seed needs Postgres |
 | Last updated | 2026-09-12 |
 
-## What exists
+## What exists (Phase 1)
 
-- Prompt package: `PRD.md`, `CURSOR-PROMPT.md`, `CURSOR-PROMPT-PHASE2-3.md`, `AGENTS.md`, `.cursor/rules/*`, ADRs, doc stubs
-- Turborepo + pnpm monorepo: `apps/api|web|admin|mobile`, `packages/shared|ui-web|config`
-- Infra: `infra/docker-compose.yml` (postgres:16, redis:7, minio, opensearch, mailhog), `infra/k6/health-smoke.js`
-- CI: `.github/workflows/ci.yml` (lint → typecheck → test → build)
-- Design system `@reworth/ui-web`: tokens + Button (SELL), ListingCard, Input, Chip, BottomNav, Modal, Toast, Skeleton, EmptyState
-- API: `/api/v1/healthz`, `/readyz`, `/metrics` + provider interface/mock stubs
-- Web landing: ReWorth + tagline + SELL CTA
-- Admin shell (Phase 8 placeholder); mobile Expo bottom-nav shell
-- Verified locally: `pnpm install`, typecheck, unit tests (4), build api/web/admin, **GET /api/v1/healthz → { status: ok }**
+### API
+- Prisma models: User, Profile, Address, Verification, Device, RefreshToken, OtpChallenge, AuditLog, UserRole
+- Nest modules: `prisma`, `auth`, `users`, `identity`, `admin`, `audit` + JWT/RBAC guards
+- Endpoints under `/api/v1`: OTP, login, refresh/logout, OAuth mock, `/me/*`, `/verifications`, `/admin/*`
+- Console SMS mock via `SMS_PROVIDER`; identity mock via `IDENTITY_PROVIDER=mock`
+- Seed: Super Admin from `ADMIN_SUPER_EMAIL` / `ADMIN_SUPER_PASSWORD`
+- RBAC matrix: [`docs/RBAC.md`](RBAC.md)
+- Unit tests: **19 passed** (OTP limits, refresh reuse, OAuth mock, RBAC Support≠Finance, L3 no raw ID, profile privacy, health)
 
-## Known gaps / environment notes
+### Clients
+- **Web**: `/onboarding` → phone → OTP → profile; `/account`; SELL → onboarding
+- **Admin**: `/login` + role-gated dashboard shell
+- **Mobile**: onboarding stack + Profile tab with verification/sign-out
 
-- Docker Desktop was **not running** on the implementer’s machine — compose not verified live; configs are present. Start Docker then `docker compose -f infra/docker-compose.yml up -d` for full readyz DB/Redis checks.
-- Auth, listings, payments, etc. start at Phase 1+
-- Full PRD §36 analytics deferred
-- Prisma schema is empty (domain models Phase 1+)
-- Strict ESLint flat configs deferred (lint scripts are placeholders; typecheck + tests gate CI)
+### Plan
+- [`docs/PHASE_1_PLAN.md`](PHASE_1_PLAN.md)
+
+## Required local steps (Postgres)
+
+```bash
+docker compose -f infra/docker-compose.yml up -d postgres redis
+cd apps/api
+pnpm exec prisma migrate deploy
+pnpm exec prisma db seed
+pnpm --filter @reworth/api start
+# Web: pnpm --filter @reworth/web dev → http://localhost:3000/onboarding
+```
+
+OTP codes are printed by the console SMS mock in API logs.
+
+## Known gaps
+
+- Live migrate/seed not verified if Docker Desktop is stopped
+- Admin TOTP 2FA UI placeholder only (not enforced)
+- Tokens in localStorage/AsyncStorage (interim; httpOnly cookies later)
+- Avatar upload deferred to Media (Phase 2)
 
 ## Exact resume point
 
-**Phase 0 DoD met for code.** Next user instruction should be **Prompt 2 / Phase 1** (Accounts, Auth & Identity) → tag `v0.1-auth`.
-
-If merging first: merge PR `phase-0-foundations` → `main`, then tag `v0.0-scaffold`.
+**Phase 1 code complete.** Next: **Phase 2 — Listings, Media & AI-Assisted Listing** (`v0.2-listings`) after merge + tag `v0.1-auth`.
 
 ## Resume cheat sheet
 
 ```
-Continue: resume Phase N from docs/PHASE_STATUS.md. Re-read AGENTS.md and
+Continue: resume Phase 2 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
 PRD.md, verify the last commit's tests still pass, then continue the plan. Do not restart completed work.
 ```
-
-**MVP tags:** `v0.0-scaffold` · `v0.1-auth` · `v0.2-listings` · `v0.3-discovery` · `v0.4-chat-offers` · `v0.5-orders-payments` · `v0.6-logistics-notifications` · `v0.7-trust` · `v0.8-admin` · `v0.9-risk-security` · `v0.9.0-rc`
-
-**Post-launch:** only after entry gate in `CURSOR-PROMPT-PHASE2-3.md` — `v1.0` … `v2.1`

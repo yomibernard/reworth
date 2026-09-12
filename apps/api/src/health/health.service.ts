@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { PrismaService } from '../prisma/prisma.service';
 
 export type ReadyCheck = {
   status: 'ok' | 'degraded';
@@ -12,7 +13,10 @@ export type ReadyCheck = {
 
 @Injectable()
 export class HealthService {
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    @Optional() private readonly prisma?: PrismaService,
+  ) {}
 
   liveness() {
     return { status: 'ok' as const };
@@ -28,7 +32,7 @@ export class HealthService {
     const redisUrl = this.config.get<string>('REDIS_URL');
 
     if (databaseUrl) {
-      checks.database = await this.pingDatabase(databaseUrl);
+      checks.database = await this.pingDatabase();
     }
 
     if (redisUrl) {
@@ -59,15 +63,12 @@ export class HealthService {
     ].join('\n');
   }
 
-  private async pingDatabase(url: string): Promise<'ok' | 'fail'> {
+  private async pingDatabase(): Promise<'ok' | 'fail'> {
+    if (!this.prisma) {
+      return 'fail';
+    }
     try {
-      // Lightweight TCP-ish check via URL presence + optional pg later.
-      // Graceful degrade: attempt a fetch-style validation of the URL shape.
-      const parsed = new URL(url);
-      if (!parsed.protocol.includes('postgres')) {
-        return 'fail';
-      }
-      // Without a Prisma client connection pool in Phase 0, treat configured URL as ok.
+      await this.prisma.$queryRaw`SELECT 1`;
       return 'ok';
     } catch {
       return 'fail';

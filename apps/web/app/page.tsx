@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@reworth/ui-web";
 
 export default function HomePage() {
@@ -38,13 +39,15 @@ export default function HomePage() {
             Lagos, your unused things are worth something.
           </p>
           <div className="rw-fade-up-delay mt-10">
-            <Button
-              variant="sell"
-              size="lg"
-              aria-label="Start selling on ReWorth"
-            >
-              SELL
-            </Button>
+            <Link href="/onboarding">
+              <Button
+                variant="sell"
+                size="lg"
+                aria-label="Start selling on ReWorth"
+              >
+                SELL
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

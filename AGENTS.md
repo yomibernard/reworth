@@ -16,11 +16,11 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **0 — Foundations** |
-| Prompt | Prompt 1 |
-| Target tag | `v0.0-scaffold` |
+| Phase | **1 — Accounts, Auth & Identity** |
+| Prompt | Prompt 2 |
+| Target tag | `v0.1-auth` |
 | Status | **Complete (pending PR merge)** |
-| Next | Phase 1 — Accounts, Auth & Identity (`v0.1-auth`) |
+| Next | Phase 2 — Listings, Media & AI (`v0.2-listings`) |
 
 ## 14-role team
 
@@ -123,13 +123,16 @@ Per **PRD §59**: functional · UX · responsive · security · analytics · err
 
 ## Known gaps
 
-**Everything after Phase 0** is not built yet:
+**Phase 1** API + web/admin/mobile auth UI are in place; run Prisma migrate + seed before live OTP.
 
-- Auth, listings, discovery, chat, payments, logistics, trust, admin depth, risk, UAT
+Still not built:
+
+- Admin TOTP enforcement (placeholder field only)
+- Listings, discovery, chat, payments, logistics, trust, admin depth, risk, UAT
 - All PRD §51–53 / post-launch features
-- Production credentials, pen test, store submissions
+- Production credentials, pen test, store submissions; httpOnly token cookies
 
-Track exact resume detail in [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md).
+Track exact resume detail in [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md). See [`docs/RBAC.md`](docs/RBAC.md).
 
 ## Key links
 

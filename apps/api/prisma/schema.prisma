@@ -1,5 +1,4 @@
-// Prisma schema for ReWorth API
-// Phase 1 will add User, Listing, and related models.
+// ReWorth API — Phase 1 Auth & Identity schema
 
 generator client {
   provider = "prisma-client-js"
@@ -8,4 +7,208 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum VerificationLevel {
+  L1_PHONE
+  L2_EMAIL
+  L3_IDENTITY
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum IdentityMethod {
+  NIN
+  BVN
+  GOV_ID
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+  UNKNOWN
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  OPERATIONS
+  CUSTOMER_SUPPORT
+  RISK_FRAUD
+  FINANCE
+  MARKETING
+  CONTENT_MODERATOR
+}
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  phone           String?    @unique
+  phoneVerifiedAt DateTime?
+  email           String?    @unique
+  emailVerifiedAt DateTime?
+  passwordHash    String?
+  status          UserStatus @default(ACTIVE)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  profile       Profile?
+  addresses     Address[]
+  verifications Verification[]
+  devices       Device[]
+  refreshTokens RefreshToken[]
+  roles         UserRole[]
+  auditLogs     AuditLog[]     @relation("AuditActor")
+
+  @@map("users")
+}
+
+model Profile {
+  id                 String  @id @default(uuid()) @db.Uuid
+  userId             String  @unique @db.Uuid
+  displayName        String
+  fullName           String?
+  avatarUrl          String?
+  bio                String?
+  birthYear          Int?
+  preferredCommunity String  @default("")
+  language           String  @default("en-NG")
+  currency           String  @default("NGN")
+  showFullName       Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Address {
+  id        String  @id @default(uuid()) @db.Uuid
+  userId    String  @db.Uuid
+  label     String
+  line1     String
+  line2     String?
+  city      String
+  community String
+  country   String  @default("NG")
+  geoLat    Float?
+  geoLng    Float?
+  isDefault Boolean @default(false)
+  /// Always treat as private PII — never expose in public APIs.
+  private   Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+model Verification {
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String             @db.Uuid
+  level           VerificationLevel
+  status          VerificationStatus @default(PENDING)
+  method          IdentityMethod?
+  providerRef     String?
+  /// Hash only — never store raw NIN/BVN/gov ID.
+  identifierHash  String?
+  rejectionReason String?
+  verifiedAt      DateTime?
+  createdAt       DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, level])
+  @@map("verifications")
+}
+
+model Device {
+  id         String         @id @default(uuid()) @db.Uuid
+  userId     String         @db.Uuid
+  name       String
+  platform   DevicePlatform @default(UNKNOWN)
+  lastSeenAt DateTime       @default(now())
+  createdAt  DateTime       @default(now())
+  revokedAt  DateTime?
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@map("devices")
+}
+
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  deviceId     String?   @db.Uuid
+  familyId     String    @db.Uuid
+  tokenHash    String
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?   @db.Uuid
+  createdAt    DateTime  @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+model OtpChallenge {
+  id         String    @id @default(uuid()) @db.Uuid
+  phone      String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([phone, createdAt])
+  @@map("otp_challenges")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @db.Uuid
+  actorRole   String?
+  action      String
+  entityType  String
+  entityId    String?
+  beforeJson  Json?
+  afterJson   Json?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model UserRole {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  role      AdminRole
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([userId])
+  @@map("user_roles")
 }
