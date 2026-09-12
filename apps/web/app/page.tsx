@@ -39,7 +39,7 @@ export default function HomePage() {
             Lagos, your unused things are worth something.
           </p>
           <div className="rw-fade-up-delay mt-10">
-            <Link href="/onboarding">
+            <Link href="/sell">
               <Button
                 variant="sell"
                 size="lg"

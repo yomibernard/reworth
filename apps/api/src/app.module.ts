@@ -8,6 +8,8 @@ import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { IdentityModule } from './identity/identity.module';
+import { ListingsModule } from './listings/listings.module';
+import { MediaModule } from './media/media.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 
@@ -36,6 +38,8 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     IdentityModule,
     AdminModule,
+    MediaModule,
+    ListingsModule,
   ],
   providers: [
     {

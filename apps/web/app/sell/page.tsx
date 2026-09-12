@@ -1,0 +1,951 @@
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { formatNgn, nairaToKobo, koboToNaira } from "@reworth/shared";
+import { Button, Chip, Input, Skeleton, Toast } from "@reworth/ui-web";
+import { ApiError } from "../../lib/api";
+import { getAccessToken } from "../../lib/auth";
+import { COMMUNITIES, type Community } from "../../lib/communities";
+import {
+  assistListing,
+  attachListingImages,
+  CONDITIONS,
+  CONDITION_LABELS,
+  createListing,
+  getListing,
+  getPriceIntelligence,
+  patchListing,
+  publishListing,
+  uploadListingPhoto,
+} from "../../lib/listings";
+import type {
+  PriceIntelligence,
+  PublicListing,
+  SellingModeValue,
+} from "../../lib/types";
+
+type SellStep =
+  | "photos"
+  | "draft"
+  | "mode"
+  | "location"
+  | "fulfilment"
+  | "publish"
+  | "done";
+
+const STEPS: SellStep[] = [
+  "photos",
+  "draft",
+  "mode",
+  "location",
+  "fulfilment",
+  "publish",
+];
+
+const STEP_LABELS: Record<SellStep, string> = {
+  photos: "Photos",
+  draft: "AI draft",
+  mode: "Mode",
+  location: "Location",
+  fulfilment: "Fulfilment",
+  publish: "Publish",
+  done: "Live",
+};
+
+type LocalPhoto = {
+  id: string;
+  file?: File;
+  key?: string;
+  previewUrl: string;
+};
+
+export default function SellPage() {
+  const router = useRouter();
+  const fileInputId = useId();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const [ready, setReady] = useState(false);
+  const [step, setStep] = useState<SellStep>("photos");
+  const [listingId, setListingId] = useState<string | null>(null);
+  const [listing, setListing] = useState<PublicListing | null>(null);
+  const [photos, setPhotos] = useState<LocalPhoto[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [assistLoading, setAssistLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [categoryName, setCategoryName] = useState("");
+  const [condition, setCondition] = useState<string>("GOOD");
+  const [brand, setBrand] = useState("");
+  const [priceNaira, setPriceNaira] = useState("");
+  const [priceIntel, setPriceIntel] = useState<PriceIntelligence | null>(null);
+
+  const [sellingMode, setSellingMode] = useState<SellingModeValue>("SELL");
+  const [negotiable, setNegotiable] = useState(true);
+  const [community, setCommunity] = useState<Community | "">("");
+  const [fulfilmentPickup, setFulfilmentPickup] = useState(true);
+  const [fulfilmentMeet, setFulfilmentMeet] = useState(true);
+  const [fulfilmentDelivery, setFulfilmentDelivery] = useState(false);
+
+  const [published, setPublished] = useState<PublicListing | null>(null);
+
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token) {
+      router.replace("/onboarding");
+      return;
+    }
+    setReady(true);
+  }, [router]);
+
+  const tokenOrThrow = useCallback(() => {
+    const token = getAccessToken();
+    if (!token) {
+      router.replace("/onboarding");
+      throw new Error("Not signed in");
+    }
+    return token;
+  }, [router]);
+
+  const ensureDraft = useCallback(async () => {
+    if (listingId) return listingId;
+    const token = tokenOrThrow();
+    const created = await createListing(token, {
+      title: "",
+      description: "",
+      sellingMode: "SELL",
+      negotiable: true,
+    });
+    setListingId(created.id);
+    setListing(created);
+    return created.id;
+  }, [listingId, tokenOrThrow]);
+
+  function syncFromListing(l: PublicListing) {
+    setListing(l);
+    setTitle(l.title || "");
+    setDescription(l.description || "");
+    setCategoryName(l.category?.name ?? "");
+    setCondition(l.condition || "GOOD");
+    setBrand(l.brand || "");
+    setPriceNaira(
+      l.priceKobo > 0 ? String(Math.round(koboToNaira(l.priceKobo))) : "",
+    );
+    setSellingMode((l.sellingMode as SellingModeValue) || "SELL");
+    setNegotiable(l.negotiable);
+    if (l.community && (COMMUNITIES as readonly string[]).includes(l.community)) {
+      setCommunity(l.community as Community);
+    }
+    setFulfilmentPickup(l.fulfilmentPickup);
+    setFulfilmentMeet(l.fulfilmentMeet);
+    setFulfilmentDelivery(l.fulfilmentDelivery);
+  }
+
+  function onPickFiles(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length) return;
+    setError(null);
+    setPhotos((prev) => {
+      const room = 6 - prev.length;
+      if (room <= 0) {
+        setToast("Maximum 6 photos");
+        return prev;
+      }
+      const next = files.slice(0, room).map((file) => ({
+        id: `${file.name}-${file.size}-${Math.random().toString(36).slice(2)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
+      return [...prev, ...next];
+    });
+  }
+
+  function removePhoto(id: string) {
+    setPhotos((prev) => {
+      const target = prev.find((p) => p.id === id);
+      if (target?.previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((p) => p.id !== id);
+    });
+  }
+
+  async function continueFromPhotos() {
+    setError(null);
+    if (photos.length < 2) {
+      setError("Add at least 2 photos (up to 6).");
+      return;
+    }
+    setBusy(true);
+    try {
+      const token = tokenOrThrow();
+      const id = await ensureDraft();
+      const uploaded: { key: string; sortOrder: number }[] = [];
+      const nextPhotos: LocalPhoto[] = [];
+
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
+        if (photo.key) {
+          uploaded.push({ key: photo.key, sortOrder: i });
+          nextPhotos.push(photo);
+          continue;
+        }
+        if (!photo.file) continue;
+        const result = await uploadListingPhoto(token, id, photo.file);
+        uploaded.push({ key: result.key, sortOrder: i });
+        nextPhotos.push({ ...photo, key: result.key });
+      }
+
+      setPhotos(nextPhotos);
+      await attachListingImages(id, token, uploaded);
+
+      setAssistLoading(true);
+      setStep("draft");
+      const keys = uploaded.map((u) => u.key);
+      const assist = await assistListing(id, token, keys);
+      const refreshed = await getListing(id, token);
+      syncFromListing(refreshed);
+      if (assist.draft) {
+        setTitle(assist.draft.title || refreshed.title);
+        setDescription(assist.draft.description || refreshed.description);
+        setBrand(assist.draft.brand || refreshed.brand || "");
+        setCondition(assist.draft.suggestedCondition || refreshed.condition);
+        setCategoryName(
+          assist.draft.suggestedCategory || refreshed.category?.name || "",
+        );
+        setPriceNaira(String(assist.draft.suggestedPriceNaira));
+      }
+      try {
+        const intel = await getPriceIntelligence(id);
+        setPriceIntel(intel);
+      } catch {
+        setPriceIntel(null);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not upload photos");
+      setStep("photos");
+    } finally {
+      setAssistLoading(false);
+      setBusy(false);
+    }
+  }
+
+  async function saveDraftFields() {
+    if (!listingId) return;
+    const token = tokenOrThrow();
+    const naira = Number(priceNaira.replace(/,/g, ""));
+    const body = {
+      title: title.trim(),
+      description: description.trim(),
+      brand: brand.trim() || undefined,
+      condition,
+      priceKobo: Number.isFinite(naira) && naira >= 0 ? nairaToKobo(naira) : 0,
+      negotiable,
+      sellingMode,
+      community: community || undefined,
+      fulfilmentPickup,
+      fulfilmentMeet,
+      fulfilmentDelivery,
+    };
+    const updated = await patchListing(listingId, token, body);
+    syncFromListing(updated);
+    return updated;
+  }
+
+  async function continueFromDraft() {
+    setError(null);
+    if (!title.trim()) {
+      setError("Add a title before continuing.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await saveDraftFields();
+      setStep("mode");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not save draft");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function continueFromMode() {
+    setError(null);
+    setBusy(true);
+    try {
+      await saveDraftFields();
+      setStep("location");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not save mode");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function continueFromLocation() {
+    setError(null);
+    if (!community) {
+      setError("Choose a community.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await saveDraftFields();
+      setStep("fulfilment");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not save location");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function continueFromFulfilment() {
+    setError(null);
+    if (!fulfilmentPickup && !fulfilmentMeet && !fulfilmentDelivery) {
+      setError("Pick at least one fulfilment option.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await saveDraftFields();
+      setStep("publish");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Could not save fulfilment",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doPublish() {
+    setError(null);
+    if (!listingId) return;
+    setBusy(true);
+    try {
+      await saveDraftFields();
+      const token = tokenOrThrow();
+      const live = await publishListing(listingId, token);
+      setPublished(live);
+      setStep("done");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Publish failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const stepIndex = STEPS.indexOf(step === "done" ? "publish" : step);
+
+  if (!ready) {
+    return (
+      <main className="flex min-h-[100dvh] items-center justify-center bg-[var(--rw-bg)]">
+        <Skeleton className="h-10 w-40" label="Checking session" />
+      </main>
+    );
+  }
+
+  return (
+    <main className="relative min-h-[100dvh] overflow-hidden bg-[var(--rw-bg)] text-[var(--rw-ink)]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 50% at 85% 0%, rgba(14,159,110,0.14), transparent 55%), radial-gradient(ellipse 40% 35% at 5% 95%, rgba(201,162,39,0.1), transparent 50%), linear-gradient(165deg, #FAF9F7 0%, #F3F0EA 50%, #E8F5EF 100%)",
+        }}
+      />
+
+      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-xl flex-col px-5 py-8 sm:px-8">
+        <header className="mb-6 flex items-center justify-between gap-4">
+          <Link
+            href="/"
+            className="text-xl font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+          >
+            ReWorth
+          </Link>
+          {step !== "done" ? (
+            <p className="text-sm text-[var(--rw-ink-muted)]">
+              {STEP_LABELS[step]} · {Math.max(stepIndex, 0) + 1}/{STEPS.length}
+            </p>
+          ) : null}
+        </header>
+
+        {step !== "done" ? (
+          <div
+            className="mb-8 flex gap-1.5"
+            role="progressbar"
+            aria-valuenow={stepIndex + 1}
+            aria-valuemin={1}
+            aria-valuemax={STEPS.length}
+            aria-label="Sell progress"
+          >
+            {STEPS.map((s, i) => (
+              <span
+                key={s}
+                className={[
+                  "h-1 flex-1 rounded-full transition-colors",
+                  i <= stepIndex
+                    ? "bg-[var(--rw-accent)]"
+                    : "bg-[var(--rw-border)]",
+                ].join(" ")}
+              />
+            ))}
+          </div>
+        ) : null}
+
+        <div className="rw-fade-up flex flex-1 flex-col">
+          {step === "photos" ? (
+            <section aria-labelledby="sell-photos-title">
+              <h1
+                id="sell-photos-title"
+                className="text-3xl font-semibold tracking-tight sm:text-4xl"
+              >
+                Show the item
+              </h1>
+              <p className="mt-3 text-[var(--rw-ink-muted)]">
+                2–6 clear photos. AI drafts the rest in about a minute.
+              </p>
+
+              <div className="mt-8 grid grid-cols-3 gap-3 sm:grid-cols-4">
+                {photos.map((p) => (
+                  <div
+                    key={p.id}
+                    className="group relative aspect-square overflow-hidden rounded-[var(--rw-radius)] bg-[var(--rw-bg-elevated)]"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.previewUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(p.id)}
+                      className="absolute right-1.5 top-1.5 rounded-full bg-black/55 px-2 py-0.5 text-xs text-white"
+                      aria-label="Remove photo"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {photos.length < 6 ? (
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="flex aspect-square flex-col items-center justify-center gap-1 rounded-[var(--rw-radius)] border border-dashed border-[var(--rw-border)] bg-[var(--rw-bg-elevated)]/70 text-sm font-medium text-[var(--rw-ink-muted)] transition hover:border-[var(--rw-accent)] hover:text-[var(--rw-accent)]"
+                    aria-label="Add photos"
+                  >
+                    <span className="text-2xl leading-none" aria-hidden>
+                      +
+                    </span>
+                    Add
+                  </button>
+                ) : null}
+              </div>
+
+              <input
+                ref={fileRef}
+                id={fileInputId}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                multiple
+                className="sr-only"
+                onChange={onPickFiles}
+              />
+
+              {photos.length === 0 ? (
+                <p className="mt-6 text-sm text-[var(--rw-ink-muted)]">
+                  No photos yet — add at least two to continue.
+                </p>
+              ) : null}
+
+              {error ? (
+                <p className="mt-4 text-sm text-[var(--rw-error)]" role="alert">
+                  {error}
+                </p>
+              ) : null}
+
+              <div className="mt-10">
+                <Button
+                  variant="sell"
+                  size="lg"
+                  className="w-full"
+                  disabled={busy || photos.length < 2}
+                  onClick={() => void continueFromPhotos()}
+                >
+                  {busy ? "Uploading…" : "Continue"}
+                </Button>
+              </div>
+            </section>
+          ) : null}
+
+          {step === "draft" ? (
+            <section aria-labelledby="sell-draft-title">
+              <h1
+                id="sell-draft-title"
+                className="text-3xl font-semibold tracking-tight sm:text-4xl"
+              >
+                AI draft
+              </h1>
+              <p className="mt-3 text-[var(--rw-ink-muted)]">
+                Review and edit — you stay in control.
+              </p>
+
+              {assistLoading ? (
+                <div className="mt-8 space-y-4" aria-busy="true">
+                  <p className="text-sm font-medium text-[var(--rw-accent)]">
+                    Reading your photos…
+                  </p>
+                  <Skeleton className="h-10 w-full" label="Loading title" />
+                  <Skeleton className="h-28 w-full" label="Loading description" />
+                  <Skeleton className="h-10 w-2/3" label="Loading price" />
+                  <Skeleton className="h-24 w-full" label="Loading price intel" />
+                </div>
+              ) : (
+                <div className="mt-8 flex flex-col gap-5">
+                  <Input
+                    label="Title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    maxLength={200}
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor="sell-desc"
+                      className="text-sm font-medium"
+                    >
+                      Description
+                    </label>
+                    <textarea
+                      id="sell-desc"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={5}
+                      className="w-full rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-2.5 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+                    />
+                  </div>
+                  <Input
+                    label="Category"
+                    value={categoryName}
+                    onChange={(e) => setCategoryName(e.target.value)}
+                    hint="Suggested by AI — edit freely"
+                  />
+                  <Input
+                    label="Brand"
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                  />
+                  <div>
+                    <p className="mb-2 text-sm font-medium">Condition</p>
+                    <div className="flex flex-wrap gap-2">
+                      {CONDITIONS.map((c) => (
+                        <Chip
+                          key={c}
+                          selected={condition === c}
+                          onClick={() => setCondition(c)}
+                        >
+                          {CONDITION_LABELS[c] ?? c}
+                        </Chip>
+                      ))}
+                    </div>
+                  </div>
+                  <Input
+                    label="Price (₦)"
+                    inputMode="numeric"
+                    value={priceNaira}
+                    onChange={(e) =>
+                      setPriceNaira(e.target.value.replace(/[^\d]/g, ""))
+                    }
+                    hint={
+                      priceNaira
+                        ? formatNgn({
+                            amountKobo: nairaToKobo(Number(priceNaira) || 0),
+                          })
+                        : undefined
+                    }
+                  />
+
+                  {priceIntel ? (
+                    <aside
+                      className="rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)]/80 p-4"
+                      aria-label="Price intelligence"
+                    >
+                      <p className="text-sm font-semibold text-[var(--rw-ink)]">
+                        Lagos price sense
+                      </p>
+                      <p className="mt-1 text-sm text-[var(--rw-ink-muted)]">
+                        Suggested range{" "}
+                        {formatNgn({
+                          amountKobo: priceIntel.estimatedLowKobo,
+                        })}{" "}
+                        –{" "}
+                        {formatNgn({
+                          amountKobo: priceIntel.estimatedHighKobo,
+                        })}
+                      </p>
+                      <p className="mt-2 text-base font-semibold text-[var(--rw-accent)]">
+                        Recommended{" "}
+                        {formatNgn({
+                          amountKobo: priceIntel.recommendedKobo,
+                        })}
+                      </p>
+                    </aside>
+                  ) : null}
+                </div>
+              )}
+
+              {error ? (
+                <p className="mt-4 text-sm text-[var(--rw-error)]" role="alert">
+                  {error}
+                </p>
+              ) : null}
+
+              {!assistLoading ? (
+                <div className="mt-10 flex gap-3">
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={() => setStep("photos")}
+                    disabled={busy}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="flex-1"
+                    disabled={busy}
+                    onClick={() => void continueFromDraft()}
+                  >
+                    {busy ? "Saving…" : "Continue"}
+                  </Button>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          {step === "mode" ? (
+            <section aria-labelledby="sell-mode-title">
+              <h1
+                id="sell-mode-title"
+                className="text-3xl font-semibold tracking-tight"
+              >
+                How are you listing?
+              </h1>
+              <p className="mt-3 text-[var(--rw-ink-muted)]">
+                Sell, swap, or give away — pick one.
+              </p>
+              <div className="mt-8 flex flex-col gap-3">
+                {(
+                  [
+                    ["SELL", "Sell"],
+                    ["SWAP", "Swap"],
+                    ["GIVE_AWAY", "Give away"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setSellingMode(value)}
+                    className={[
+                      "rounded-[var(--rw-radius-lg)] border px-4 py-4 text-left transition",
+                      sellingMode === value
+                        ? "border-[var(--rw-accent)] bg-[var(--rw-accent-muted)]"
+                        : "border-[var(--rw-border)] bg-[var(--rw-bg-elevated)]",
+                    ].join(" ")}
+                    aria-pressed={sellingMode === value}
+                  >
+                    <span className="font-semibold">{label}</span>
+                  </button>
+                ))}
+              </div>
+              <label className="mt-8 flex items-center gap-3 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={negotiable}
+                  onChange={(e) => setNegotiable(e.target.checked)}
+                  className="h-4 w-4 accent-[var(--rw-accent)]"
+                />
+                Price is negotiable
+              </label>
+              {error ? (
+                <p className="mt-4 text-sm text-[var(--rw-error)]" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <div className="mt-10 flex gap-3">
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => setStep("draft")}
+                  disabled={busy}
+                >
+                  Back
+                </Button>
+                <Button
+                  variant="primary"
+                  className="flex-1"
+                  disabled={busy}
+                  onClick={() => void continueFromMode()}
+                >
+                  Continue
+                </Button>
+              </div>
+            </section>
+          ) : null}
+
+          {step === "location" ? (
+            <section aria-labelledby="sell-loc-title">
+              <h1
+                id="sell-loc-title"
+                className="text-3xl font-semibold tracking-tight"
+              >
+                Where is it?
+              </h1>
+              <p className="mt-3 text-[var(--rw-ink-muted)]">
+                Buyers see your community — never your street address.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-2">
+                {COMMUNITIES.map((c) => (
+                  <Chip
+                    key={c}
+                    selected={community === c}
+                    onClick={() => setCommunity(c)}
+                  >
+                    {c}
+                  </Chip>
+                ))}
+              </div>
+              {error ? (
+                <p className="mt-4 text-sm text-[var(--rw-error)]" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <div className="mt-10 flex gap-3">
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => setStep("mode")}
+                  disabled={busy}
+                >
+                  Back
+                </Button>
+                <Button
+                  variant="primary"
+                  className="flex-1"
+                  disabled={busy}
+                  onClick={() => void continueFromLocation()}
+                >
+                  Continue
+                </Button>
+              </div>
+            </section>
+          ) : null}
+
+          {step === "fulfilment" ? (
+            <section aria-labelledby="sell-ful-title">
+              <h1
+                id="sell-ful-title"
+                className="text-3xl font-semibold tracking-tight"
+              >
+                How can buyers get it?
+              </h1>
+              <p className="mt-3 text-[var(--rw-ink-muted)]">
+                Delivery quotes appear at checkout when offered.
+              </p>
+              <div className="mt-8 flex flex-col gap-4">
+                <label className="flex items-start gap-3 rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={fulfilmentPickup}
+                    onChange={(e) => setFulfilmentPickup(e.target.checked)}
+                    className="mt-1 h-4 w-4 accent-[var(--rw-accent)]"
+                  />
+                  <span>
+                    <span className="font-semibold">Buyer pickup</span>
+                    <span className="mt-0.5 block text-sm text-[var(--rw-ink-muted)]">
+                      Collect from your area
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={fulfilmentMeet}
+                    onChange={(e) => setFulfilmentMeet(e.target.checked)}
+                    className="mt-1 h-4 w-4 accent-[var(--rw-accent)]"
+                  />
+                  <span>
+                    <span className="font-semibold">Meet point</span>
+                    <span className="mt-0.5 block text-sm text-[var(--rw-ink-muted)]">
+                      Agree a safe public spot
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={fulfilmentDelivery}
+                    onChange={(e) => setFulfilmentDelivery(e.target.checked)}
+                    className="mt-1 h-4 w-4 accent-[var(--rw-accent)]"
+                  />
+                  <span>
+                    <span className="font-semibold">Platform delivery</span>
+                    <span className="mt-0.5 block text-sm text-[var(--rw-ink-muted)]">
+                      Quote shown at checkout
+                    </span>
+                  </span>
+                </label>
+              </div>
+              {error ? (
+                <p className="mt-4 text-sm text-[var(--rw-error)]" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <div className="mt-10 flex gap-3">
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => setStep("location")}
+                  disabled={busy}
+                >
+                  Back
+                </Button>
+                <Button
+                  variant="primary"
+                  className="flex-1"
+                  disabled={busy}
+                  onClick={() => void continueFromFulfilment()}
+                >
+                  Continue
+                </Button>
+              </div>
+            </section>
+          ) : null}
+
+          {step === "publish" ? (
+            <section aria-labelledby="sell-pub-title">
+              <h1
+                id="sell-pub-title"
+                className="text-3xl font-semibold tracking-tight"
+              >
+                Ready to go live?
+              </h1>
+              <p className="mt-3 text-[var(--rw-ink-muted)]">
+                {title || listing?.title || "Your listing"} ·{" "}
+                {community || "Lagos"}
+              </p>
+              <div className="mt-8 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)]/90 p-5">
+                <p className="text-2xl font-semibold">
+                  {sellingMode === "GIVE_AWAY"
+                    ? "Give away"
+                    : sellingMode === "SWAP"
+                      ? "Swap"
+                      : formatNgn({
+                          amountKobo: nairaToKobo(Number(priceNaira) || 0),
+                        })}
+                </p>
+                {negotiable && sellingMode === "SELL" ? (
+                  <p className="mt-1 text-sm text-[var(--rw-ink-muted)]">
+                    Negotiable
+                  </p>
+                ) : null}
+                <p className="mt-4 text-sm text-[var(--rw-ink-muted)] line-clamp-3">
+                  {description}
+                </p>
+              </div>
+              {error ? (
+                <p className="mt-4 text-sm text-[var(--rw-error)]" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <div className="mt-10 flex gap-3">
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => setStep("fulfilment")}
+                  disabled={busy}
+                >
+                  Back
+                </Button>
+                <Button
+                  variant="sell"
+                  className="flex-1"
+                  disabled={busy}
+                  onClick={() => void doPublish()}
+                >
+                  {busy ? "Publishing…" : "Publish"}
+                </Button>
+              </div>
+            </section>
+          ) : null}
+
+          {step === "done" && published ? (
+            <section aria-labelledby="sell-done-title" className="text-center">
+              <p className="text-sm font-semibold uppercase tracking-wider text-[var(--rw-accent)]">
+                {published.status === "UNDER_REVIEW" ? "In review" : "Live"}
+              </p>
+              <h1
+                id="sell-done-title"
+                className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl"
+              >
+                {published.status === "UNDER_REVIEW"
+                  ? "Submitted for review"
+                  : "Your listing is live"}
+              </h1>
+              <p className="mx-auto mt-3 max-w-md text-[var(--rw-ink-muted)]">
+                {published.title || "Listing"} is ready for Lagos buyers.
+              </p>
+              <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Link href={`/listings/${published.id}`}>
+                  <Button variant="sell" size="lg" className="w-full sm:w-auto">
+                    View listing
+                  </Button>
+                </Link>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    setStep("photos");
+                    setListingId(null);
+                    setListing(null);
+                    setPublished(null);
+                    setPhotos([]);
+                    setTitle("");
+                    setDescription("");
+                    setError(null);
+                  }}
+                >
+                  List another
+                </Button>
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </div>
+
+      {toast ? (
+        <div className="fixed bottom-6 left-1/2 z-50 w-[min(100%-2rem,24rem)] -translate-x-1/2">
+          <Toast
+            message={toast}
+            tone="info"
+            onDismiss={() => setToast(null)}
+          />
+        </div>
+      ) : null}
+    </main>
+  );
+}

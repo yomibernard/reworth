@@ -1,4 +1,4 @@
-// ReWorth API — Phase 1 Auth & Identity schema
+// ReWorth API — Phase 1 Auth & Identity + Phase 2 Listings & Media
 
 generator client {
   provider = "prisma-client-js"
@@ -50,6 +50,52 @@ enum AdminRole {
   CONTENT_MODERATOR
 }
 
+enum ListingStatus {
+  DRAFT
+  UNDER_REVIEW
+  LIVE
+  RESERVED
+  SOLD
+  EXPIRED
+  REMOVED
+  REJECTED
+}
+
+enum SellingMode {
+  SELL
+  SWAP
+  SWAP_CASH
+  GIVE_AWAY
+}
+
+enum ItemCondition {
+  NEW
+  LIKE_NEW
+  VERY_GOOD
+  GOOD
+  FAIR
+  FOR_PARTS
+}
+
+enum ListingEventType {
+  VIEWED
+  SAVED
+  PRICE_CHANGED
+  STATUS_CHANGED
+}
+
+enum ListingImageStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
 model User {
   id              String     @id @default(uuid()) @db.Uuid
   phone           String?    @unique
@@ -69,6 +115,10 @@ model User {
   refreshTokens RefreshToken[]
   roles         UserRole[]
   auditLogs     AuditLog[]     @relation("AuditActor")
+  listings      Listing[]
+  listingEvents ListingEvent[] @relation("ListingEventActor")
+  riskEvents    RiskEvent[]
+  reports       Report[]       @relation("ReportReporter")
 
   @@map("users")
 }
@@ -211,4 +261,149 @@ model UserRole {
   @@unique([userId, role])
   @@index([userId])
   @@map("user_roles")
+}
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  name      String
+  parentId  String?  @db.Uuid
+  sortOrder Int      @default(0)
+  iconUrl   String?
+  createdAt DateTime @default(now())
+
+  parent       Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Category[] @relation("CategoryTree")
+  listings     Listing[]  @relation("ListingCategory")
+  subListings  Listing[]  @relation("ListingSubcategory")
+
+  @@index([parentId])
+  @@index([sortOrder])
+  @@map("categories")
+}
+
+model Listing {
+  id                  String        @id @default(uuid()) @db.Uuid
+  sellerId            String        @db.Uuid
+  title               String        @default("")
+  description         String        @default("")
+  categoryId          String?       @db.Uuid
+  subcategoryId       String?       @db.Uuid
+  brand               String?
+  model               String?
+  condition           ItemCondition @default(GOOD)
+  ageText             String?
+  originalPriceKobo   Int?
+  priceKobo           Int           @default(0)
+  negotiable          Boolean       @default(true)
+  sellingMode         SellingMode   @default(SELL)
+  status              ListingStatus @default(DRAFT)
+  community           String        @default("")
+  geoLat              Float?
+  geoLng              Float?
+  /// Private meetup / pickup address — NEVER expose in public DTOs.
+  addressPrivate      String?
+  fulfilmentPickup    Boolean       @default(true)
+  fulfilmentMeet      Boolean       @default(true)
+  fulfilmentDelivery  Boolean       @default(false)
+  aiUsed              Boolean       @default(false)
+  aiEditedFields      String[]      @default([])
+  expiresAt           DateTime?
+  publishedAt         DateTime?
+  views               Int           @default(0)
+  vehicle             Json?
+  riskFlags           String[]      @default([])
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  seller      User           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  category    Category?      @relation("ListingCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  subcategory Category?      @relation("ListingSubcategory", fields: [subcategoryId], references: [id], onDelete: SetNull)
+  images      ListingImage[]
+  events      ListingEvent[]
+  riskEvents  RiskEvent[]
+  reports     Report[]
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([categoryId])
+  @@index([community])
+  @@index([publishedAt])
+  @@index([expiresAt])
+  @@map("listings")
+}
+
+model ListingImage {
+  id            String             @id @default(uuid()) @db.Uuid
+  listingId     String             @db.Uuid
+  sortOrder     Int                @default(0)
+  originalKey   String
+  variants      Json               @default("{}")
+  width         Int?
+  height        Int?
+  mime          String?
+  sizeBytes     Int?
+  dHash         String?
+  exifStripped  Boolean            @default(false)
+  status        ListingImageStatus @default(PENDING)
+  createdAt     DateTime           @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, sortOrder])
+  @@index([dHash])
+  @@index([originalKey])
+  @@map("listing_images")
+}
+
+model ListingEvent {
+  id          String           @id @default(uuid()) @db.Uuid
+  listingId   String           @db.Uuid
+  type        ListingEventType
+  actorUserId String?          @db.Uuid
+  payload     Json?
+  createdAt   DateTime         @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  actor   User?   @relation("ListingEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([listingId, createdAt])
+  @@index([type])
+  @@map("listing_events")
+}
+
+model RiskEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @db.Uuid
+  listingId String?  @db.Uuid
+  kind      String
+  score     Int?
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  listing Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([listingId])
+  @@index([userId])
+  @@index([kind])
+  @@map("risk_events")
+}
+
+model Report {
+  id         String       @id @default(uuid()) @db.Uuid
+  listingId  String       @db.Uuid
+  reporterId String       @db.Uuid
+  reason     String
+  detail     String?
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now())
+
+  listing  Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reporter User    @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([reporterId])
+  @@index([status])
+  @@map("reports")
 }

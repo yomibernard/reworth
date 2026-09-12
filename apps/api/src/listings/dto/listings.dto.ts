@@ -1,0 +1,257 @@
+import {
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsObject,
+  IsString,
+  IsUUID,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { ItemCondition, SellingMode } from '@prisma/client';
+
+export class CreateListingDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10_000)
+  description?: string;
+
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  subcategoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @IsOptional()
+  @IsString()
+  model?: string;
+
+  @IsOptional()
+  @IsEnum(ItemCondition)
+  condition?: ItemCondition;
+
+  @IsOptional()
+  @IsString()
+  ageText?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  originalPriceKobo?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  priceKobo?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  negotiable?: boolean;
+
+  @IsOptional()
+  @IsEnum(SellingMode)
+  sellingMode?: SellingMode;
+
+  @IsOptional()
+  @IsString()
+  community?: string;
+
+  @IsOptional()
+  @IsNumber()
+  geoLat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  geoLng?: number;
+
+  @IsOptional()
+  @IsString()
+  addressPrivate?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  fulfilmentPickup?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  fulfilmentMeet?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  fulfilmentDelivery?: boolean;
+
+  @IsOptional()
+  @IsObject()
+  vehicle?: Record<string, unknown>;
+}
+
+export class UpdateListingDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10_000)
+  description?: string;
+
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  subcategoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @IsOptional()
+  @IsString()
+  model?: string;
+
+  @IsOptional()
+  @IsEnum(ItemCondition)
+  condition?: ItemCondition;
+
+  @IsOptional()
+  @IsString()
+  ageText?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  originalPriceKobo?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  priceKobo?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  negotiable?: boolean;
+
+  @IsOptional()
+  @IsEnum(SellingMode)
+  sellingMode?: SellingMode;
+
+  @IsOptional()
+  @IsString()
+  community?: string;
+
+  @IsOptional()
+  @IsNumber()
+  geoLat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  geoLng?: number;
+
+  @IsOptional()
+  @IsString()
+  addressPrivate?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  fulfilmentPickup?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  fulfilmentMeet?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  fulfilmentDelivery?: boolean;
+
+  @IsOptional()
+  @IsObject()
+  vehicle?: Record<string, unknown>;
+}
+
+export class AssistListingDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  imageKeys?: string[];
+}
+
+export class AttachImagesDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AttachImageItemDto)
+  images!: AttachImageItemDto[];
+}
+
+export class AttachImageItemDto {
+  @IsString()
+  key!: string;
+
+  @IsInt()
+  @Min(0)
+  sortOrder!: number;
+}
+
+export class ReportListingDto {
+  @IsString()
+  @MaxLength(200)
+  reason!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  detail?: string;
+}
+
+export class BrowseListingsQueryDto {
+  @IsOptional()
+  @IsString()
+  community?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  radiusKm?: number;
+
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  lat?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  lng?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
+}

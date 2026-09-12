@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 1 (Accounts, Auth & Identity)** — target tag `v0.1-auth`.
+**Current phase: 2 (Listings, Media & AI)** — target tag `v0.2-listings`.
 
 Do **not** implement features from later phases in the same PR.
 

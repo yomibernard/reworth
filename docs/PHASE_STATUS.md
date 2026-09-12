@@ -2,59 +2,51 @@
 
 | Field | Value |
 | --- | --- |
-| Current phase | **1 — Accounts, Auth & Identity** |
-| Prompt | Prompt 2 (`CURSOR-PROMPT.md`) |
-| Target tag | `v0.1-auth` |
-| Branch | `phase-1-auth` |
-| Status | **Complete (pending PR merge)** — code + tests green; migrate/seed needs Postgres |
+| Current phase | **2 — Listings, Media & AI-Assisted Listing** |
+| Prompt | Prompt 3 (`CURSOR-PROMPT.md`) |
+| Target tag | `v0.2-listings` |
+| Branch | `phase-2-listings` |
+| Status | **Complete (pending PR merge)** |
 | Last updated | 2026-09-12 |
 
-## What exists (Phase 1)
+## What exists (Phase 2)
 
 ### API
-- Prisma models: User, Profile, Address, Verification, Device, RefreshToken, OtpChallenge, AuditLog, UserRole
-- Nest modules: `prisma`, `auth`, `users`, `identity`, `admin`, `audit` + JWT/RBAC guards
-- Endpoints under `/api/v1`: OTP, login, refresh/logout, OAuth mock, `/me/*`, `/verifications`, `/admin/*`
-- Console SMS mock via `SMS_PROVIDER`; identity mock via `IDENTITY_PROVIDER=mock`
-- Seed: Super Admin from `ADMIN_SUPER_EMAIL` / `ADMIN_SUPER_PASSWORD`
-- RBAC matrix: [`docs/RBAC.md`](RBAC.md)
-- Unit tests: **19 passed** (OTP limits, refresh reuse, OAuth mock, RBAC Support≠Finance, L3 no raw ID, profile privacy, health)
+- Schema: Category, Listing, ListingImage, ListingEvent, RiskEvent, Report + migration `phase2_listings`
+- Seed: 16 PRD §26 categories (+ subcategories)
+- Media: presign → client upload → complete → pipeline (mock/sharp); malware mock; dHash
+- Listings: CRUD, assist (rule-based mock), price intelligence v1, publish with fraud hooks, report, 7-day expiry scheduler
+- Public DTO strips `addressPrivate` / address / VIN / seller PII (automated test)
+- State machine 409 on invalid transitions
+- **34 unit tests** green
 
 ### Clients
-- **Web**: `/onboarding` → phone → OTP → profile; `/account`; SELL → onboarding
-- **Admin**: `/login` + role-gated dashboard shell
-- **Mobile**: onboarding stack + Profile tab with verification/sign-out
+- Web `/sell` 60s path; `/listings/[id]` PDP (PRD §24)
+- Mobile SELL wizard + listing detail modal
+- Landing SELL → `/sell`
 
-### Plan
-- [`docs/PHASE_1_PLAN.md`](PHASE_1_PLAN.md)
+### Docs
+- [`docs/PHASE_2_PLAN.md`](PHASE_2_PLAN.md)
 
-## Required local steps (Postgres)
+## Local migrate
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d postgres redis
-cd apps/api
-pnpm exec prisma migrate deploy
-pnpm exec prisma db seed
-pnpm --filter @reworth/api start
-# Web: pnpm --filter @reworth/web dev → http://localhost:3000/onboarding
+docker compose -f infra/docker-compose.yml up -d postgres redis minio
+cd apps/api && pnpm exec prisma migrate deploy && pnpm exec prisma db seed
+pnpm dev
+# Sell: http://localhost:3000/sell (after auth)
 ```
-
-OTP codes are printed by the console SMS mock in API logs.
 
 ## Known gaps
-
-- Live migrate/seed not verified if Docker Desktop is stopped
-- Admin TOTP 2FA UI placeholder only (not enforced)
-- Tokens in localStorage/AsyncStorage (interim; httpOnly cookies later)
-- Avatar upload deferred to Media (Phase 2)
+- Real MinIO upload + Sharp variants need Docker/native libs; default `MEDIA_PIPELINE=mock`
+- Lighthouse ≥80 not run in CI this phase (manual/follow-up)
+- Chat/Offer/Buy Now CTAs toast “Coming soon” (Phases 4–5)
+- Swap/Give Away selectable; purchase flows deferred (post-MVP 2.1)
 
 ## Exact resume point
-
-**Phase 1 code complete.** Next: **Phase 2 — Listings, Media & AI-Assisted Listing** (`v0.2-listings`) after merge + tag `v0.1-auth`.
-
-## Resume cheat sheet
+**Phase 2 code complete.** Next: **Phase 3 — Discovery** (`v0.3-discovery`) after merge + tag `v0.2-listings`.
 
 ```
-Continue: resume Phase 2 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
+Continue: resume Phase 3 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
 PRD.md, verify the last commit's tests still pass, then continue the plan. Do not restart completed work.
 ```

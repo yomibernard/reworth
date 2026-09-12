@@ -5,4 +5,6 @@ export * from './mock-psp';
 export * from './ai-listing.provider';
 export * from './rule-based-ai.mock';
 export * from './storage.provider';
+export * from './minio-storage.adapter';
 export * from './search.provider';
+export * from './geocoding.provider';

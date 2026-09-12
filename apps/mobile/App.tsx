@@ -10,6 +10,8 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { ListingDetailModal } from "./ListingDetailModal";
+import { SellFlow } from "./SellFlow";
 import { apiFetch, ApiError } from "./lib/api";
 import {
   clearTokens,
@@ -21,7 +23,14 @@ import {
   setOnboardingPhone,
   setTokens,
 } from "./lib/auth";
-import { COMMUNITIES, type Community, type MeResponse } from "./lib/types";
+import { browseListings } from "./lib/listings";
+import {
+  COMMUNITIES,
+  formatNgnFromKobo,
+  type Community,
+  type MeResponse,
+  type PublicListing,
+} from "./lib/types";
 
 type Tab = "home" | "discover" | "sell" | "chats" | "profile";
 type OnboardingStep = "welcome" | "phone" | "otp" | "profile";
@@ -49,6 +58,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [debugHint, setDebugHint] = useState<string | null>(null);
+  const [homeListings, setHomeListings] = useState<PublicListing[]>([]);
+  const [homeLoading, setHomeLoading] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const refreshMe = useCallback(async () => {
     const token = await getAccessToken();
@@ -75,6 +87,19 @@ export default function App() {
     }
   }, []);
 
+  const loadHome = useCallback(async () => {
+    setHomeLoading(true);
+    try {
+      const token = await getAccessToken();
+      const rows = await browseListings(token);
+      setHomeListings(rows);
+    } catch {
+      setHomeListings([]);
+    } finally {
+      setHomeLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     (async () => {
       const token = await getAccessToken();
@@ -84,6 +109,12 @@ export default function App() {
       setBooting(false);
     })();
   }, [refreshMe]);
+
+  useEffect(() => {
+    if (authed && active === "home") {
+      void loadHome();
+    }
+  }, [authed, active, loadHome]);
 
   async function requestOtp() {
     setError(null);
@@ -416,15 +447,59 @@ export default function App() {
               <Text style={styles.secondaryBtnText}>Sign out</Text>
             </Pressable>
           </ScrollView>
+        ) : active === "sell" ? (
+          <SellFlow
+            onOpenListing={(id) => setDetailId(id)}
+            onPublished={() => void loadHome()}
+          />
+        ) : active === "home" ? (
+          <ScrollView contentContainerStyle={styles.profilePad}>
+            <Text style={styles.brand} accessibilityRole="header">
+              ReWorth
+            </Text>
+            <Text style={styles.copy}>Nearby live listings</Text>
+            {homeLoading ? (
+              <ActivityIndicator
+                style={{ marginTop: 24 }}
+                color="#0E9F6E"
+                accessibilityLabel="Loading listings"
+              />
+            ) : homeListings.length === 0 ? (
+              <Text style={styles.copy}>
+                Nothing live yet — tap SELL to list something.
+              </Text>
+            ) : (
+              homeListings.map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={styles.listingRow}
+                  onPress={() => setDetailId(item.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.title || "Listing"}
+                >
+                  <Text style={styles.listingTitle} numberOfLines={2}>
+                    {item.title || "Untitled"}
+                  </Text>
+                  <Text style={styles.listingMeta}>
+                    {item.sellingMode === "GIVE_AWAY"
+                      ? "Free"
+                      : item.sellingMode === "SWAP" ||
+                          item.sellingMode === "SWAP_CASH"
+                        ? "Swap"
+                        : formatNgnFromKobo(item.priceKobo)}
+                    {item.community ? ` · ${item.community}` : ""}
+                  </Text>
+                </Pressable>
+              ))
+            )}
+          </ScrollView>
         ) : (
           <>
             <Text style={styles.brand} accessibilityRole="header">
               ReWorth
             </Text>
             <Text style={styles.copy}>
-              {active === "sell"
-                ? "Ready when you are — list something Lagos will love."
-                : `${TABS.find((t) => t.id === active)?.label} — coming soon.`}
+              {`${TABS.find((t) => t.id === active)?.label} — coming soon.`}
             </Text>
           </>
         )}
@@ -465,6 +540,11 @@ export default function App() {
           );
         })}
       </View>
+
+      <ListingDetailModal
+        listingId={detailId}
+        onClose={() => setDetailId(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -499,7 +579,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 48,
-    justifyContent: "center",
   },
   profilePad: {
     paddingBottom: 24,
@@ -702,5 +781,23 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.6,
     color: "#0E9F6E",
+  },
+  listingRow: {
+    marginTop: 14,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E2DC",
+    backgroundColor: "#FFFFFF",
+  },
+  listingTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111315",
+  },
+  listingMeta: {
+    marginTop: 6,
+    fontSize: 14,
+    color: "#5C636A",
   },
 });

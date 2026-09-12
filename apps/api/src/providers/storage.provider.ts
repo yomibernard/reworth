@@ -16,6 +16,15 @@ export type GetSignedUrlInput = {
   bucket: string;
   key: string;
   expiresInSeconds?: number;
+  /** HTTP method for upload (PUT) or download (GET). */
+  method?: 'GET' | 'PUT';
+  contentType?: string;
+};
+
+export type PresignUploadResult = {
+  uploadUrl: string;
+  key: string;
+  publicUrl: string;
 };
 
 /** Object storage abstraction (MinIO / S3-compatible). */
@@ -23,37 +32,70 @@ export interface StorageProvider {
   readonly name: string;
   putObject(input: PutObjectInput): Promise<PutObjectResult>;
   getSignedUrl(input: GetSignedUrlInput): Promise<string>;
+  getObject?(bucket: string, key: string): Promise<Buffer | null>;
   deleteObject(bucket: string, key: string): Promise<void>;
+  publicUrl(key: string): string;
 }
 
 export const STORAGE_PROVIDER = Symbol('STORAGE_PROVIDER');
 
-/** Local stub that records operations without talking to MinIO. */
-export class MinioStorageStub implements StorageProvider {
-  readonly name = 'minio-stub';
-  private readonly objects = new Map<string, PutObjectResult>();
+/** In-memory adapter for tests and local mock mode. */
+export class MockStorageAdapter implements StorageProvider {
+  readonly name: string = 'mock-storage';
+  private readonly objects = new Map<string, { body: Buffer; contentType: string }>();
+  private readonly publicBase: string;
+  private readonly bucket: string;
 
-  private objectId(bucket: string, key: string) {
+  constructor(opts?: { bucket?: string; publicBase?: string }) {
+    this.bucket = opts?.bucket ?? 'reworth-media';
+    this.publicBase = opts?.publicBase ?? `http://localhost:9000/${this.bucket}`;
+  }
+
+  private id(bucket: string, key: string) {
     return `${bucket}/${key}`;
   }
 
   async putObject(input: PutObjectInput): Promise<PutObjectResult> {
-    const result: PutObjectResult = {
+    const body = Buffer.isBuffer(input.body)
+      ? input.body
+      : Buffer.from(input.body);
+    this.objects.set(this.id(input.bucket, input.key), {
+      body,
+      contentType: input.contentType,
+    });
+    return {
       bucket: input.bucket,
       key: input.key,
-      url: `http://localhost:9000/${input.bucket}/${input.key}`,
-      etag: `stub-${Date.now()}`,
+      url: this.publicUrl(input.key),
+      etag: `mock-${body.length}`,
     };
-    this.objects.set(this.objectId(input.bucket, input.key), result);
-    return result;
   }
 
   async getSignedUrl(input: GetSignedUrlInput): Promise<string> {
     const expires = input.expiresInSeconds ?? 3600;
-    return `http://localhost:9000/${input.bucket}/${input.key}?X-Amz-Expires=${expires}&stub=1`;
+    const method = input.method ?? 'GET';
+    return `${this.publicBase}/${input.key}?X-Amz-Expires=${expires}&method=${method}&stub=1`;
+  }
+
+  async getObject(bucket: string, key: string): Promise<Buffer | null> {
+    return this.objects.get(this.id(bucket, key))?.body ?? null;
   }
 
   async deleteObject(bucket: string, key: string): Promise<void> {
-    this.objects.delete(this.objectId(bucket, key));
+    this.objects.delete(this.id(bucket, key));
   }
+
+  publicUrl(key: string): string {
+    return `${this.publicBase}/${key}`;
+  }
+
+  /** Test helper: seed an uploaded object. */
+  seed(key: string, body: Buffer, contentType = 'image/jpeg') {
+    this.objects.set(this.id(this.bucket, key), { body, contentType });
+  }
+}
+
+/** Local stub that records operations without talking to MinIO. */
+export class MinioStorageStub extends MockStorageAdapter {
+  readonly name = 'minio-stub';
 }

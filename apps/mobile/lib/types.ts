@@ -26,3 +26,64 @@ export type MeResponse = {
   };
   identityVerifiedBadge: boolean;
 };
+
+export type PublicListingImage = {
+  id: string;
+  sortOrder: number;
+  variants: Record<string, unknown>;
+  width: number | null;
+  height: number | null;
+};
+
+export type PublicListing = {
+  id: string;
+  title: string;
+  description: string;
+  category: { id: string; slug: string; name: string } | null;
+  brand: string | null;
+  model: string | null;
+  condition: string;
+  priceKobo: number;
+  negotiable: boolean;
+  sellingMode: string;
+  status: string;
+  community: string;
+  images: PublicListingImage[];
+  seller: {
+    id: string;
+    displayName: string;
+    verificationBadge: boolean;
+    ratingLabel: string;
+  };
+  fulfilmentPickup: boolean;
+  fulfilmentMeet: boolean;
+  fulfilmentDelivery: boolean;
+  buyerProtection: true;
+  createdAt: string;
+  publishedAt: string | null;
+};
+
+export type PriceIntelligence = {
+  estimatedLowKobo: number;
+  estimatedHighKobo: number;
+  recommendedKobo: number;
+};
+
+export type SellingModeValue = "SELL" | "SWAP" | "GIVE_AWAY";
+
+export function formatNgnFromKobo(kobo: number): string {
+  const naira = kobo / 100;
+  return `₦${Math.round(naira).toLocaleString("en-NG")}`;
+}
+
+export function listingImageUrl(
+  image: PublicListingImage | undefined,
+): string | null {
+  if (!image?.variants) return null;
+  const v = image.variants as {
+    original?: string;
+    w640?: { webp?: string };
+    w1080?: { webp?: string };
+  };
+  return v.w1080?.webp ?? v.w640?.webp ?? v.original ?? null;
+}

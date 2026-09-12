@@ -16,11 +16,11 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **1 — Accounts, Auth & Identity** |
-| Prompt | Prompt 2 |
-| Target tag | `v0.1-auth` |
+| Phase | **2 — Listings, Media & AI** |
+| Prompt | Prompt 3 |
+| Target tag | `v0.2-listings` |
 | Status | **Complete (pending PR merge)** |
-| Next | Phase 2 — Listings, Media & AI (`v0.2-listings`) |
+| Next | Phase 3 — Discovery (`v0.3-discovery`) |
 
 ## 14-role team
 
@@ -123,12 +123,12 @@ Per **PRD §59**: functional · UX · responsive · security · analytics · err
 
 ## Known gaps
 
-**Phase 1** API + web/admin/mobile auth UI are in place; run Prisma migrate + seed before live OTP.
+**Phase 2 complete** (listings, media mock pipeline, AI assist, sell + PDP). Next: Discovery.
 
 Still not built:
 
-- Admin TOTP enforcement (placeholder field only)
-- Listings, discovery, chat, payments, logistics, trust, admin depth, risk, UAT
+- Admin TOTP enforcement; listing moderation queue UI
+- Discovery depth, chat, payments, logistics, trust, admin depth, risk, UAT
 - All PRD §51–53 / post-launch features
 - Production credentials, pen test, store submissions; httpOnly token cookies
 

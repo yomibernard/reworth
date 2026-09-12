@@ -3,13 +3,20 @@ export type AiListingDraftInput = {
   descriptionHint?: string;
   categoryHint?: string;
   communityHint?: string;
+  /** Opaque keys / labels from uploaded images (e.g. filename hints). */
+  imageHints?: string[];
 };
 
 export type AiListingDraft = {
   title: string;
   description: string;
   suggestedCategory: string;
+  suggestedCondition: string;
   suggestedPriceNaira: number;
+  suggestedPriceLowNaira: number;
+  suggestedPriceHighNaira: number;
+  brand?: string;
+  model?: string;
   tags: string[];
 };
 
