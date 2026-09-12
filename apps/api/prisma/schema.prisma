@@ -1,4 +1,4 @@
-// ReWorth API — Phase 1 Auth & Identity + Phase 2 Listings & Media
+// ReWorth API — Phase 1–3: Auth, Listings, Discovery
 
 generator client {
   provider = "prisma-client-js"
@@ -119,6 +119,10 @@ model User {
   listingEvents ListingEvent[] @relation("ListingEventActor")
   riskEvents    RiskEvent[]
   reports       Report[]       @relation("ReportReporter")
+  favourites    Favourite[]
+  savedSearches SavedSearch[]
+  following     SellerFollow[] @relation("SellerFollowers")
+  followers     SellerFollow[] @relation("SellerFollowing")
 
   @@map("users")
 }
@@ -323,6 +327,7 @@ model Listing {
   events      ListingEvent[]
   riskEvents  RiskEvent[]
   reports     Report[]
+  favourites  Favourite[]
 
   @@index([sellerId])
   @@index([status])
@@ -406,4 +411,50 @@ model Report {
   @@index([reporterId])
   @@index([status])
   @@map("reports")
+}
+
+model Favourite {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  listingId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@index([userId])
+  @@index([listingId])
+  @@map("favourites")
+}
+
+model SellerFollow {
+  id         String   @id @default(uuid()) @db.Uuid
+  followerId String   @db.Uuid
+  sellerId   String   @db.Uuid
+  createdAt  DateTime @default(now())
+
+  follower User @relation("SellerFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  seller   User @relation("SellerFollowing", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, sellerId])
+  @@index([followerId])
+  @@index([sellerId])
+  @@map("seller_follows")
+}
+
+model SavedSearch {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @db.Uuid
+  name            String
+  filters         Json
+  newMatchesCount Int       @default(0)
+  lastCheckedAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("saved_searches")
 }

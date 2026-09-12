@@ -1,75 +1,281 @@
+"use client";
+
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Button } from "@reworth/ui-web";
+import { useRouter } from "next/navigation";
+import { Button, Chip, EmptyState, Skeleton } from "@reworth/ui-web";
+import { DiscoveryListingCard } from "../components/discovery/DiscoveryListingCard";
+import { ApiError } from "../lib/api";
+import { COMMUNITIES } from "../lib/communities";
+import {
+  RADIUS_OPTIONS,
+  fetchCategories,
+  fetchHome,
+  looksLikeNaturalLanguage,
+  loadDiscoveryLocation,
+  saveDiscoveryLocation,
+  type DiscoveryLocation,
+} from "../lib/discovery";
+import type { CategoryNode, HomeRail, RadiusKm } from "../lib/types";
 
 export default function HomePage() {
+  const router = useRouter();
+  const [loc, setLoc] = useState<DiscoveryLocation>({
+    community: "",
+    radiusKm: "all",
+  });
+  const [query, setQuery] = useState("");
+  const [useNl, setUseNl] = useState(false);
+  const [categories, setCategories] = useState<CategoryNode[]>([]);
+  const [rails, setRails] = useState<HomeRail[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoc(loadDiscoveryLocation());
+  }, []);
+
+  const load = useCallback(async (location: DiscoveryLocation) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const radiusKm =
+        location.radiusKm === "all"
+          ? undefined
+          : (location.radiusKm as RadiusKm);
+      const [home, cats] = await Promise.all([
+        fetchHome({
+          community: location.community || undefined,
+          radiusKm,
+        }),
+        fetchCategories().catch(() => [] as CategoryNode[]),
+      ]);
+      setRails(home.rails ?? []);
+      setCategories(cats);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not load home");
+      setRails([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load(loc);
+  }, [loc, load]);
+
+  function updateLoc(next: DiscoveryLocation) {
+    setLoc(next);
+    saveDiscoveryLocation(next);
+  }
+
+  function submitSearch(e: FormEvent) {
+    e.preventDefault();
+    const q = query.trim();
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (loc.community) params.set("community", loc.community);
+    if (loc.radiusKm !== "all") params.set("radiusKm", String(loc.radiusKm));
+    const nl = useNl || looksLikeNaturalLanguage(q);
+    if (nl && q) params.set("nl", "1");
+    router.push(`/search?${params.toString()}`);
+  }
+
   return (
-    <main className="relative min-h-[100dvh] overflow-hidden bg-[var(--rw-bg)] text-[var(--rw-ink)]">
+    <main className="relative min-h-[100dvh] bg-[var(--rw-bg)] text-[var(--rw-ink)]">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 rw-hero-glow"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[42vh]"
         style={{
           background:
-            "radial-gradient(ellipse 80% 60% at 70% 20%, rgba(14,159,110,0.18), transparent 55%), radial-gradient(ellipse 50% 40% at 15% 80%, rgba(201,162,39,0.12), transparent 50%), linear-gradient(165deg, #FAF9F7 0%, #F3F0EA 45%, #E8F5EF 100%)",
+            "radial-gradient(ellipse 80% 50% at 70% 0%, rgba(14,159,110,0.16), transparent 55%), radial-gradient(ellipse 40% 30% at 10% 20%, rgba(201,162,39,0.1), transparent 50%), linear-gradient(180deg, #F3F0EA 0%, var(--rw-bg) 100%)",
         }}
       />
 
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E\")",
-          mixBlendMode: "multiply",
-        }}
-      />
+      <header className="sticky top-0 z-30 border-b border-[var(--rw-border)]/70 bg-[var(--rw-bg)]/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
+          <Link
+            href="/"
+            className="shrink-0 text-lg font-semibold tracking-tight sm:text-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+          >
+            ReWorth
+          </Link>
 
-      <header className="relative z-10 sr-only">
-        <h1>ReWorth</h1>
+          <form
+            onSubmit={submitSearch}
+            className="flex min-w-0 flex-1 items-center gap-2"
+            role="search"
+          >
+            <label htmlFor="home-search" className="sr-only">
+              Search listings
+            </label>
+            <input
+              id="home-search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search Lagos…"
+              className="min-w-0 flex-1 rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-2 text-sm sm:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+            />
+            <label className="hidden items-center gap-1 text-xs text-[var(--rw-ink-muted)] sm:flex">
+              <input
+                type="checkbox"
+                checked={useNl}
+                onChange={(e) => setUseNl(e.target.checked)}
+                className="accent-[var(--rw-accent)]"
+              />
+              NL
+            </label>
+            <Button type="submit" variant="primary" size="sm">
+              Search
+            </Button>
+          </form>
+
+          <Link href="/my" className="hidden text-sm font-medium text-[var(--rw-ink-muted)] hover:text-[var(--rw-ink)] sm:inline">
+            Saved
+          </Link>
+          <Link href="/sell">
+            <Button variant="sell" size="sm" aria-label="Start selling">
+              SELL
+            </Button>
+          </Link>
+        </div>
       </header>
 
-      <section
-        aria-label="ReWorth introduction"
-        className="relative z-10 flex min-h-[100dvh] flex-col justify-end px-6 pb-16 pt-24 sm:justify-center sm:px-12 lg:px-20"
-      >
-        <div className="max-w-3xl">
-          <p className="rw-fade-up font-[family-name:var(--font-geist-sans)] text-[clamp(3.5rem,12vw,7.5rem)] font-semibold leading-[0.95] tracking-tight text-[var(--rw-ink)]">
-            ReWorth
-          </p>
-          <p className="rw-fade-up-delay mt-6 max-w-xl text-lg leading-relaxed text-[var(--rw-ink-muted)] sm:text-xl">
+      <div className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6">
+        <section className="rw-fade-up">
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            Find something worth keeping.
+          </h1>
+          <p className="mt-2 max-w-xl text-[var(--rw-ink-muted)]">
             Lagos, your unused things are worth something.
           </p>
-          <div className="rw-fade-up-delay mt-10">
-            <Link href="/sell">
-              <Button
-                variant="sell"
-                size="lg"
-                aria-label="Start selling on ReWorth"
-              >
-                SELL
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <aside
-        aria-hidden
-        className="pointer-events-none absolute right-[-8%] top-[12%] hidden h-[70%] w-[48%] md:block"
-      >
-        <div
-          className="h-full w-full rounded-l-[3rem] opacity-90"
-          style={{
-            background:
-              "linear-gradient(145deg, rgba(14,159,110,0.35) 0%, rgba(17,19,21,0.08) 40%, rgba(201,162,39,0.25) 100%)",
-            boxShadow: "inset 0 0 80px rgba(250,249,247,0.4)",
-          }}
-        />
-        <img
-          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='1000' viewBox='0 0 800 1000'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%230E9F6E' stop-opacity='0.5'/%3E%3Cstop offset='1' stop-color='%23C9A227' stop-opacity='0.35'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='800' height='1000' fill='%23FAF9F7'/%3E%3Ccircle cx='420' cy='380' r='220' fill='url(%23g)'/%3E%3Crect x='180' y='520' width='320' height='220' rx='28' fill='%23111315' fill-opacity='0.08'/%3E%3Crect x='240' y='580' width='200' height='28' rx='8' fill='%230E9F6E' fill-opacity='0.55'/%3E%3Crect x='240' y='630' width='140' height='18' rx='6' fill='%23111315' fill-opacity='0.2'/%3E%3C/svg%3E"
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover rounded-l-[3rem] mix-blend-multiply opacity-80"
-        />
-      </aside>
+        <section
+          aria-label="Location"
+          className="mt-6 flex flex-wrap items-center gap-2"
+        >
+          <label className="sr-only" htmlFor="home-community">
+            Community
+          </label>
+          <select
+            id="home-community"
+            value={loc.community}
+            onChange={(e) =>
+              updateLoc({ ...loc, community: e.target.value })
+            }
+            className="rounded-full border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-1.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+          >
+            <option value="">All communities</option>
+            {COMMUNITIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Radius">
+            {RADIUS_OPTIONS.map((opt) => (
+              <Chip
+                key={String(opt.value)}
+                selected={loc.radiusKm === opt.value}
+                onClick={() => updateLoc({ ...loc, radiusKm: opt.value })}
+              >
+                {opt.label}
+              </Chip>
+            ))}
+          </div>
+        </section>
+
+        <section aria-label="Categories" className="mt-6">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {categories.length === 0 && loading
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton
+                    key={i}
+                    className="h-9 w-24 shrink-0 rounded-full"
+                    label="Loading category"
+                  />
+                ))
+              : categories.map((cat) => (
+                  <Link
+                    key={cat.id}
+                    href={`/search?categoryId=${encodeURIComponent(cat.id)}`}
+                    className="shrink-0"
+                  >
+                    <Chip>{cat.name}</Chip>
+                  </Link>
+                ))}
+          </div>
+        </section>
+
+        {error ? (
+          <div className="mt-12">
+            <EmptyState
+              title="Couldn’t load discovery"
+              description={error}
+              action={
+                <Button variant="primary" onClick={() => void load(loc)}>
+                  Retry
+                </Button>
+              }
+            />
+          </div>
+        ) : loading ? (
+          <div className="mt-10 space-y-10">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i}>
+                <Skeleton className="mb-4 h-6 w-40" label="Loading rail" />
+                <div className="flex gap-3 overflow-hidden">
+                  {Array.from({ length: 4 }).map((__, j) => (
+                    <Skeleton
+                      key={j}
+                      className="h-56 w-44 shrink-0 rounded-[var(--rw-radius-lg)]"
+                      label="Loading card"
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-10 space-y-12">
+            {rails.map((rail) => (
+              <section key={rail.id} aria-labelledby={`rail-${rail.id}`}>
+                <h2
+                  id={`rail-${rail.id}`}
+                  className="text-xl font-semibold tracking-tight"
+                >
+                  {rail.title}
+                </h2>
+                {rail.items.length === 0 ? (
+                  <p className="mt-3 text-sm text-[var(--rw-ink-muted)]">
+                    {rail.emptyMessage ?? "Nothing here yet."}
+                  </p>
+                ) : (
+                  <ul className="mt-4 flex gap-3 overflow-x-auto pb-2">
+                    {rail.items.map((item) => (
+                      <li key={item.id} className="w-44 shrink-0 sm:w-52">
+                        <DiscoveryListingCard listing={item} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ))}
+            {rails.length === 0 ? (
+              <EmptyState
+                title="No listings nearby"
+                description="Try another community or be the first to sell."
+                action={
+                  <Link href="/sell">
+                    <Button variant="sell">SELL</Button>
+                  </Link>
+                }
+              />
+            ) : null}
+          </div>
+        )}
+      </div>
     </main>
   );
 }

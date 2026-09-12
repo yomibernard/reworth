@@ -174,3 +174,97 @@ export type CreateListingBody = {
 };
 
 export type UpdateListingBody = CreateListingBody;
+
+/** Phase 3 — Discovery */
+
+export type RadiusKm = 2 | 5 | 10 | 25;
+
+export type SearchSort = "newest" | "price_asc" | "price_desc" | "distance";
+
+export type SearchFilters = {
+  q?: string;
+  categoryId?: string;
+  subcategoryId?: string;
+  priceMinKobo?: number;
+  priceMaxKobo?: number;
+  condition?: string;
+  community?: string;
+  radiusKm?: RadiusKm;
+  lat?: number;
+  lng?: number;
+  verifiedOnly?: boolean;
+  deliveryAvailable?: boolean;
+  listedAfter?: string;
+  sort?: SearchSort;
+  cursor?: string;
+  limit?: number;
+};
+
+export type SearchFacets = {
+  categories: Array<{ id: string; slug: string; name: string; count: number }>;
+  conditions: Array<{ value: string; count: number }>;
+  communities: Array<{ value: string; count: number }>;
+};
+
+export type SearchResult = {
+  items: PublicListing[];
+  nextCursor?: string;
+  facets: SearchFacets;
+  tookMs: number;
+  total: number;
+};
+
+export type NlInterpreted = {
+  chips: string[];
+  filters: SearchFilters;
+};
+
+export type NlSearchResponse = {
+  interpreted: NlInterpreted;
+  results: SearchResult;
+};
+
+export type HomeRail = {
+  id: string;
+  title: string;
+  items: PublicListing[];
+  emptyMessage?: string;
+};
+
+export type HomeResponse = {
+  rails: HomeRail[];
+  community?: string;
+  radiusKm?: number;
+};
+
+export type FavouriteItem = {
+  favouriteId: string;
+  savedAt: string;
+  listing: PublicListing;
+};
+
+export type FollowedSeller = {
+  followId: string;
+  followedAt: string;
+  seller: {
+    id: string;
+    displayName: string;
+    verificationBadge: boolean;
+  };
+};
+
+export type SavedSearch = {
+  id: string;
+  name: string;
+  filters: Record<string, unknown>;
+  newMatchesCount: number;
+  lastCheckedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MeFavouritesResponse = {
+  items: FavouriteItem[];
+  sellers: FollowedSeller[];
+  searches: SavedSearch[];
+};

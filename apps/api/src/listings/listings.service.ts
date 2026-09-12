@@ -3,6 +3,8 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ListingStatus, Prisma } from '@prisma/client';
@@ -12,6 +14,7 @@ import {
   type GeocodingProvider,
 } from '../providers/geocoding.provider';
 import { MediaService } from '../media/media.service';
+import { FavouritesService } from '../favourites/favourites.service';
 import { AnalyticsService } from './analytics.service';
 import { FraudRulesService } from './fraud-rules.service';
 import { ListingAssistService } from './listing-assist.service';
@@ -51,6 +54,9 @@ export class ListingsService {
     private readonly priceIntel: PriceIntelligenceService,
     private readonly media: MediaService,
     @Inject(GEOCODING_PROVIDER) private readonly geo: GeocodingProvider,
+    @Optional()
+    @Inject(forwardRef(() => FavouritesService))
+    private readonly favourites?: FavouritesService,
   ) {}
 
   async listCategories() {
@@ -338,6 +344,10 @@ export class ListingsService {
 
     // UNDER_REVIEW can auto-promote later; for Phase 2 if no risk we go LIVE.
     // If under review with no admin, leave as UNDER_REVIEW.
+
+    if (target === 'LIVE' && this.favourites) {
+      await this.favourites.onListingLive(updated).catch(() => undefined);
+    }
 
     this.analytics.log('published', {
       listingId: id,

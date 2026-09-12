@@ -12,6 +12,11 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { ListingDetailModal } from "./ListingDetailModal";
 import { SellFlow } from "./SellFlow";
+import {
+  DiscoveryHome,
+  FavouritesPanel,
+  SearchPanel,
+} from "./DiscoveryScreens";
 import { apiFetch, ApiError } from "./lib/api";
 import {
   clearTokens,
@@ -23,13 +28,10 @@ import {
   setOnboardingPhone,
   setTokens,
 } from "./lib/auth";
-import { browseListings } from "./lib/listings";
 import {
   COMMUNITIES,
-  formatNgnFromKobo,
   type Community,
   type MeResponse,
-  type PublicListing,
 } from "./lib/types";
 
 type Tab = "home" | "discover" | "sell" | "chats" | "profile";
@@ -58,9 +60,11 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [debugHint, setDebugHint] = useState<string | null>(null);
-  const [homeListings, setHomeListings] = useState<PublicListing[]>([]);
-  const [homeLoading, setHomeLoading] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [homeSearchOpen, setHomeSearchOpen] = useState(false);
+  const [profileSubtab, setProfileSubtab] = useState<"account" | "saved">(
+    "account",
+  );
 
   const refreshMe = useCallback(async () => {
     const token = await getAccessToken();
@@ -87,19 +91,6 @@ export default function App() {
     }
   }, []);
 
-  const loadHome = useCallback(async () => {
-    setHomeLoading(true);
-    try {
-      const token = await getAccessToken();
-      const rows = await browseListings(token);
-      setHomeListings(rows);
-    } catch {
-      setHomeListings([]);
-    } finally {
-      setHomeLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     (async () => {
       const token = await getAccessToken();
@@ -111,10 +102,8 @@ export default function App() {
   }, [refreshMe]);
 
   useEffect(() => {
-    if (authed && active === "home") {
-      void loadHome();
-    }
-  }, [authed, active, loadHome]);
+    if (active !== "home") setHomeSearchOpen(false);
+  }, [active]);
 
   async function requestOtp() {
     setError(null);
@@ -407,92 +396,108 @@ export default function App() {
       <StatusBar style="dark" />
       <View style={styles.screen} accessibilityRole="summary">
         {active === "profile" ? (
-          <ScrollView contentContainerStyle={styles.profilePad}>
-            <Text style={styles.brand} accessibilityRole="header">
-              Profile
-            </Text>
-            <Text style={styles.copy}>
-              {me?.profile?.displayName ?? "Member"}
-              {me?.profile?.preferredCommunity
-                ? ` · ${me.profile.preferredCommunity}`
-                : ""}
-            </Text>
-
-            <Text style={styles.sectionLabel}>Verification</Text>
-            <View style={styles.badges}>
-              <Badge
-                label="L1 Phone"
-                ok={Boolean(me?.verificationLevels.L1_PHONE)}
-              />
-              <Badge
-                label="L2 Email"
-                ok={Boolean(me?.verificationLevels.L2_EMAIL)}
-              />
-              <Badge
-                label={
-                  me?.identityVerifiedBadge
-                    ? "L3 Identity Verified ✓"
-                    : "L3 Identity"
-                }
-                ok={Boolean(me?.verificationLevels.L3_IDENTITY)}
-              />
+          <>
+            <View style={styles.subtabs}>
+              <Pressable
+                onPress={() => setProfileSubtab("account")}
+                style={[
+                  styles.subtab,
+                  profileSubtab === "account" && styles.subtabActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.subtabText,
+                    profileSubtab === "account" && styles.subtabTextActive,
+                  ]}
+                >
+                  Account
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setProfileSubtab("saved")}
+                style={[
+                  styles.subtab,
+                  profileSubtab === "saved" && styles.subtabActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.subtabText,
+                    profileSubtab === "saved" && styles.subtabTextActive,
+                  ]}
+                >
+                  Saved
+                </Text>
+              </Pressable>
             </View>
+            {profileSubtab === "saved" ? (
+              <FavouritesPanel onOpenListing={(id) => setDetailId(id)} />
+            ) : (
+              <ScrollView contentContainerStyle={styles.profilePad}>
+                <Text style={styles.brand} accessibilityRole="header">
+                  Profile
+                </Text>
+                <Text style={styles.copy}>
+                  {me?.profile?.displayName ?? "Member"}
+                  {me?.profile?.preferredCommunity
+                    ? ` · ${me.profile.preferredCommunity}`
+                    : ""}
+                </Text>
 
-            <Pressable
-              style={styles.secondaryBtn}
-              onPress={() => void signOut()}
-              accessibilityRole="button"
-              accessibilityLabel="Sign out"
-            >
-              <Text style={styles.secondaryBtnText}>Sign out</Text>
-            </Pressable>
-          </ScrollView>
+                <Text style={styles.sectionLabel}>Verification</Text>
+                <View style={styles.badges}>
+                  <Badge
+                    label="L1 Phone"
+                    ok={Boolean(me?.verificationLevels.L1_PHONE)}
+                  />
+                  <Badge
+                    label="L2 Email"
+                    ok={Boolean(me?.verificationLevels.L2_EMAIL)}
+                  />
+                  <Badge
+                    label={
+                      me?.identityVerifiedBadge
+                        ? "L3 Identity Verified ✓"
+                        : "L3 Identity"
+                    }
+                    ok={Boolean(me?.verificationLevels.L3_IDENTITY)}
+                  />
+                </View>
+
+                <Pressable
+                  style={styles.secondaryBtn}
+                  onPress={() => void signOut()}
+                  accessibilityRole="button"
+                  accessibilityLabel="Sign out"
+                >
+                  <Text style={styles.secondaryBtnText}>Sign out</Text>
+                </Pressable>
+              </ScrollView>
+            )}
+          </>
         ) : active === "sell" ? (
           <SellFlow
             onOpenListing={(id) => setDetailId(id)}
-            onPublished={() => void loadHome()}
+            onPublished={() => setActive("home")}
           />
         ) : active === "home" ? (
-          <ScrollView contentContainerStyle={styles.profilePad}>
-            <Text style={styles.brand} accessibilityRole="header">
-              ReWorth
-            </Text>
-            <Text style={styles.copy}>Nearby live listings</Text>
-            {homeLoading ? (
-              <ActivityIndicator
-                style={{ marginTop: 24 }}
-                color="#0E9F6E"
-                accessibilityLabel="Loading listings"
-              />
-            ) : homeListings.length === 0 ? (
-              <Text style={styles.copy}>
-                Nothing live yet — tap SELL to list something.
-              </Text>
-            ) : (
-              homeListings.map((item) => (
-                <Pressable
-                  key={item.id}
-                  style={styles.listingRow}
-                  onPress={() => setDetailId(item.id)}
-                  accessibilityRole="button"
-                  accessibilityLabel={item.title || "Listing"}
-                >
-                  <Text style={styles.listingTitle} numberOfLines={2}>
-                    {item.title || "Untitled"}
-                  </Text>
-                  <Text style={styles.listingMeta}>
-                    {item.sellingMode === "GIVE_AWAY"
-                      ? "Free"
-                      : item.sellingMode === "SWAP" ||
-                          item.sellingMode === "SWAP_CASH"
-                        ? "Swap"
-                        : formatNgnFromKobo(item.priceKobo)}
-                    {item.community ? ` · ${item.community}` : ""}
-                  </Text>
-                </Pressable>
-              ))
-            )}
-          </ScrollView>
+          homeSearchOpen ? (
+            <SearchPanel
+              onOpenListing={(id) => setDetailId(id)}
+              onBack={() => setHomeSearchOpen(false)}
+            />
+          ) : (
+            <DiscoveryHome
+              community={
+                me?.profile?.preferredCommunity || community || undefined
+              }
+              onOpenSearch={() => setHomeSearchOpen(true)}
+              onOpenListing={(id) => setDetailId(id)}
+            />
+          )
+        ) : active === "discover" ? (
+          <SearchPanel onOpenListing={(id) => setDetailId(id)} />
         ) : (
           <>
             <Text style={styles.brand} accessibilityRole="header">
@@ -601,6 +606,31 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
     color: "#5C636A",
+  },
+  subtabs: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 8,
+  },
+  subtab: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#E5E2DC",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: "#FFFFFF",
+  },
+  subtabActive: {
+    backgroundColor: "#0E9F6E",
+    borderColor: "#0E9F6E",
+  },
+  subtabText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#111315",
+  },
+  subtabTextActive: {
+    color: "#FFFFFF",
   },
   label: {
     marginTop: 20,

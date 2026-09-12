@@ -1,0 +1,243 @@
+import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { DiscoveryAnalyticsService } from '../discovery/discovery-analytics.service';
+import {
+  toPublicListing,
+  type PublicListingDto,
+} from '../listings/public-listing.mapper';
+import { haversineKm } from '../providers/search.provider';
+import { HomeCache } from './home.cache';
+import { RecommendationService } from './recommendation.service';
+
+export type HomeRail = {
+  id: string;
+  title: string;
+  items: PublicListingDto[];
+  emptyMessage?: string;
+};
+
+export type HomeResponse = {
+  rails: HomeRail[];
+  community?: string;
+  radiusKm?: number;
+};
+
+const listingInclude = {
+  category: true,
+  subcategory: true,
+  images: { orderBy: { sortOrder: 'asc' as const } },
+  seller: {
+    include: {
+      profile: true,
+      verifications: true,
+    },
+  },
+} satisfies Prisma.ListingInclude;
+
+@Injectable()
+export class HomeService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: HomeCache,
+    private readonly recommendations: RecommendationService,
+    private readonly analytics: DiscoveryAnalyticsService,
+  ) {}
+
+  async getHome(query: {
+    community?: string;
+    radiusKm?: number;
+    lat?: number;
+    lng?: number;
+  }): Promise<HomeResponse> {
+    const community = query.community ?? '';
+    const radiusKm = query.radiusKm;
+    const grid = this.cache.gridCell(query.lat, query.lng);
+    const key = this.cache.buildKey(
+      community,
+      radiusKm ?? 'all',
+      grid,
+    );
+
+    const cached = await this.cache.get<HomeResponse>(key);
+    if (cached) return cached;
+
+    const rails = await this.buildRails(query);
+    const response: HomeResponse = {
+      rails,
+      community: community || undefined,
+      radiusKm,
+    };
+
+    for (const rail of rails) {
+      this.analytics.homeRailImpression({
+        railId: rail.id,
+        count: rail.items.length,
+        community,
+      });
+    }
+
+    await this.cache.set(key, response);
+    return response;
+  }
+
+  /** Used by price-drops unit tests */
+  async priceDropListingIds(minDropPct = 5): Promise<string[]> {
+    const events = await this.prisma.listingEvent.findMany({
+      where: { type: 'PRICE_CHANGED' },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    const ids = new Set<string>();
+    for (const ev of events) {
+      const payload = ev.payload as { from?: number; to?: number } | null;
+      if (!payload?.from || payload.to == null) continue;
+      if (payload.from <= 0) continue;
+      const drop = ((payload.from - payload.to) / payload.from) * 100;
+      if (drop >= minDropPct) ids.add(ev.listingId);
+    }
+    return [...ids];
+  }
+
+  private async buildRails(query: {
+    community?: string;
+    radiusKm?: number;
+    lat?: number;
+    lng?: number;
+  }): Promise<HomeRail[]> {
+    const live = await this.prisma.listing.findMany({
+      where: {
+        status: 'LIVE',
+        ...(query.community ? { community: query.community } : {}),
+      },
+      include: {
+        ...listingInclude,
+        events: {
+          where: { type: { in: ['VIEWED', 'SAVED', 'PRICE_CHANGED'] } },
+          select: { type: true, payload: true },
+        },
+      },
+      orderBy: { publishedAt: 'desc' },
+      take: 200,
+    });
+
+    type Row = (typeof live)[number] & { distanceKm?: number | null };
+
+    const withDistance: Row[] = live.map((row) => {
+      let distanceKm: number | null = null;
+      if (
+        query.lat != null &&
+        query.lng != null &&
+        row.geoLat != null &&
+        row.geoLng != null
+      ) {
+        distanceKm = haversineKm(
+          query.lat,
+          query.lng,
+          row.geoLat,
+          row.geoLng,
+        );
+      }
+      return { ...row, distanceKm };
+    });
+
+    const inRadius = (rows: Row[]) => {
+      if (query.radiusKm == null || query.lat == null || query.lng == null) {
+        return rows;
+      }
+      return rows.filter(
+        (r) => r.distanceKm != null && r.distanceKm <= query.radiusKm!,
+      );
+    };
+
+    const toItems = (rows: Row[], limit = 12): PublicListingDto[] =>
+      rows.slice(0, limit).map((r) =>
+        toPublicListing(r, { viewerLat: query.lat, viewerLng: query.lng }),
+      );
+
+    const nearbyPool = inRadius(withDistance)
+      .filter((r) => r.distanceKm != null)
+      .sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99));
+
+    const justListed = [...withDistance].sort(
+      (a, b) =>
+        (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0),
+    );
+
+    const priceDropIds = new Set(await this.priceDropListingIds(5));
+    const priceDrops = withDistance.filter((r) => priceDropIds.has(r.id));
+
+    const popularMeta = new Map<
+      string,
+      { views: number; saves: number; publishedAt: Date | null }
+    >();
+    for (const r of withDistance) {
+      const saves = r.events.filter((e) => e.type === 'SAVED').length;
+      popularMeta.set(r.id, {
+        views: r.views,
+        saves,
+        publishedAt: r.publishedAt,
+      });
+    }
+    const popularNear = this.recommendations.rank(
+      toItems(inRadius(withDistance), 40),
+      popularMeta,
+    );
+
+    const verified = withDistance.filter((r) =>
+      r.seller?.verifications?.some(
+        (v) => v.level === 'L3_IDENTITY' && v.status === 'VERIFIED',
+      ),
+    );
+
+    const recommended = this.recommendations.rank(
+      toItems(withDistance, 40),
+      popularMeta,
+    );
+
+    return [
+      {
+        id: 'nearby',
+        title: 'Nearby',
+        items: toItems(nearbyPool),
+        emptyMessage:
+          nearbyPool.length === 0
+            ? 'No listings nearby — try expanding your radius'
+            : undefined,
+      },
+      {
+        id: 'just_listed',
+        title: 'Just listed',
+        items: toItems(justListed),
+      },
+      {
+        id: 'price_drops',
+        title: 'Price drops',
+        items: toItems(priceDrops),
+        emptyMessage:
+          priceDrops.length === 0 ? 'No recent price drops' : undefined,
+      },
+      {
+        id: 'popular_near_you',
+        title: 'Popular near you',
+        items: popularNear.slice(0, 12),
+      },
+      {
+        id: 'verified_sellers',
+        title: 'From verified sellers',
+        items: toItems(verified),
+      },
+      {
+        id: 'moving_sales',
+        title: 'Moving sales',
+        items: [],
+        emptyMessage: 'Moving sales launch soon',
+      },
+      {
+        id: 'recommended_for_you',
+        title: 'Recommended for you',
+        items: recommended.slice(0, 12),
+      },
+    ];
+  }
+}

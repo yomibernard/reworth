@@ -16,11 +16,11 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **2 — Listings, Media & AI** |
-| Prompt | Prompt 3 |
-| Target tag | `v0.2-listings` |
+| Phase | **3 — Discovery** |
+| Prompt | Prompt 4 |
+| Target tag | `v0.3-discovery` |
 | Status | **Complete (pending PR merge)** |
-| Next | Phase 3 — Discovery (`v0.3-discovery`) |
+| Next | Phase 4 — Chat + Offers (`v0.4-chat-offers`) |
 
 ## 14-role team
 
@@ -123,12 +123,12 @@ Per **PRD §59**: functional · UX · responsive · security · analytics · err
 
 ## Known gaps
 
-**Phase 2 complete** (listings, media mock pipeline, AI assist, sell + PDP). Next: Discovery.
+**Phase 3 clients complete** (home, search, favourites on web + mobile). Tag pending.
 
 Still not built:
 
 - Admin TOTP enforcement; listing moderation queue UI
-- Discovery depth, chat, payments, logistics, trust, admin depth, risk, UAT
+- Chat, payments, logistics, trust, admin depth, risk, UAT
 - All PRD §51–53 / post-launch features
 - Production credentials, pen test, store submissions; httpOnly token cookies
 

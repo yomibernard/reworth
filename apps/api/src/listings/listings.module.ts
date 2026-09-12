@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MediaModule } from '../media/media.module';
 import { AuthModule } from '../auth/auth.module';
+import { FavouritesModule } from '../favourites/favourites.module';
 import {
   AI_LISTING_PROVIDER,
 } from '../providers/ai-listing.provider';
@@ -19,7 +20,12 @@ import { ListingsService } from './listings.service';
 import { PriceIntelligenceService } from './price-intelligence.service';
 
 @Module({
-  imports: [ConfigModule, MediaModule, AuthModule],
+  imports: [
+    ConfigModule,
+    MediaModule,
+    AuthModule,
+    forwardRef(() => FavouritesModule),
+  ],
   controllers: [ListingsController],
   providers: [
     ListingsService,

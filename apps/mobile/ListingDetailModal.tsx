@@ -11,6 +11,11 @@ import {
 } from "react-native";
 import { ApiError } from "./lib/api";
 import { getAccessToken } from "./lib/auth";
+import {
+  favouriteListing,
+  getMeFavourites,
+  unfavouriteListing,
+} from "./lib/discovery";
 import { getListing } from "./lib/listings";
 import {
   formatNgnFromKobo,
@@ -28,10 +33,13 @@ export function ListingDetailModal({ listingId, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!listingId) {
       setListing(null);
+      setSaved(false);
       return;
     }
     let cancelled = false;
@@ -42,6 +50,16 @@ export function ListingDetailModal({ listingId, onClose }: Props) {
         const token = await getAccessToken();
         const data = await getListing(listingId, token);
         if (!cancelled) setListing(data);
+        if (token && !cancelled) {
+          try {
+            const favs = await getMeFavourites(token);
+            if (!cancelled) {
+              setSaved(favs.items.some((i) => i.listing.id === listingId));
+            }
+          } catch {
+            if (!cancelled) setSaved(false);
+          }
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof ApiError ? err.message : "Not found");
@@ -54,6 +72,27 @@ export function ListingDetailModal({ listingId, onClose }: Props) {
       cancelled = true;
     };
   }, [listingId]);
+
+  async function toggleSave() {
+    const token = await getAccessToken();
+    if (!token || !listingId) {
+      setToast("Sign in to save");
+      return;
+    }
+    setSaving(true);
+    const next = !saved;
+    setSaved(next);
+    try {
+      if (next) await favouriteListing(listingId, token);
+      else await unfavouriteListing(listingId, token);
+      setToast(next ? "Saved" : "Removed");
+    } catch (err) {
+      setSaved(!next);
+      setToast(err instanceof ApiError ? err.message : "Could not update");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const isSwap =
     listing?.sellingMode === "SWAP" || listing?.sellingMode === "SWAP_CASH";
@@ -177,7 +216,12 @@ export function ListingDetailModal({ listingId, onClose }: Props) {
                 </>
               ) : null}
               <Action label="Chat" onPress={() => setToast("Coming soon")} />
-              <Action label="Save" onPress={() => setToast("Coming soon")} />
+              <Action
+                label={saved ? "Saved ♥" : "Save"}
+                onPress={() => {
+                  if (!saving) void toggleSave();
+                }}
+              />
               <Action
                 label="Share"
                 onPress={() =>

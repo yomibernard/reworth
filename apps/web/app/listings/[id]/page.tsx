@@ -15,6 +15,11 @@ import {
 import { ApiError } from "../../../lib/api";
 import { getAccessToken } from "../../../lib/auth";
 import {
+  favouriteListing,
+  getMeFavourites,
+  unfavouriteListing,
+} from "../../../lib/discovery";
+import {
   CONDITION_LABELS,
   formatPostedAt,
   getListing,
@@ -39,6 +44,8 @@ export default function ListingPdpPage() {
   const [reportReason, setReportReason] = useState("");
   const [reportDetail, setReportDetail] = useState("");
   const [reporting, setReporting] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -49,6 +56,16 @@ export default function ListingPdpPage() {
       const data = await getListing(id, token);
       setListing(data);
       setActiveImage(0);
+      if (token) {
+        try {
+          const favs = await getMeFavourites(token);
+          setSaved(favs.items.some((i) => i.listing.id === id));
+        } catch {
+          setSaved(false);
+        }
+      } else {
+        setSaved(false);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Listing not found");
       setListing(null);
@@ -63,6 +80,33 @@ export default function ListingPdpPage() {
 
   function comingSoon(label: string) {
     setToast({ message: `${label} — Coming soon`, tone: "info" });
+  }
+
+  async function toggleSave() {
+    const token = getAccessToken();
+    if (!token || !id) {
+      setToast({ message: "Sign in to save listings", tone: "warn" });
+      return;
+    }
+    setSaving(true);
+    const next = !saved;
+    setSaved(next);
+    try {
+      if (next) await favouriteListing(id, token);
+      else await unfavouriteListing(id, token);
+      setToast({
+        message: next ? "Saved" : "Removed from saved",
+        tone: "success",
+      });
+    } catch (err) {
+      setSaved(!next);
+      setToast({
+        message: err instanceof ApiError ? err.message : "Could not update",
+        tone: "error",
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function shareListing() {
@@ -381,10 +425,12 @@ export default function ListingPdpPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => comingSoon("Save")}
-            aria-label="Save listing"
+            disabled={saving}
+            onClick={() => void toggleSave()}
+            aria-label={saved ? "Remove from saved" : "Save listing"}
+            aria-pressed={saved}
           >
-            Save
+            {saved ? "Saved ♥" : "Save"}
           </Button>
           <Button
             variant="ghost"

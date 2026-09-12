@@ -1,0 +1,388 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button, Chip, EmptyState, Skeleton, Toast } from "@reworth/ui-web";
+import { DiscoveryListingCard } from "../../components/discovery/DiscoveryListingCard";
+import { ApiError } from "../../lib/api";
+import { getAccessToken } from "../../lib/auth";
+import {
+  buildSearchQueryString,
+  compactFilters,
+  deleteSavedSearch,
+  getMeFavourites,
+  unfollowSeller,
+  unfavouriteListing,
+} from "../../lib/discovery";
+import type {
+  FavouriteItem,
+  FollowedSeller,
+  MeFavouritesResponse,
+  PublicListing,
+  SavedSearch,
+  SearchFilters,
+} from "../../lib/types";
+
+type Tab = "items" | "sellers" | "searches";
+
+export default function MyPage() {
+  const router = useRouter();
+  const [tab, setTab] = useState<Tab>("items");
+  const [data, setData] = useState<MeFavouritesResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    tone?: "info" | "success" | "warn" | "error";
+  } | null>(null);
+
+  const load = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) {
+      router.replace("/onboarding");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getMeFavourites(token);
+      setData(res);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.replace("/onboarding");
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : "Could not load saved");
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function toggleFavourite(listing: PublicListing) {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      await unfavouriteListing(listing.id, token);
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.filter((i) => i.listing.id !== listing.id),
+            }
+          : prev,
+      );
+      setToast({ message: "Removed from saved", tone: "success" });
+    } catch (err) {
+      setToast({
+        message: err instanceof ApiError ? err.message : "Failed",
+        tone: "error",
+      });
+    }
+  }
+
+  async function removeSeller(seller: FollowedSeller) {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      await unfollowSeller(seller.seller.id, token);
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              sellers: prev.sellers.filter((s) => s.followId !== seller.followId),
+            }
+          : prev,
+      );
+    } catch (err) {
+      setToast({
+        message: err instanceof ApiError ? err.message : "Failed",
+        tone: "error",
+      });
+    }
+  }
+
+  async function removeSearch(search: SavedSearch) {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      await deleteSavedSearch(token, search.id);
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              searches: prev.searches.filter((s) => s.id !== search.id),
+            }
+          : prev,
+      );
+    } catch (err) {
+      setToast({
+        message: err instanceof ApiError ? err.message : "Failed",
+        tone: "error",
+      });
+    }
+  }
+
+  function openSavedSearch(search: SavedSearch) {
+    const filters = compactFilters(search.filters as SearchFilters);
+    const qs = buildSearchQueryString(filters);
+    router.push(`/search${qs}`);
+  }
+
+  return (
+    <main className="min-h-[100dvh] bg-[var(--rw-bg)] text-[var(--rw-ink)]">
+      <header className="sticky top-0 z-30 border-b border-[var(--rw-border)]/70 bg-[var(--rw-bg)]/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <Link
+            href="/"
+            className="text-lg font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+          >
+            ReWorth
+          </Link>
+          <Link href="/sell">
+            <Button variant="sell" size="sm">
+              SELL
+            </Button>
+          </Link>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        <h1 className="text-3xl font-semibold tracking-tight">Saved</h1>
+        <p className="mt-1 text-[var(--rw-ink-muted)]">
+          Items, sellers, and searches you follow.
+        </p>
+
+        <div
+          className="mt-6 flex gap-2"
+          role="tablist"
+          aria-label="Saved sections"
+        >
+          {(
+            [
+              ["items", "Items"],
+              ["sellers", "Sellers"],
+              ["searches", "Searches"],
+            ] as const
+          ).map(([id, label]) => (
+            <Chip
+              key={id}
+              role="tab"
+              aria-selected={tab === id}
+              selected={tab === id}
+              onClick={() => setTab(id)}
+            >
+              {label}
+              {id === "searches" && data
+                ? (() => {
+                    const n = data.searches.reduce(
+                      (acc, s) => acc + (s.newMatchesCount || 0),
+                      0,
+                    );
+                    return n > 0 ? ` (${n})` : "";
+                  })()
+                : ""}
+            </Chip>
+          ))}
+        </div>
+
+        <div className="mt-8" role="tabpanel">
+          {loading ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton
+                  key={i}
+                  className="aspect-[3/4] rounded-[var(--rw-radius-lg)]"
+                  label="Loading"
+                />
+              ))}
+            </div>
+          ) : error ? (
+            <EmptyState
+              title="Couldn’t load"
+              description={error}
+              action={
+                <Button variant="primary" onClick={() => void load()}>
+                  Retry
+                </Button>
+              }
+            />
+          ) : tab === "items" ? (
+            <ItemsTab items={data?.items ?? []} onToggle={toggleFavourite} />
+          ) : tab === "sellers" ? (
+            <SellersTab
+              sellers={data?.sellers ?? []}
+              onUnfollow={removeSeller}
+            />
+          ) : (
+            <SearchesTab
+              searches={data?.searches ?? []}
+              onOpen={openSavedSearch}
+              onDelete={removeSearch}
+            />
+          )}
+        </div>
+      </div>
+
+      {toast ? (
+        <div className="fixed bottom-6 left-1/2 z-50 w-[min(100%-2rem,24rem)] -translate-x-1/2">
+          <Toast
+            message={toast.message}
+            tone={toast.tone}
+            onDismiss={() => setToast(null)}
+          />
+        </div>
+      ) : null}
+    </main>
+  );
+}
+
+function ItemsTab({
+  items,
+  onToggle,
+}: {
+  items: FavouriteItem[];
+  onToggle: (l: PublicListing) => void;
+}) {
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        title="No saved items"
+        description="Tap the heart on a listing to save it here."
+        action={
+          <Link href="/search">
+            <Button variant="primary">Browse</Button>
+          </Link>
+        }
+      />
+    );
+  }
+  return (
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {items.map((row) => (
+        <li key={row.favouriteId}>
+          <DiscoveryListingCard
+            listing={row.listing}
+            favourited
+            onToggleFavourite={(l) => void onToggle(l)}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SellersTab({
+  sellers,
+  onUnfollow,
+}: {
+  sellers: FollowedSeller[];
+  onUnfollow: (s: FollowedSeller) => void;
+}) {
+  if (sellers.length === 0) {
+    return (
+      <EmptyState
+        title="No followed sellers"
+        description="Follow sellers from their listings to see them here."
+      />
+    );
+  }
+  return (
+    <ul className="space-y-3">
+      {sellers.map((row) => (
+        <li
+          key={row.followId}
+          className="flex items-center justify-between gap-3 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-4 py-3"
+        >
+          <div>
+            <p className="font-semibold">
+              {row.seller.displayName}
+              {row.seller.verificationBadge ? (
+                <span className="ml-2 text-sm font-medium text-[var(--rw-accent)]">
+                  Verified
+                </span>
+              ) : null}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void onUnfollow(row)}
+          >
+            Unfollow
+          </Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SearchesTab({
+  searches,
+  onOpen,
+  onDelete,
+}: {
+  searches: SavedSearch[];
+  onOpen: (s: SavedSearch) => void;
+  onDelete: (s: SavedSearch) => void;
+}) {
+  if (searches.length === 0) {
+    return (
+      <EmptyState
+        title="No saved searches"
+        description="Save filters from the search page to get match counts here."
+        action={
+          <Link href="/search">
+            <Button variant="primary">Search</Button>
+          </Link>
+        }
+      />
+    );
+  }
+  return (
+    <ul className="space-y-3">
+      {searches.map((s) => (
+        <li
+          key={s.id}
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-4 py-3"
+        >
+          <button
+            type="button"
+            className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+            onClick={() => onOpen(s)}
+          >
+            <p className="font-semibold">
+              {s.name}
+              {s.newMatchesCount > 0 ? (
+                <span className="ml-2 inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-[var(--rw-accent)] px-2 py-0.5 text-xs font-semibold text-white">
+                  {s.newMatchesCount}
+                </span>
+              ) : null}
+            </p>
+            <p className="mt-0.5 truncate text-sm text-[var(--rw-ink-muted)]">
+              {summarizeFilters(s.filters)}
+            </p>
+          </button>
+          <Button variant="ghost" size="sm" onClick={() => void onDelete(s)}>
+            Delete
+          </Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function summarizeFilters(filters: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if (typeof filters.q === "string" && filters.q) parts.push(`“${filters.q}”`);
+  if (typeof filters.community === "string" && filters.community)
+    parts.push(filters.community);
+  if (filters.radiusKm != null) parts.push(`${filters.radiusKm} km`);
+  if (typeof filters.condition === "string" && filters.condition)
+    parts.push(filters.condition);
+  return parts.join(" · ") || "Custom filters";
+}

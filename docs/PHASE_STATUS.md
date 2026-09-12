@@ -2,51 +2,48 @@
 
 | Field | Value |
 | --- | --- |
-| Current phase | **2 — Listings, Media & AI-Assisted Listing** |
-| Prompt | Prompt 3 (`CURSOR-PROMPT.md`) |
-| Target tag | `v0.2-listings` |
-| Branch | `phase-2-listings` |
+| Current phase | **3 — Discovery: Home, Search & Favourites** |
+| Prompt | Prompt 4 |
+| Target tag | `v0.3-discovery` |
+| Branch | `phase-3-discovery` |
 | Status | **Complete (pending PR merge)** |
 | Last updated | 2026-09-12 |
 
-## What exists (Phase 2)
+## What exists (Phase 3)
 
 ### API
-- Schema: Category, Listing, ListingImage, ListingEvent, RiskEvent, Report + migration `phase2_listings`
-- Seed: 16 PRD §26 categories (+ subcategories)
-- Media: presign → client upload → complete → pipeline (mock/sharp); malware mock; dHash
-- Listings: CRUD, assist (rule-based mock), price intelligence v1, publish with fraud hooks, report, 7-day expiry scheduler
-- Public DTO strips `addressPrivate` / address / VIN / seller PII (automated test)
-- State machine 409 on invalid transitions
-- **34 unit tests** green
+- Favourite, SellerFollow, SavedSearch (+ migration `phase3_discovery`)
+- SearchProvider: Postgres FTS/geo default; OpenSearch stub falls back
+- `GET /search`, `POST /search/nl` (mock parser, 10 fixture tests)
+- `GET /home` rails + Redis/memory cache (45s)
+- Favourites / follows / saved searches under `/me/*`
+- **51 unit tests** green
 
 ### Clients
-- Web `/sell` 60s path; `/listings/[id]` PDP (PRD §24)
-- Mobile SELL wizard + listing detail modal
-- Landing SELL → `/sell`
+- Web `/` discovery home, `/search`, `/my` (Items · Sellers · Searches)
+- PDP Save → favourite; mobile Home/Discover/Saved
 
 ### Docs
-- [`docs/PHASE_2_PLAN.md`](PHASE_2_PLAN.md)
+- [`docs/PHASE_3_PLAN.md`](PHASE_3_PLAN.md)
 
-## Local migrate
+## Local
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d postgres redis minio
 cd apps/api && pnpm exec prisma migrate deploy && pnpm exec prisma db seed
 pnpm dev
-# Sell: http://localhost:3000/sell (after auth)
+# Home http://localhost:3000 · Search /search · My /my
 ```
 
 ## Known gaps
-- Real MinIO upload + Sharp variants need Docker/native libs; default `MEDIA_PIPELINE=mock`
-- Lighthouse ≥80 not run in CI this phase (manual/follow-up)
-- Chat/Offer/Buy Now CTAs toast “Coming soon” (Phases 4–5)
-- Swap/Give Away selectable; purchase flows deferred (post-MVP 2.1)
+- OpenSearch live indexing deferred (Postgres path is default)
+- Lighthouse CI budgets not automated this phase (manual follow-up)
+- Saved-search push alerts → post-MVP 2.3
+- Moving Sales rail empty by design until Phase 2.2
 
-## Exact resume point
-**Phase 2 code complete.** Next: **Phase 3 — Discovery** (`v0.3-discovery`) after merge + tag `v0.2-listings`.
+## Resume point
+**Phase 3 complete.** Next: **Phase 4 — Chat + Offers** (`v0.4-chat-offers`).
 
 ```
-Continue: resume Phase 3 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
+Continue: resume Phase 4 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
 PRD.md, verify the last commit's tests still pass, then continue the plan. Do not restart completed work.
 ```
