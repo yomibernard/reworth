@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "ReWorth",
+    "slug": "reworth",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#FAF9F7"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.reworth.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FAF9F7"
+      },
+      "package": "com.reworth.app"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

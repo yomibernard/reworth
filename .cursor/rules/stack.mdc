@@ -1,0 +1,23 @@
+---
+description: ReWorth baked-in stack — do not substitute without an ADR
+alwaysApply: true
+---
+
+# ReWorth — stack rules
+
+| Area | Decision |
+| --- | --- |
+| Monorepo | Turborepo + pnpm |
+| Mobile | React Native + Expo |
+| Web + Admin | Next.js 15 App Router, TypeScript, Tailwind |
+| API | NestJS modular monolith, REST `/api/v1` |
+| DB | PostgreSQL 16 + Prisma; Redis + BullMQ |
+| Media | S3-compatible (MinIO), presigned uploads |
+| Search | OpenSearch + Postgres FTS fallback |
+| Auth | JWT + phone OTP + Google/Apple OAuth |
+| SMS | Termii or Twilio + mock |
+| Payments | Paystack + mock PSP; escrow-shaped (ADR-002) |
+| AI | OpenAI GPT-4o default + rule-based mock |
+| Locale | NGN, en-NG, WAT |
+
+Stack changes require a new ADR under `docs/ADRS/`. See ADR-001.

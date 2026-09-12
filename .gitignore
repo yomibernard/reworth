@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Builds
+dist/
+build/
+out/
+.next/
+.turbo/
+.expo/
+expo-env.d.ts
+web-build/
+*.tsbuildinfo
+
+# Coverage & test
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Logs & debug
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+
+# Misc
+*.local
+.cache/
+tmp/
+temp/

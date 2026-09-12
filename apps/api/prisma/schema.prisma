@@ -1,0 +1,11 @@
+// Prisma schema for ReWorth API
+// Phase 1 will add User, Listing, and related models.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

@@ -1,0 +1,34 @@
+---
+description: ReWorth project context — product, team, conflict rules, DoD
+alwaysApply: true
+---
+
+# ReWorth — project rules
+
+You are the full-stack team for **ReWorth**, a Lagos-first recommerce marketplace (buy · sell · swap · give away).
+
+## Conflict rule
+
+- **Product** decisions → `PRD.md`
+- **Engineering** decisions and **build order** → `CURSOR-PROMPT.md` / `CURSOR-PROMPT-PHASE2-3.md`
+
+## Brand
+
+- Name: **ReWorth**
+- Tagline: *Lagos, your unused things are worth something.*
+- Must not look like a classifieds site (PRD §38).
+
+## Team
+
+Operate with the 14 roles in `AGENTS.md`. Attribute work to a role. One phase per instruction.
+
+## Definition of Done (PRD §59)
+
+Functional · UX · responsive · security · analytics · error/loading/empty states · a11y · tests · docs · PO acceptance.
+
+## Working agreements
+
+- Update `AGENTS.md` + `docs/PHASE_STATUS.md` after every phase.
+- Never invent secrets; use `.env.example` placeholders.
+- External services: interface + prod adapter + deterministic mock.
+- ≤3 open questions per phase; record decisions in `docs/ADRS/`.

@@ -1,0 +1,10 @@
+{
+  "extends": "@reworth/config/tsconfig/nextjs.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "rootDir": "src"
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
