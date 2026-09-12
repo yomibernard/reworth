@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { formatNgn } from "@reworth/shared";
 import {
   Button,
@@ -12,8 +12,13 @@ import {
   Skeleton,
   Toast,
 } from "@reworth/ui-web";
+import { MakeOfferModal } from "../../../components/chat/MakeOfferModal";
 import { ApiError } from "../../../lib/api";
 import { getAccessToken } from "../../../lib/auth";
+import {
+  createConversation,
+  createOffer,
+} from "../../../lib/chat";
 import {
   favouriteListing,
   getMeFavourites,
@@ -31,6 +36,7 @@ import type { PublicListing } from "../../../lib/types";
 export default function ListingPdpPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
+  const router = useRouter();
 
   const [listing, setListing] = useState<PublicListing | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,6 +52,9 @@ export default function ListingPdpPage() {
   const [reporting, setReporting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [offerBusy, setOfferBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -77,6 +86,59 @@ export default function ListingPdpPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  function requireAuth(): string | null {
+    const token = getAccessToken();
+    if (!token) {
+      setToast({ message: "Sign in to continue", tone: "warn" });
+      router.push("/onboarding");
+      return null;
+    }
+    return token;
+  }
+
+  async function startChat() {
+    if (!id) return;
+    const token = requireAuth();
+    if (!token) return;
+    setChatBusy(true);
+    try {
+      const conv = await createConversation(token, id);
+      router.push(`/chats/${conv.id}`);
+    } catch (err) {
+      setToast({
+        message: err instanceof ApiError ? err.message : "Could not start chat",
+        tone: "error",
+      });
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
+  async function submitOffer(amountKobo: number, note?: string) {
+    if (!id) return;
+    const token = requireAuth();
+    if (!token) return;
+    setOfferBusy(true);
+    try {
+      const conv = await createConversation(token, id);
+      await createOffer(token, id, {
+        amountKobo,
+        note,
+        conversationId: conv.id,
+      });
+      setOfferOpen(false);
+      setToast({ message: "Offer sent", tone: "success" });
+      router.push(`/chats/${conv.id}`);
+    } catch (err) {
+      setToast({
+        message: err instanceof ApiError ? err.message : "Offer failed",
+        tone: "error",
+      });
+    } finally {
+      setOfferBusy(false);
+    }
+  }
 
   function comingSoon(label: string) {
     setToast({ message: `${label} — Coming soon`, tone: "info" });
@@ -391,16 +453,20 @@ export default function ListingPdpPage() {
             <Button
               variant="primary"
               className="flex-1"
-              onClick={() => comingSoon("Chat")}
+              disabled={chatBusy}
+              onClick={() => void startChat()}
             >
-              Chat
+              {chatBusy ? "Opening…" : "Chat"}
             </Button>
           ) : (
             <>
               <Button
                 variant="secondary"
                 className="flex-1"
-                onClick={() => comingSoon("Make offer")}
+                onClick={() => {
+                  if (!requireAuth()) return;
+                  setOfferOpen(true);
+                }}
               >
                 Make offer
               </Button>
@@ -416,9 +482,10 @@ export default function ListingPdpPage() {
               <Button
                 variant="ghost"
                 className="flex-1"
-                onClick={() => comingSoon("Chat")}
+                disabled={chatBusy}
+                onClick={() => void startChat()}
               >
-                Chat
+                {chatBusy ? "Opening…" : "Chat"}
               </Button>
             </>
           )}
@@ -442,6 +509,13 @@ export default function ListingPdpPage() {
           </Button>
         </div>
       </div>
+
+      <MakeOfferModal
+        open={offerOpen}
+        onClose={() => setOfferOpen(false)}
+        submitting={offerBusy}
+        onSubmit={submitOffer}
+      />
 
       <Modal
         open={reportOpen}

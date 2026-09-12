@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { ChatsPanel } from "./ChatScreens";
 import { ListingDetailModal } from "./ListingDetailModal";
 import { SellFlow } from "./SellFlow";
 import {
@@ -65,6 +66,7 @@ export default function App() {
   const [profileSubtab, setProfileSubtab] = useState<"account" | "saved">(
     "account",
   );
+  const [openChatId, setOpenChatId] = useState<string | null>(null);
 
   const refreshMe = useCallback(async () => {
     const token = await getAccessToken();
@@ -498,6 +500,12 @@ export default function App() {
           )
         ) : active === "discover" ? (
           <SearchPanel onOpenListing={(id) => setDetailId(id)} />
+        ) : active === "chats" ? (
+          <ChatsPanel
+            meId={me?.id ?? ""}
+            openConversationId={openChatId}
+            onConversationOpened={() => setOpenChatId(null)}
+          />
         ) : (
           <>
             <Text style={styles.brand} accessibilityRole="header">
@@ -549,6 +557,11 @@ export default function App() {
       <ListingDetailModal
         listingId={detailId}
         onClose={() => setDetailId(null)}
+        onOpenChat={(conversationId) => {
+          setDetailId(null);
+          setOpenChatId(conversationId);
+          setActive("chats");
+        }}
       />
     </SafeAreaView>
   );

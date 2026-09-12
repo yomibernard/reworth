@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 3 (Discovery)** — clients complete; target tag `v0.3-discovery` pending.
+**Current phase: 4 (Chat + Offers)** — API + clients complete; tag `v0.4-chat-offers` pending.
 
 Do **not** implement features from later phases in the same PR.
 

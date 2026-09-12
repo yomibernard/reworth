@@ -7,10 +7,16 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { ApiError } from "./lib/api";
 import { getAccessToken } from "./lib/auth";
+import {
+  createConversation,
+  createOffer,
+  nairaToKobo,
+} from "./lib/chat";
 import {
   favouriteListing,
   getMeFavourites,
@@ -26,15 +32,24 @@ import {
 type Props = {
   listingId: string | null;
   onClose: () => void;
+  onOpenChat?: (conversationId: string) => void;
 };
 
-export function ListingDetailModal({ listingId, onClose }: Props) {
+export function ListingDetailModal({
+  listingId,
+  onClose,
+  onOpenChat,
+}: Props) {
   const [listing, setListing] = useState<PublicListing | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [offerNaira, setOfferNaira] = useState("");
+  const [offerBusy, setOfferBusy] = useState(false);
 
   useEffect(() => {
     if (!listingId) {
@@ -91,6 +106,51 @@ export function ListingDetailModal({ listingId, onClose }: Props) {
       setToast(err instanceof ApiError ? err.message : "Could not update");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function startChat() {
+    const token = await getAccessToken();
+    if (!token || !listingId) {
+      setToast("Sign in to chat");
+      return;
+    }
+    setChatBusy(true);
+    try {
+      const conv = await createConversation(token, listingId);
+      onOpenChat?.(conv.id);
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "Could not start chat");
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
+  async function submitOffer() {
+    const token = await getAccessToken();
+    if (!token || !listingId) {
+      setToast("Sign in to offer");
+      return;
+    }
+    const value = Number(offerNaira.replace(/,/g, ""));
+    if (!Number.isFinite(value) || value < 1) {
+      setToast("Enter an amount in ₦");
+      return;
+    }
+    setOfferBusy(true);
+    try {
+      const conv = await createConversation(token, listingId);
+      await createOffer(token, listingId, {
+        amountKobo: nairaToKobo(value),
+        conversationId: conv.id,
+      });
+      setOfferOpen(false);
+      setOfferNaira("");
+      onOpenChat?.(conv.id);
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "Offer failed");
+    } finally {
+      setOfferBusy(false);
     }
   }
 
@@ -204,7 +264,7 @@ export function ListingDetailModal({ listingId, onClose }: Props) {
                 <>
                   <Action
                     label="Make offer"
-                    onPress={() => setToast("Coming soon")}
+                    onPress={() => setOfferOpen(true)}
                   />
                   {!isGiveAway ? (
                     <Action
@@ -215,7 +275,12 @@ export function ListingDetailModal({ listingId, onClose }: Props) {
                   ) : null}
                 </>
               ) : null}
-              <Action label="Chat" onPress={() => setToast("Coming soon")} />
+              <Action
+                label={chatBusy ? "Opening…" : "Chat"}
+                onPress={() => {
+                  if (!chatBusy) void startChat();
+                }}
+              />
               <Action
                 label={saved ? "Saved ♥" : "Save"}
                 onPress={() => {
@@ -237,6 +302,34 @@ export function ListingDetailModal({ listingId, onClose }: Props) {
             ) : null}
           </ScrollView>
         )}
+
+        <Modal visible={offerOpen} animationType="slide" transparent>
+          <View style={styles.sheetBackdrop}>
+            <View style={styles.sheet}>
+              <Text style={styles.sheetTitle}>Make offer</Text>
+              <Text style={styles.label}>Amount (₦)</Text>
+              <TextInput
+                style={styles.input}
+                value={offerNaira}
+                onChangeText={setOfferNaira}
+                keyboardType="numeric"
+                placeholder="45000"
+              />
+              <Pressable
+                style={[styles.primaryBtn, offerBusy && styles.disabled]}
+                disabled={offerBusy}
+                onPress={() => void submitOffer()}
+              >
+                <Text style={styles.primaryBtnText}>
+                  {offerBusy ? "Sending…" : "Send offer"}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => setOfferOpen(false)}>
+                <Text style={styles.cancel}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </View>
     </Modal>
   );
@@ -344,4 +437,49 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   error: { color: "#DC2626", fontSize: 15 },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#FAF9F7",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 32,
+  },
+  sheetTitle: { fontSize: 20, fontWeight: "700", color: "#111315" },
+  label: {
+    marginTop: 16,
+    marginBottom: 8,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111315",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#E5E2DC",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: "#111315",
+    backgroundColor: "#FFFFFF",
+  },
+  primaryBtn: {
+    marginTop: 20,
+    backgroundColor: "#0E9F6E",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  primaryBtnText: { color: "#FFF", fontWeight: "700", fontSize: 16 },
+  cancel: {
+    marginTop: 14,
+    textAlign: "center",
+    color: "#0E9F6E",
+    fontWeight: "600",
+  },
+  disabled: { opacity: 0.55 },
 });

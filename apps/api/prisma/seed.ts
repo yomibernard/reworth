@@ -1,11 +1,11 @@
 /**
- * ReWorth Prisma seed — Super Admin + categories (PRD §26).
+ * ReWorth Prisma seed — Super Admin + categories (PRD §26) + chat scan rules.
  *
  * Env:
  *   ADMIN_SUPER_EMAIL
  *   ADMIN_SUPER_PASSWORD
  */
-import { PrismaClient, AdminRole } from '@prisma/client';
+import { PrismaClient, AdminRole, ChatScanKind } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 
@@ -270,9 +270,39 @@ async function seedAdmin() {
   console.info(`[seed] Super Admin ready: ${email} (${user.id})`);
 }
 
+const CHAT_SCAN_RULES: { pattern: string; kind: ChatScanKind }[] = [
+  { pattern: 'bank account', kind: ChatScanKind.OFF_PLATFORM_PAYMENT },
+  { pattern: 'transfer directly', kind: ChatScanKind.OFF_PLATFORM_PAYMENT },
+  { pattern: 'pay to my account', kind: ChatScanKind.OFF_PLATFORM_PAYMENT },
+  { pattern: 'pay directly', kind: ChatScanKind.OFF_PLATFORM_PAYMENT },
+  { pattern: 'https?://', kind: ChatScanKind.EXTERNAL_LINK },
+  { pattern: 'whatsapp', kind: ChatScanKind.SCAM_PHRASE },
+  { pattern: 'send me money first', kind: ChatScanKind.ADVANCE_PAYMENT },
+];
+
+async function seedChatScanRules() {
+  for (const rule of CHAT_SCAN_RULES) {
+    const existing = await prisma.chatScanRule.findFirst({
+      where: { pattern: rule.pattern, kind: rule.kind },
+    });
+    if (existing) continue;
+    await prisma.chatScanRule.create({
+      data: {
+        id: randomUUID(),
+        pattern: rule.pattern,
+        kind: rule.kind,
+        enabled: true,
+      },
+    });
+  }
+  // eslint-disable-next-line no-console
+  console.info(`[seed] Chat scan rules ready: ${CHAT_SCAN_RULES.length}`);
+}
+
 async function main() {
   await seedAdmin();
   await seedCategories();
+  await seedChatScanRules();
 }
 
 main()

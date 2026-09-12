@@ -1,4 +1,4 @@
-// ReWorth API — Phase 1–3: Auth, Listings, Discovery
+// ReWorth API — Phase 1–4: Auth, Listings, Discovery, Chat + Offers
 
 generator client {
   provider = "prisma-client-js"
@@ -96,6 +96,37 @@ enum ReportStatus {
   DISMISSED
 }
 
+enum MessageType {
+  TEXT
+  IMAGE
+  LISTING_CARD
+  OFFER_CARD
+  SYSTEM
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTERED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum OrderIntentStatus {
+  PENDING
+  CONVERTED
+  CANCELLED
+  EXPIRED
+}
+
+enum ChatScanKind {
+  OFF_PLATFORM_PAYMENT
+  EXTERNAL_LINK
+  ADVANCE_PAYMENT
+  SCAM_PHRASE
+}
+
 model User {
   id              String     @id @default(uuid()) @db.Uuid
   phone           String?    @unique
@@ -108,21 +139,34 @@ model User {
   updatedAt       DateTime   @updatedAt
   deletedAt       DateTime?
 
-  profile       Profile?
-  addresses     Address[]
-  verifications Verification[]
-  devices       Device[]
-  refreshTokens RefreshToken[]
-  roles         UserRole[]
-  auditLogs     AuditLog[]     @relation("AuditActor")
-  listings      Listing[]
-  listingEvents ListingEvent[] @relation("ListingEventActor")
-  riskEvents    RiskEvent[]
-  reports       Report[]       @relation("ReportReporter")
-  favourites    Favourite[]
-  savedSearches SavedSearch[]
-  following     SellerFollow[] @relation("SellerFollowers")
-  followers     SellerFollow[] @relation("SellerFollowing")
+  profile              Profile?
+  addresses            Address[]
+  verifications        Verification[]
+  devices              Device[]
+  refreshTokens        RefreshToken[]
+  roles                UserRole[]
+  auditLogs            AuditLog[]           @relation("AuditActor")
+  listings             Listing[]
+  listingEvents        ListingEvent[]       @relation("ListingEventActor")
+  riskEvents           RiskEvent[]
+  reports              Report[]             @relation("ReportReporter")
+  reportsAgainst       Report[]             @relation("ReportReportedUser")
+  favourites           Favourite[]
+  savedSearches        SavedSearch[]
+  following            SellerFollow[]       @relation("SellerFollowers")
+  followers            SellerFollow[]       @relation("SellerFollowing")
+  conversationsAsBuyer Conversation[]       @relation("ConversationBuyer")
+  conversationsAsSeller Conversation[]      @relation("ConversationSeller")
+  messagesSent         Message[]            @relation("MessageSender")
+  offersAsBuyer        Offer[]              @relation("OfferBuyer")
+  offersAsSeller       Offer[]              @relation("OfferSeller")
+  offerEvents          OfferEvent[]         @relation("OfferEventActor")
+  orderIntentsAsBuyer  OrderIntent[]        @relation("OrderIntentBuyer")
+  orderIntentsAsSeller OrderIntent[]        @relation("OrderIntentSeller")
+  blocksCreated        UserBlock[]          @relation("UserBlocker")
+  blocksReceived       UserBlock[]          @relation("UserBlocked")
+  mutesCreated         UserMute[]           @relation("UserMuter")
+  mutesReceived        UserMute[]           @relation("UserMuted")
 
   @@map("users")
 }
@@ -276,10 +320,10 @@ model Category {
   iconUrl   String?
   createdAt DateTime @default(now())
 
-  parent       Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children     Category[] @relation("CategoryTree")
-  listings     Listing[]  @relation("ListingCategory")
-  subListings  Listing[]  @relation("ListingSubcategory")
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryTree")
+  listings    Listing[]  @relation("ListingCategory")
+  subListings Listing[]  @relation("ListingSubcategory")
 
   @@index([parentId])
   @@index([sortOrder])
@@ -287,47 +331,51 @@ model Category {
 }
 
 model Listing {
-  id                  String        @id @default(uuid()) @db.Uuid
-  sellerId            String        @db.Uuid
-  title               String        @default("")
-  description         String        @default("")
-  categoryId          String?       @db.Uuid
-  subcategoryId       String?       @db.Uuid
-  brand               String?
-  model               String?
-  condition           ItemCondition @default(GOOD)
-  ageText             String?
-  originalPriceKobo   Int?
-  priceKobo           Int           @default(0)
-  negotiable          Boolean       @default(true)
-  sellingMode         SellingMode   @default(SELL)
-  status              ListingStatus @default(DRAFT)
-  community           String        @default("")
-  geoLat              Float?
-  geoLng              Float?
+  id                 String        @id @default(uuid()) @db.Uuid
+  sellerId           String        @db.Uuid
+  title              String        @default("")
+  description        String        @default("")
+  categoryId         String?       @db.Uuid
+  subcategoryId      String?       @db.Uuid
+  brand              String?
+  model              String?
+  condition          ItemCondition @default(GOOD)
+  ageText            String?
+  originalPriceKobo  Int?
+  priceKobo          Int           @default(0)
+  negotiable         Boolean       @default(true)
+  sellingMode        SellingMode   @default(SELL)
+  status             ListingStatus @default(DRAFT)
+  community          String        @default("")
+  geoLat             Float?
+  geoLng             Float?
   /// Private meetup / pickup address — NEVER expose in public DTOs.
-  addressPrivate      String?
-  fulfilmentPickup    Boolean       @default(true)
-  fulfilmentMeet      Boolean       @default(true)
-  fulfilmentDelivery  Boolean       @default(false)
-  aiUsed              Boolean       @default(false)
-  aiEditedFields      String[]      @default([])
-  expiresAt           DateTime?
-  publishedAt         DateTime?
-  views               Int           @default(0)
-  vehicle             Json?
-  riskFlags           String[]      @default([])
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  addressPrivate     String?
+  fulfilmentPickup   Boolean       @default(true)
+  fulfilmentMeet     Boolean       @default(true)
+  fulfilmentDelivery Boolean       @default(false)
+  aiUsed             Boolean       @default(false)
+  aiEditedFields     String[]      @default([])
+  expiresAt          DateTime?
+  publishedAt        DateTime?
+  views              Int           @default(0)
+  vehicle            Json?
+  riskFlags          String[]      @default([])
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
-  seller      User           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  category    Category?      @relation("ListingCategory", fields: [categoryId], references: [id], onDelete: SetNull)
-  subcategory Category?      @relation("ListingSubcategory", fields: [subcategoryId], references: [id], onDelete: SetNull)
-  images      ListingImage[]
-  events      ListingEvent[]
-  riskEvents  RiskEvent[]
-  reports     Report[]
-  favourites  Favourite[]
+  seller       User           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  category     Category?      @relation("ListingCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  subcategory  Category?      @relation("ListingSubcategory", fields: [subcategoryId], references: [id], onDelete: SetNull)
+  images       ListingImage[]
+  events       ListingEvent[]
+  riskEvents   RiskEvent[]
+  reports      Report[]
+  favourites   Favourite[]
+  conversations Conversation[]
+  offers       Offer[]
+  orderIntents OrderIntent[]
+  listingCards Message[]      @relation("MessageListingCard")
 
   @@index([sellerId])
   @@index([status])
@@ -339,19 +387,19 @@ model Listing {
 }
 
 model ListingImage {
-  id            String             @id @default(uuid()) @db.Uuid
-  listingId     String             @db.Uuid
-  sortOrder     Int                @default(0)
-  originalKey   String
-  variants      Json               @default("{}")
-  width         Int?
-  height        Int?
-  mime          String?
-  sizeBytes     Int?
-  dHash         String?
-  exifStripped  Boolean            @default(false)
-  status        ListingImageStatus @default(PENDING)
-  createdAt     DateTime           @default(now())
+  id           String             @id @default(uuid()) @db.Uuid
+  listingId    String             @db.Uuid
+  sortOrder    Int                @default(0)
+  originalKey  String
+  variants     Json               @default("{}")
+  width        Int?
+  height       Int?
+  mime         String?
+  sizeBytes    Int?
+  dHash        String?
+  exifStripped Boolean            @default(false)
+  status       ListingImageStatus @default(PENDING)
+  createdAt    DateTime           @default(now())
 
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
@@ -396,18 +444,23 @@ model RiskEvent {
 }
 
 model Report {
-  id         String       @id @default(uuid()) @db.Uuid
-  listingId  String       @db.Uuid
-  reporterId String       @db.Uuid
-  reason     String
-  detail     String?
-  status     ReportStatus @default(OPEN)
-  createdAt  DateTime     @default(now())
+  id             String       @id @default(uuid()) @db.Uuid
+  listingId      String?      @db.Uuid
+  reportedUserId String?      @db.Uuid
+  reporterId     String       @db.Uuid
+  reason         String
+  detail         String?
+  conversationId String?      @db.Uuid
+  status         ReportStatus @default(OPEN)
+  createdAt      DateTime     @default(now())
 
-  listing  Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  reporter User    @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  listing      Listing?      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reportedUser User?         @relation("ReportReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  reporter     User          @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 
   @@index([listingId])
+  @@index([reportedUserId])
   @@index([reporterId])
   @@index([status])
   @@map("reports")
@@ -457,4 +510,161 @@ model SavedSearch {
 
   @@index([userId])
   @@map("saved_searches")
+}
+
+model Conversation {
+  id            String   @id @default(uuid()) @db.Uuid
+  listingId     String   @db.Uuid
+  buyerId       String   @db.Uuid
+  sellerId      String   @db.Uuid
+  lastMessageAt DateTime?
+  createdAt     DateTime @default(now())
+
+  listing  Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer    User      @relation("ConversationBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller   User      @relation("ConversationSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  messages Message[]
+  offers   Offer[]
+  mutes    UserMute[]
+  reports  Report[]
+
+  @@unique([listingId, buyerId, sellerId])
+  @@index([buyerId, lastMessageAt])
+  @@index([sellerId, lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String      @id @default(uuid()) @db.Uuid
+  conversationId String      @db.Uuid
+  senderId       String      @db.Uuid
+  type           MessageType
+  /// Scrubbed body — phone/email patterns redacted before persist.
+  body           String?
+  imageKey       String?
+  offerId        String?     @db.Uuid
+  listingCardId  String?     @db.Uuid
+  /// Client-generated id for idempotent resync.
+  clientMsgId    String?
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  scamWarning    Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  offer        Offer?       @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  listingCard  Listing?     @relation("MessageListingCard", fields: [listingCardId], references: [id], onDelete: SetNull)
+
+  @@unique([conversationId, clientMsgId])
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model Offer {
+  id             String      @id @default(uuid()) @db.Uuid
+  listingId      String      @db.Uuid
+  conversationId String?     @db.Uuid
+  buyerId        String      @db.Uuid
+  sellerId       String      @db.Uuid
+  amountKobo     Int
+  note           String?
+  status         OfferStatus @default(PENDING)
+  parentOfferId  String?     @db.Uuid
+  expiresAt      DateTime
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  listing      Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  buyer        User          @relation("OfferBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller       User          @relation("OfferSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  parentOffer  Offer?        @relation("OfferChain", fields: [parentOfferId], references: [id], onDelete: SetNull)
+  counters     Offer[]       @relation("OfferChain")
+  events       OfferEvent[]
+  messages     Message[]
+  orderIntents OrderIntent[]
+
+  @@index([listingId, status])
+  @@index([buyerId, listingId, status])
+  @@index([expiresAt])
+  @@map("offers")
+}
+
+model OfferEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  offerId     String   @db.Uuid
+  type        String
+  actorUserId String?  @db.Uuid
+  payload     Json?
+  createdAt   DateTime @default(now())
+
+  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  actor User? @relation("OfferEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([offerId, createdAt])
+  @@map("offer_events")
+}
+
+model OrderIntent {
+  id            String            @id @default(uuid()) @db.Uuid
+  listingId     String            @db.Uuid
+  buyerId       String            @db.Uuid
+  sellerId      String            @db.Uuid
+  offerId       String?           @db.Uuid
+  amountKobo    Int
+  status        OrderIntentStatus @default(PENDING)
+  reservedUntil DateTime
+  createdAt     DateTime          @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer   User    @relation("OrderIntentBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller  User    @relation("OrderIntentSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  offer   Offer?  @relation(fields: [offerId], references: [id], onDelete: SetNull)
+
+  @@index([listingId, status])
+  @@index([buyerId])
+  @@map("order_intents")
+}
+
+model UserBlock {
+  id        String   @id @default(uuid()) @db.Uuid
+  blockerId String   @db.Uuid
+  blockedId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  blocker User @relation("UserBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("UserBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
+model UserMute {
+  id             String   @id @default(uuid()) @db.Uuid
+  muterId        String   @db.Uuid
+  mutedId        String   @db.Uuid
+  conversationId String?  @db.Uuid
+  createdAt      DateTime @default(now())
+
+  muter        User          @relation("UserMuter", fields: [muterId], references: [id], onDelete: Cascade)
+  muted        User          @relation("UserMuted", fields: [mutedId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([muterId])
+  @@index([conversationId])
+  @@map("user_mutes")
+}
+
+model ChatScanRule {
+  id        String       @id @default(uuid()) @db.Uuid
+  pattern   String
+  kind      ChatScanKind
+  enabled   Boolean      @default(true)
+  createdAt DateTime     @default(now())
+
+  @@index([enabled])
+  @@map("chat_scan_rules")
 }
