@@ -123,7 +123,7 @@ Per **PRD §59**: functional · UX · responsive · security · analytics · err
 
 ## Known gaps
 
-**Phase 8 Admin portal complete** (API + ops UI). Tag `v0.8-admin` pending.
+**Phase 8 Admin portal complete** (API + ops UI). Tag `v0.8-admin` cut; PR pending merge.
 
 Still not built:
 

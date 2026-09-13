@@ -6,7 +6,7 @@
 | Prompt | Prompt 9 |
 | Target tag | `v0.8-admin` |
 | Branch | `phase-8-admin` (or current) |
-| Status | **Complete (pending PR merge / tag)** |
+| Status | **Complete (pending PR merge)** — tag `v0.8-admin` cut |
 | Last updated | 2026-09-13 |
 
 ## What exists (Phase 8)
