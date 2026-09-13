@@ -2,6 +2,7 @@ export * from './sms.provider';
 export * from './console-sms.mock';
 export * from './payment.provider';
 export * from './mock-psp';
+export * from './paystack.adapter';
 export * from './ai-listing.provider';
 export * from './rule-based-ai.mock';
 export * from './storage.provider';

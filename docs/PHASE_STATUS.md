@@ -2,46 +2,41 @@
 
 | Field | Value |
 | --- | --- |
-| Current phase | **4 — Chat + Offers** |
-| Prompt | Prompt 5 |
-| Target tag | `v0.4-chat-offers` |
-| Branch | `phase-4-chat-offers` |
+| Current phase | **5 — Orders, Protected Payments & Disputes** |
+| Prompt | Prompt 6 |
+| Target tag | `v0.5-orders-payments` |
+| Branch | `phase-5-orders-payments` |
 | Status | **Complete (pending PR merge)** |
-| Last updated | 2026-09-12 |
+| Last updated | 2026-09-13 |
 
-## What exists (Phase 4)
+## What exists (Phase 5)
 
 ### API
-- Conversation, Message, Offer, OfferEvent, OrderIntent, UserBlock, UserMute, ChatScanRule
-- REST chat + Socket.io `/chat` gateway; polling `?after=`
-- PII redaction; scam scan → `scamWarning` + RiskEvent
-- Offers lifecycle; accept → listing RESERVED + OrderIntent (Phase 5 converts)
-- **63 unit tests** green
+- Order, Payment, Payout, Refund, Dispute, DisputeEvidence, IdempotencyRecord
+- Escrow SM via MockPsp (+ Paystack adapter stub); webhook replay-safe
+- Buyer protection fee 2.5% cap ₦5,000; auto-release; coverage window
+- Admin dispute resolution; **76 unit tests** green
+- ADR-002 marked Implemented
 
 ### Clients
-- Web `/chats`, `/chats/[id]`; PDP Chat + Make offer
-- Mobile Chats tab + listing chat/offer
+- Web `/checkout`, `/orders/[id]`, `/disputes/[id]`; BUY NOW / accept-offer wired
+- Mobile orders helpers
 
 ### Docs
-- [`docs/PHASE_4_PLAN.md`](PHASE_4_PLAN.md)
+- [`docs/PHASE_5_PLAN.md`](PHASE_5_PLAN.md)
 
 ## Local
 
 ```bash
 cd apps/api && pnpm exec prisma migrate deploy && pnpm exec prisma db seed
 pnpm dev
-# Chats http://localhost:3000/chats
+# Checkout → mock webhook POST /api/v1/webhooks/mock-psp
 ```
-
-## Known gaps
-- Full FCM push → Phase 6
-- Order checkout from OrderIntent → Phase 5
-- Admin edit of ChatScanRule → Phase 8
 
 ## Resume point
-**Phase 4 complete.** Next: **Phase 5 — Orders, Payments & Disputes** (`v0.5-orders-payments`).
+**Phase 5 complete.** Next: **Phase 6 — Logistics + Notifications** (`v0.6-logistics-notifications`).
 
 ```
-Continue: resume Phase 5 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
-PRD.md, verify the last commit's tests still pass, then continue the plan. Do not restart completed work.
+Continue: resume Phase 6 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
+PRD.md, verify the last commit's tests still pass, then continue the plan.
 ```

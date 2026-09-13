@@ -193,9 +193,17 @@ export default function AccountPage() {
           >
             ReWorth
           </Link>
-          <h1 className="text-sm font-medium text-[var(--rw-ink-muted)]">
-            Account
-          </h1>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/orders"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Orders
+            </Link>
+            <h1 className="text-sm font-medium text-[var(--rw-ink-muted)]">
+              Account
+            </h1>
+          </div>
         </header>
 
         {loading ? (

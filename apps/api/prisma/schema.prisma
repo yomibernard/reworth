@@ -1,4 +1,4 @@
-// ReWorth API — Phase 1–4: Auth, Listings, Discovery, Chat + Offers
+// ReWorth API — Phase 1–5: Auth, Listings, Discovery, Chat + Offers, Orders + Payments
 
 generator client {
   provider = "prisma-client-js"
@@ -127,6 +127,56 @@ enum ChatScanKind {
   SCAM_PHRASE
 }
 
+enum OrderStatus {
+  CREATED
+  PAYMENT_PENDING
+  FUNDED
+  HANDED_OVER
+  RECEIVED
+  COMPLETED
+  CANCELLED
+  DISPUTE_HOLD
+  REFUND_REQUESTED
+  REFUND_ISSUED
+}
+
+enum FulfilmentMethod {
+  PICKUP
+  MEET_POINT
+  DELIVERY
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  RELEASED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum DisputeStatus {
+  OPENED
+  AWAITING_SELLER
+  AWAITING_ADMIN
+  RESOLVED
+}
+
+enum DisputeReason {
+  NEVER_RECEIVED
+  MATERIALLY_DIFFERENT
+  COUNTERFEIT
+  UNDISCLOSED_DAMAGE
+  INCORRECT_PRODUCT
+}
+
+enum DisputeResolution {
+  FULL_REFUND
+  PARTIAL_REFUND
+  RELEASE_TO_SELLER
+  CANCEL
+}
+
 model User {
   id              String     @id @default(uuid()) @db.Uuid
   phone           String?    @unique
@@ -167,6 +217,11 @@ model User {
   blocksReceived       UserBlock[]          @relation("UserBlocked")
   mutesCreated         UserMute[]           @relation("UserMuter")
   mutesReceived        UserMute[]           @relation("UserMuted")
+  ordersAsBuyer        Order[]              @relation("OrderBuyer")
+  ordersAsSeller       Order[]              @relation("OrderSeller")
+  orderEvents          OrderEvent[]         @relation("OrderEventActor")
+  disputesOpened       Dispute[]            @relation("DisputeOpener")
+  disputeEvidence      DisputeEvidence[]
 
   @@map("users")
 }
@@ -375,6 +430,7 @@ model Listing {
   conversations Conversation[]
   offers       Offer[]
   orderIntents OrderIntent[]
+  orders       Order[]
   listingCards Message[]      @relation("MessageListingCard")
 
   @@index([sellerId])
@@ -585,6 +641,7 @@ model Offer {
   events       OfferEvent[]
   messages     Message[]
   orderIntents OrderIntent[]
+  orders       Order[]
 
   @@index([listingId, status])
   @@index([buyerId, listingId, status])
@@ -616,16 +673,172 @@ model OrderIntent {
   amountKobo    Int
   status        OrderIntentStatus @default(PENDING)
   reservedUntil DateTime
+  orderId       String?           @unique @db.Uuid
   createdAt     DateTime          @default(now())
 
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   buyer   User    @relation("OrderIntentBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
   seller  User    @relation("OrderIntentSeller", fields: [sellerId], references: [id], onDelete: Cascade)
   offer   Offer?  @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@index([listingId, status])
   @@index([buyerId])
   @@map("order_intents")
+}
+
+model Order {
+  id                String           @id @default(uuid()) @db.Uuid
+  listingId         String           @db.Uuid
+  buyerId           String           @db.Uuid
+  sellerId          String           @db.Uuid
+  offerId           String?          @db.Uuid
+  orderIntentId     String?          @unique @db.Uuid
+  amountKobo        Int
+  protectionFeeKobo Int
+  deliveryFeeKobo   Int              @default(0)
+  totalKobo         Int
+  fulfilmentMethod  FulfilmentMethod
+  status            OrderStatus      @default(CREATED)
+  buyerProtection   Boolean          @default(true)
+  coverageEndsAt    DateTime?
+  autoReleaseAt     DateTime?
+  fundedAt          DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  listing     Listing         @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer       User            @relation("OrderBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller      User            @relation("OrderSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  offer       Offer?          @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  events      OrderEvent[]
+  payments    Payment[]
+  payouts     Payout[]
+  refunds     Refund[]
+  disputes    Dispute[]
+  orderIntent OrderIntent?
+
+  @@index([buyerId, createdAt])
+  @@index([sellerId, createdAt])
+  @@index([listingId])
+  @@index([status, autoReleaseAt])
+  @@map("orders")
+}
+
+model OrderEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderId     String   @db.Uuid
+  type        String
+  actorUserId String?  @db.Uuid
+  payload     Json?
+  createdAt   DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor User? @relation("OrderEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
+}
+
+model Payment {
+  id               String        @id @default(uuid()) @db.Uuid
+  orderId          String        @db.Uuid
+  provider         String
+  reference        String        @unique
+  amountKobo       Int
+  status           PaymentStatus @default(PENDING)
+  idempotencyKey   String?       @unique
+  providerPayload  Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refunds Refund[]
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+model Payout {
+  id            String   @id @default(uuid()) @db.Uuid
+  orderId       String   @db.Uuid
+  grossKobo     Int
+  feesKobo      Int
+  netKobo       Int
+  pspReference  String?
+  createdAt     DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("payouts")
+}
+
+model Refund {
+  id             String        @id @default(uuid()) @db.Uuid
+  orderId        String        @db.Uuid
+  paymentId      String        @db.Uuid
+  amountKobo     Int
+  reason         String?
+  idempotencyKey String?       @unique
+  status         PaymentStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("refunds")
+}
+
+model Dispute {
+  id              String              @id @default(uuid()) @db.Uuid
+  orderId         String              @db.Uuid
+  openerId        String              @db.Uuid
+  reason          DisputeReason
+  status          DisputeStatus       @default(OPENED)
+  detail          String?
+  sellerResponse  String?
+  sellerRespondBy DateTime?
+  resolution      DisputeResolution?
+  resolutionNote  String?
+  resolvedAt      DateTime?
+  createdAt       DateTime            @default(now())
+
+  order    Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  opener   User              @relation("DisputeOpener", fields: [openerId], references: [id], onDelete: Cascade)
+  evidence DisputeEvidence[]
+
+  @@index([orderId])
+  @@index([status, sellerRespondBy])
+  @@map("disputes")
+}
+
+model DisputeEvidence {
+  id         String   @id @default(uuid()) @db.Uuid
+  disputeId  String   @db.Uuid
+  uploaderId String   @db.Uuid
+  text       String?
+  imageKey   String?
+  createdAt  DateTime @default(now())
+
+  dispute  Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  uploader User    @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  @@index([disputeId])
+  @@map("dispute_evidence")
+}
+
+model IdempotencyRecord {
+  id           String   @id @default(uuid()) @db.Uuid
+  key          String   @unique
+  operation    String
+  responseJson Json
+  createdAt    DateTime @default(now())
+
+  @@index([operation])
+  @@map("idempotency_records")
 }
 
 model UserBlock {

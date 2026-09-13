@@ -1,6 +1,6 @@
 # ADR-002: Payments escrow via regulated PSP
 
-- **Status:** Accepted (implement in Phase 5 / `v0.5-orders-payments`)
+- **Status:** Implemented (Phase 5 / `v0.5-orders-payments`)
 - **Date:** 2026-09-12
 - **Deciders:** Payments Engineer, Security Engineer, Solution Architect
 
@@ -25,6 +25,12 @@ Buyer protection (PRD §18) needs a hold → deliver → confirm → release flo
 - Phase 5 depends on webhook reliability, idempotency, and dispute hooks.
 - Swap + Cash (post-launch `v1.0`) reuses the same cash-leg escrow path.
 - If PSP product limits change, update this ADR and adapters — do not hold funds in a ReWorth-controlled account that violates §17.
+
+## Implementation (Phase 5)
+
+- `PaymentProvider` + `MockPsp` + `PaystackAdapter` under `apps/api/src/providers/`
+- Orders / Payments / Disputes Nest modules; escrow state machine; auto-release + seller-response expiry schedulers
+- Env: `PAYMENTS_PROVIDER`, `BUYER_PROTECTION_FEE_*`, `ORDER_AUTO_RELEASE_DAYS`, `BUYER_PROTECTION_COVERAGE_DAYS`
 
 ## References
 

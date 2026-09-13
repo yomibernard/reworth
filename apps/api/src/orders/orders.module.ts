@@ -1,0 +1,42 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthModule } from '../auth/auth.module';
+import { ChatModule } from '../chat/chat.module';
+import { PrismaModule } from '../prisma/prisma.module';
+import { MockPsp } from '../providers/mock-psp';
+import { PAYMENT_PROVIDER } from '../providers/payment.provider';
+import { PaystackAdapter } from '../providers/paystack.adapter';
+import { AutoReleaseScheduler } from './auto-release.scheduler';
+import { OrdersController } from './orders.controller';
+import { OrdersService } from './orders.service';
+
+export function createPaymentProvider(config: ConfigService) {
+  const provider = (
+    config.get<string>('PAYMENTS_PROVIDER') ?? 'mock'
+  ).toLowerCase();
+  if (provider === 'paystack') {
+    return new PaystackAdapter(
+      config.get<string>('PAYSTACK_SECRET_KEY') ?? undefined,
+      config.get<string>('PAYSTACK_WEBHOOK_SECRET') ?? undefined,
+    );
+  }
+  return new MockPsp(
+    config.get<string>('PAYSTACK_WEBHOOK_SECRET') ?? 'mock-webhook-secret',
+  );
+}
+
+@Module({
+  imports: [PrismaModule, AuthModule, ConfigModule, ChatModule],
+  controllers: [OrdersController],
+  providers: [
+    OrdersService,
+    AutoReleaseScheduler,
+    {
+      provide: PAYMENT_PROVIDER,
+      useFactory: createPaymentProvider,
+      inject: [ConfigService],
+    },
+  ],
+  exports: [OrdersService, PAYMENT_PROVIDER],
+})
+export class OrdersModule {}

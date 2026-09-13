@@ -16,11 +16,11 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **4 — Chat + Offers** |
-| Prompt | Prompt 5 |
-| Target tag | `v0.4-chat-offers` |
+| Phase | **5 — Orders, Payments & Disputes** |
+| Prompt | Prompt 6 |
+| Target tag | `v0.5-orders-payments` |
 | Status | **Complete (pending PR merge)** |
-| Next | Phase 5 — Orders, Payments & Disputes (`v0.5-orders-payments`) |
+| Next | Phase 6 — Logistics + Notifications (`v0.6-logistics-notifications`) |
 
 ## 14-role team
 
@@ -123,13 +123,14 @@ Per **PRD §59**: functional · UX · responsive · security · analytics · err
 
 ## Known gaps
 
-**Phase 4 API + clients complete** (chat, offers, blocks, scam scan; web `/chats` + mobile Chats tab). Tag pending.
+**Phase 5 API complete** (orders, escrow mock/Paystack adapter, disputes, auto-release). Tag pending.
 
 Still not built:
 
+- Web/mobile checkout + dispute UX (clients)
 - FCM push for new messages (Phase 6 notification engine)
 - Admin TOTP enforcement; listing moderation queue UI
-- Payments, logistics, trust, admin depth, risk, UAT
+- Logistics, trust, admin depth, risk, UAT
 - All PRD §51–53 / post-launch features
 - Production credentials, pen test, store submissions; httpOnly token cookies
 

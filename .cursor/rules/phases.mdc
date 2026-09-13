@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 4 (Chat + Offers)** — API + clients complete; tag `v0.4-chat-offers` pending.
+**Current phase: 5 (Orders, Payments & Disputes)** — API complete; tag `v0.5-orders-payments` pending.
 
 Do **not** implement features from later phases in the same PR.
 

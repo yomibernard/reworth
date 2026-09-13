@@ -15,6 +15,7 @@ type Props = {
   onReject?: () => void;
   onCounter?: () => void;
   onWithdraw?: () => void;
+  onCheckout?: () => void;
 };
 
 export function OfferCard({
@@ -25,10 +26,12 @@ export function OfferCard({
   onReject,
   onCounter,
   onWithdraw,
+  onCheckout,
 }: Props) {
   const isSeller = meId === offer.sellerId;
   const isBuyer = meId === offer.buyerId;
   const pending = offer.status === "PENDING";
+  const accepted = offer.status === "ACCEPTED";
 
   return (
     <article
@@ -101,6 +104,18 @@ export function OfferCard({
               </Button>
             </>
           ) : null}
+        </div>
+      ) : null}
+      {accepted && isBuyer && onCheckout ? (
+        <div className="mt-4">
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={busy}
+            onClick={onCheckout}
+          >
+            Checkout
+          </Button>
         </div>
       ) : null}
     </article>

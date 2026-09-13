@@ -140,8 +140,10 @@ export default function ListingPdpPage() {
     }
   }
 
-  function comingSoon(label: string) {
-    setToast({ message: `${label} — Coming soon`, tone: "info" });
+  function buyNow() {
+    if (!id) return;
+    if (!requireAuth()) return;
+    router.push(`/checkout?listingId=${id}`);
   }
 
   async function toggleSave() {
@@ -474,7 +476,7 @@ export default function ListingPdpPage() {
                 <Button
                   variant="primary"
                   className="flex-1"
-                  onClick={() => comingSoon("Buy now")}
+                  onClick={() => buyNow()}
                 >
                   Buy now
                 </Button>

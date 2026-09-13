@@ -273,13 +273,24 @@ export default function ChatThreadPage() {
     try {
       if (action === "accept") {
         const res = await acceptOffer(token, offer.id);
-        setToast({
-          message: "Offer accepted — listing reserved",
-          tone: "success",
-        });
         setOffers((prev) =>
           prev.map((o) => (o.id === offer.id ? res.offer : o)),
         );
+        const intentId = res.orderIntent?.id;
+        // Buyer completes payment; seller stays in chat with toast.
+        if (meId === offer.buyerId) {
+          const q = new URLSearchParams({ listingId: offer.listingId });
+          if (intentId) q.set("orderIntentId", intentId);
+          else q.set("offerId", offer.id);
+          router.push(`/checkout?${q.toString()}`);
+          return;
+        }
+        setToast({
+          message: intentId
+            ? "Offer accepted — buyer can check out"
+            : "Offer accepted — listing reserved",
+          tone: "success",
+        });
       } else if (action === "reject") {
         const updated = await rejectOffer(token, offer.id);
         setOffers((prev) =>
@@ -392,6 +403,11 @@ export default function ChatThreadPage() {
         onCounter={() => {
           setCounterFor(offer);
           setCounterNaira(String(Math.round(offer.amountKobo / 100)));
+        }}
+        onCheckout={() => {
+          const q = new URLSearchParams({ listingId: offer.listingId });
+          q.set("offerId", offer.id);
+          router.push(`/checkout?${q.toString()}`);
         }}
       />
     );
