@@ -289,6 +289,8 @@ export function createOrder(
     offerId?: string;
     orderIntentId?: string;
     buyNow?: boolean;
+    /** Phase 3.1 — platform-fulfilled Instant Buy. */
+    instantBuy?: boolean;
     meetPointId?: string;
     toLat?: number;
     toLng?: number;

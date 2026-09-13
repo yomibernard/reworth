@@ -195,10 +195,12 @@ export default function ListingPdpPage() {
     }
   }
 
-  function buyNow() {
+  function buyNow(opts?: { instantBuy?: boolean }) {
     if (!id) return;
     if (!requireAuth()) return;
-    router.push(`/checkout?listingId=${id}`);
+    const qs = new URLSearchParams({ listingId: id });
+    if (opts?.instantBuy) qs.set("instantBuy", "1");
+    router.push(`/checkout?${qs.toString()}`);
   }
 
   async function toggleSave() {
@@ -470,11 +472,21 @@ export default function ListingPdpPage() {
           <h1 className="mt-3 text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
             {listing.title || "Untitled listing"}
           </h1>
-          {(inspected.inspected || authLabel || listing.certificateId) && (
+          {(inspected.inspected ||
+            authLabel ||
+            listing.certificateId ||
+            listing.instantBuyEligible) && (
             <ul
               className="mt-3 flex flex-wrap gap-2"
               aria-label="Trust badges"
             >
+              {listing.instantBuyEligible ? (
+                <li>
+                  <span className="inline-flex items-center rounded-[var(--rw-radius)] bg-[var(--rw-accent-muted)] px-3 py-1.5 text-sm font-semibold text-[var(--rw-accent)]">
+                    Instant Buy
+                  </span>
+                </li>
+              ) : null}
               {inspected.inspected ? (
                 <li>
                   <button
@@ -760,6 +772,15 @@ export default function ListingPdpPage() {
             </>
           ) : (
             <>
+              {listing.instantBuyEligible ? (
+                <Button
+                  variant="primary"
+                  className="flex-1"
+                  onClick={() => buyNow({ instantBuy: true })}
+                >
+                  Instant Buy
+                </Button>
+              ) : null}
               <Button
                 variant="secondary"
                 className="flex-1"
@@ -771,7 +792,7 @@ export default function ListingPdpPage() {
                 Make offer
               </Button>
               <Button
-                variant="primary"
+                variant={listing.instantBuyEligible ? "ghost" : "primary"}
                 className="flex-1"
                 onClick={() => buyNow()}
               >

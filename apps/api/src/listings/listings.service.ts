@@ -143,6 +143,7 @@ export class ListingsService {
         fulfilmentMeet: dto.fulfilmentMeet ?? true,
         fulfilmentDelivery: dto.fulfilmentDelivery ?? false,
         vehicle: dto.vehicle ? (dto.vehicle as Prisma.InputJsonValue) : undefined,
+        instantBuyEligible: dto.instantBuyEligible ?? false,
         ...(await this.luxuryAuthDefaults(dto.categoryId)),
       },
       include: listingInclude,
@@ -321,6 +322,9 @@ export class ListingsService {
                 ? ('REQUIRED' as const)
                 : ('OPTED_OUT' as const),
             }
+          : {}),
+        ...(dto.instantBuyEligible !== undefined
+          ? { instantBuyEligible: dto.instantBuyEligible }
           : {}),
         ...(dto.categoryId !== undefined
           ? await this.luxuryAuthDefaults(dto.categoryId, dto.authRequired)

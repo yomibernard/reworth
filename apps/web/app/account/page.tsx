@@ -193,7 +193,37 @@ export default function AccountPage() {
           >
             ReWorth
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+            <Link
+              href="/ask"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Ask ReWorth
+            </Link>
+            <Link
+              href="/room-scan"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Room scan
+            </Link>
+            <Link
+              href="/worth"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Worth
+            </Link>
+            <Link
+              href="/consign"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Consign
+            </Link>
+            <Link
+              href="/pickup"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Pickup
+            </Link>
             <Link
               href="/account/communities"
               className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"

@@ -102,6 +102,13 @@ export function DiscoveryHome({
         <Text style={styles.searchPlaceholder}>Search Lagos…</Text>
       </Pressable>
 
+      <View style={styles.toolsRow} accessibilityLabel="AI tools">
+        <Text style={styles.toolsHint}>Ask ReWorth on the web → /ask</Text>
+        <Text style={styles.toolsHintMuted}>
+          Room scan · Worth · Consign available at reworth.app
+        </Text>
+      </View>
+
       {loading && rails.length === 0 ? (
         <ActivityIndicator
           style={{ marginTop: 32 }}
@@ -414,6 +421,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   searchPlaceholder: { color: "#5C636A", fontSize: 16 },
+  toolsRow: {
+    marginTop: 12,
+    gap: 4,
+  },
+  toolsHint: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0E9F6E",
+  },
+  toolsHintMuted: {
+    fontSize: 12,
+    color: "#5C636A",
+  },
   searchHeader: { marginBottom: 8 },
   back: { color: "#0E9F6E", fontWeight: "600", marginBottom: 8 },
   rail: { marginTop: 28 },

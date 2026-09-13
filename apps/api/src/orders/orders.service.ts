@@ -35,6 +35,7 @@ import {
 } from '../providers/payment.provider';
 import { ReferralsService } from '../referrals/referrals.service';
 import { TrustScoreService } from '../reviews/trust-score.service';
+import { InstantBuyService } from '../platform-services/instant-buy.service';
 import { LuxuryAuthService } from '../verticals/luxury-auth.service';
 import { CreateOrderDto } from './dto/orders.dto';
 import {
@@ -170,6 +171,9 @@ export class OrdersService {
     @Inject(forwardRef(() => LuxuryAuthService))
     private readonly luxuryAuth?: LuxuryAuthService,
     @Optional() private readonly referrals?: ReferralsService,
+    @Optional()
+    @Inject(forwardRef(() => InstantBuyService))
+    private readonly instantBuy?: InstantBuyService,
   ) {}
 
   private feePct(): number {
@@ -600,6 +604,18 @@ export class OrdersService {
           `Luxury auth after fund failed: ${(err as Error).message}`,
         ),
       );
+    }
+
+    // Instant Buy: start platform fulfilment when listing is eligible
+    if (this.instantBuy) {
+      await this.instantBuy.afterOrderFunded(orderId).catch((err) =>
+        this.logger.warn(
+          `Instant Buy after fund failed: ${(err as Error).message}`,
+        ),
+      );
+    }
+
+    if (this.luxuryAuth) {
       const refreshed = await this.requireOrder(orderId);
       if (refreshed.status === 'IN_AUTHENTICATION') {
         return toOrderDto(refreshed);

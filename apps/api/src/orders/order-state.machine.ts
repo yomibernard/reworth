@@ -11,6 +11,8 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
     'DISPUTE_HOLD',
     'COMPLETED',
     'CANCELLED',
+    'REFUND_REQUESTED',
+    'REFUND_ISSUED',
   ],
   IN_AUTHENTICATION: [
     'FUNDED',

@@ -33,6 +33,9 @@ import { UsersModule } from './users/users.module';
 import { VerticalsModule } from './verticals/verticals.module';
 import { ProModule } from './pro/pro.module';
 import { ReferralsModule } from './referrals/referrals.module';
+import { AssistantModule } from './assistant/assistant.module';
+import { RoomScanModule } from './room-scan/room-scan.module';
+import { PlatformServicesModule } from './platform-services/platform-services.module';
 
 @Module({
   imports: [
@@ -97,6 +100,9 @@ import { ReferralsModule } from './referrals/referrals.module';
     VerticalsModule,
     ProModule,
     ReferralsModule,
+    AssistantModule,
+    RoomScanModule,
+    PlatformServicesModule,
   ],
   providers: [
     {

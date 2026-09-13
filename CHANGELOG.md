@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.0-ai-assistant — 2026-09-13
+
+### Added
+- Ask ReWorth assistant (tools, confirm-gated mutations, audit logs, degrade-to-search)
+- Budget bundles (city-scoped, ≤ budget, shareable); room scan mock → 6 drafts (idempotent)
+- Valuation product; Instant Buy fulfilment + 48h SLA auto-refund; consignment fee split; managed pickup (WAT)
+- Web: `/ask`, `/room-scan`, `/worth`, `/consign`, `/pickup`; Instant Buy badge; ADR-006
+- Tests: 18 (assistant intents, bundles, room-scan, IB SLA, consign fee, pickup slots)
+
 ## v1.3-verticals — 2026-09-13
 
 ### Added

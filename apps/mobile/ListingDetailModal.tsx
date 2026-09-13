@@ -336,9 +336,13 @@ export function ListingDetailModal({
                         listing.authenticationStatus !== "NOT_REQUIRED")
                     ? "Unauthenticated"
                     : null;
-              if (!inspected && !auth && !listing.certificateId) return null;
+              if (!inspected && !auth && !listing.certificateId && !listing.instantBuyEligible)
+                return null;
               return (
                 <View style={styles.badgeRow}>
+                  {listing.instantBuyEligible ? (
+                    <Text style={styles.instantBuyBadge}>Instant Buy</Text>
+                  ) : null}
                   {inspected ? (
                     <Text style={styles.verticalBadge}>Inspected ✓</Text>
                   ) : null}
@@ -686,6 +690,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: "#047857",
+  },
+  instantBuyBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#D1FAE5",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#0E9F6E",
   },
   verticalBadgeMuted: {
     alignSelf: "flex-start",

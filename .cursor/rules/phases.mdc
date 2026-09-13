@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 3.1 (AI & Platform Services)** — next tag `v2.0`.
+**Current phase: 3.1 (AI & Platform Services)** — tag `v2.0-ai-assistant` (Complete — pending PR).
 
 Do **not** implement features from later post-launch prompts in the same PR.
 
@@ -15,7 +15,7 @@ Do **not** implement features from later post-launch prompts in the same PR.
 
 ## Post-launch
 
-`v1.0-swap` · `v1.1-moving-communities` · `v1.2-intelligence` · `v1.3-verticals` (done) · `v2.0` AI · `v2.1` B2B
+`v1.0-swap` · `v1.1-moving-communities` · `v1.2-intelligence` · `v1.3-verticals` · `v2.0-ai-assistant` (pending PR) · `v2.1` B2B
 
 ## Resume
 

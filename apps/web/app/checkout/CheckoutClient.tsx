@@ -33,6 +33,7 @@ export default function CheckoutPage() {
   const listingId = search.get("listingId") ?? "";
   const offerId = search.get("offerId") ?? undefined;
   const orderIntentId = search.get("orderIntentId") ?? undefined;
+  const instantBuy = search.get("instantBuy") === "1";
 
   const [listing, setListing] = useState<PublicListing | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,21 +70,25 @@ export default function CheckoutPage() {
     try {
       const data = await getListing(listingId, token);
       setListing(data);
-      const first: FulfilmentMethod | null = data.fulfilmentPickup
-        ? "PICKUP"
-        : data.fulfilmentMeet
-          ? "MEET_POINT"
-          : data.fulfilmentDelivery
-            ? "DELIVERY"
-            : "MEET_POINT";
-      setFulfilment(first);
+      if (instantBuy && data.instantBuyEligible) {
+        setFulfilment("DELIVERY");
+      } else {
+        const first: FulfilmentMethod | null = data.fulfilmentPickup
+          ? "PICKUP"
+          : data.fulfilmentMeet
+            ? "MEET_POINT"
+            : data.fulfilmentDelivery
+              ? "DELIVERY"
+              : "MEET_POINT";
+        setFulfilment(first);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not load listing");
       setListing(null);
     } finally {
       setLoading(false);
     }
-  }, [listingId, offerId, orderIntentId, router]);
+  }, [listingId, offerId, orderIntentId, instantBuy, router]);
 
   useEffect(() => {
     void load();
@@ -228,10 +233,14 @@ export default function CheckoutPage() {
         </header>
 
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Checkout
+          {instantBuy && listing.instantBuyEligible
+            ? "Instant Buy checkout"
+            : "Checkout"}
         </h1>
         <p className="mt-2 text-sm text-[var(--rw-ink-muted)]">
-          Pay securely — funds held until you confirm receipt.
+          {instantBuy && listing.instantBuyEligible
+            ? "Platform pickup + delivery with SLA — funds held until you confirm receipt."
+            : "Pay securely — funds held until you confirm receipt."}
         </p>
 
         <section
