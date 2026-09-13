@@ -195,6 +195,12 @@ export default function AccountPage() {
           </Link>
           <div className="flex items-center gap-4">
             <Link
+              href="/account/communities"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Communities
+            </Link>
+            <Link
               href="/orders"
               className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
             >

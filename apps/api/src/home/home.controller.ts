@@ -1,6 +1,11 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  CurrentUser,
+  type AuthUser,
+} from '../common/decorators/current-user.decorator';
+import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt-auth.guard';
 import { HomeService } from './home.service';
 
 class HomeQueryDto {
@@ -30,7 +35,11 @@ export class HomeController {
   constructor(private readonly home: HomeService) {}
 
   @Get()
-  getHome(@Query() query: HomeQueryDto) {
-    return this.home.getHome(query);
+  @UseGuards(OptionalJwtAuthGuard)
+  getHome(
+    @Query() query: HomeQueryDto,
+    @CurrentUser() user: AuthUser | null,
+  ) {
+    return this.home.getHome({ ...query, viewerId: user?.id });
   }
 }

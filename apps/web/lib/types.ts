@@ -84,6 +84,20 @@ export type ItemConditionValue =
   | "FAIR"
   | "FOR_PARTS";
 
+export type PublicListingCommunityChip = {
+  id: string;
+  slug: string;
+  name: string;
+  privacy: string;
+};
+
+export type PublicListingMovingSale = {
+  id: string;
+  title: string;
+  deadline: string;
+  status: string;
+};
+
 export type PublicListing = {
   id: string;
   title: string;
@@ -97,6 +111,10 @@ export type PublicListing = {
   sellingMode: SellingModeValue | string;
   status: string;
   community: string;
+  communityId?: string | null;
+  communityOnly?: boolean;
+  communityChip?: PublicListingCommunityChip | null;
+  movingSale?: PublicListingMovingSale | null;
   geoLat: number | null;
   geoLng: number | null;
   distanceKm?: number | null;
@@ -170,6 +188,9 @@ export type CreateListingBody = {
   negotiable?: boolean;
   sellingMode?: SellingModeValue | string;
   community?: string;
+  communityId?: string | null;
+  communityOnly?: boolean;
+  movingSaleId?: string | null;
   fulfilmentPickup?: boolean;
   fulfilmentMeet?: boolean;
   fulfilmentDelivery?: boolean;
@@ -226,11 +247,22 @@ export type NlSearchResponse = {
   results: SearchResult;
 };
 
+export type HomeMovingSaleRailItem = {
+  id: string;
+  title: string;
+  itemCount: number;
+  combinedPriceKobo: number;
+  deadline: string;
+  community: string;
+  coverListingId?: string;
+};
+
 export type HomeRail = {
   id: string;
   title: string;
   items: PublicListing[];
   emptyMessage?: string;
+  movingSales?: HomeMovingSaleRailItem[];
 };
 
 export type HomeResponse = {

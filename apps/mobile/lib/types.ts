@@ -48,6 +48,20 @@ export type PublicListing = {
   sellingMode: string;
   status: string;
   community: string;
+  communityId?: string | null;
+  communityOnly?: boolean;
+  communityChip?: {
+    id: string;
+    slug: string;
+    name: string;
+    privacy: string;
+  } | null;
+  movingSale?: {
+    id: string;
+    title: string;
+    deadline: string;
+    status: string;
+  } | null;
   images: PublicListingImage[];
   seller: {
     id: string;

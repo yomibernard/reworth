@@ -10,6 +10,7 @@ export type SearchFilters = {
   priceMaxKobo?: number;
   condition?: string;
   community?: string;
+  communityId?: string;
   /** 2 | 5 | 10 | 25 | undefined = all Lagos */
   radiusKm?: number;
   lat?: number;
@@ -20,6 +21,10 @@ export type SearchFilters = {
   sort?: 'newest' | 'price_asc' | 'price_desc' | 'distance';
   cursor?: string;
   limit?: number;
+  /** Optional viewer for community visibility gating */
+  viewerId?: string | null;
+  /** Precomputed Prisma visibility fragment */
+  visibilityWhere?: Record<string, unknown>;
 };
 
 export type SearchFacets = {
@@ -58,6 +63,8 @@ const listingInclude = {
   category: true,
   subcategory: true,
   images: { orderBy: { sortOrder: 'asc' as const } },
+  estateCommunity: true,
+  movingSale: true,
   seller: {
     include: {
       profile: true,
@@ -216,10 +223,15 @@ export class PostgresFullTextSearchProvider implements SearchProvider {
       status: 'LIVE',
     };
 
+    if (filters.visibilityWhere) {
+      where.AND = [filters.visibilityWhere];
+    }
+
     if (filters.categoryId) where.categoryId = filters.categoryId;
     if (filters.subcategoryId) where.subcategoryId = filters.subcategoryId;
     if (filters.condition) where.condition = filters.condition;
     if (filters.community) where.community = filters.community;
+    if (filters.communityId) where.communityId = filters.communityId;
     if (filters.deliveryAvailable) where.fulfilmentDelivery = true;
     if (filters.priceMinKobo != null || filters.priceMaxKobo != null) {
       where.priceKobo = {

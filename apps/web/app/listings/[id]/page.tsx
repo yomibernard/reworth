@@ -14,7 +14,7 @@ import {
 } from "@reworth/ui-web";
 import { MakeOfferModal } from "../../../components/chat/MakeOfferModal";
 import { SwapProposalModal } from "../../../components/swap/SwapProposalModal";
-import { ApiError } from "../../../lib/api";
+import { apiFetch, ApiError } from "../../../lib/api";
 import { getAccessToken } from "../../../lib/auth";
 import {
   createConversation,
@@ -34,7 +34,7 @@ import {
 } from "../../../lib/listings";
 import { createGiveawayClaim } from "../../../lib/swap";
 import { formatResponseShort } from "../../../lib/trust";
-import type { PublicListing } from "../../../lib/types";
+import type { MeResponse, PublicListing } from "../../../lib/types";
 
 export default function ListingPdpPage() {
   const params = useParams<{ id: string }>();
@@ -60,6 +60,7 @@ export default function ListingPdpPage() {
   const [offerBusy, setOfferBusy] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
   const [claimBusy, setClaimBusy] = useState(false);
+  const [meId, setMeId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -72,12 +73,19 @@ export default function ListingPdpPage() {
       setActiveImage(0);
       if (token) {
         try {
+          const me = await apiFetch<MeResponse>("/me", { token });
+          setMeId(me.id);
+        } catch {
+          setMeId(null);
+        }
+        try {
           const favs = await getMeFavourites(token);
           setSaved(favs.items.some((i) => i.listing.id === id));
         } catch {
           setSaved(false);
         }
       } else {
+        setMeId(null);
         setSaved(false);
       }
     } catch (err) {
@@ -375,6 +383,39 @@ export default function ListingPdpPage() {
               {posted}
             </time>
           </p>
+          {listing.movingSale ? (
+            <p className="mt-3">
+              <Link
+                href={`/moving-sales/${listing.movingSale.id}`}
+                className="inline-flex items-center rounded-[var(--rw-radius)] bg-[var(--rw-accent-muted)] px-3 py-1.5 text-sm font-medium text-[var(--rw-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+              >
+                Moving sale: {listing.movingSale.title} →
+              </Link>
+            </p>
+          ) : null}
+          {listing.communityChip ? (
+            <p className="mt-2">
+              <Link
+                href={`/communities/${listing.communityChip.slug}`}
+                className="inline-flex items-center rounded-full border border-[var(--rw-border)] px-3 py-1 text-xs font-medium text-[var(--rw-ink-muted)] hover:text-[var(--rw-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+              >
+                {listing.communityChip.name}
+                {listing.communityChip.privacy !== "PUBLIC"
+                  ? " · members"
+                  : ""}
+              </Link>
+            </p>
+          ) : null}
+          {meId && meId === listing.seller.id && !listing.movingSale ? (
+            <p className="mt-3 text-sm">
+              <Link
+                href={`/moving-sales/new?listingId=${listing.id}`}
+                className="font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+              >
+                Add to moving sale?
+              </Link>
+            </p>
+          ) : null}
         </section>
 
         <section

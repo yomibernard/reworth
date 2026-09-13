@@ -15,6 +15,7 @@ import {
 } from '../providers/geocoding.provider';
 import { MediaService } from '../media/media.service';
 import { FavouritesService } from '../favourites/favourites.service';
+import { CommunityVisibilityService } from '../communities/community-visibility.service';
 import { ModerationService } from '../moderation/moderation.service';
 import { RiskEngineService } from '../risk/risk-engine.service';
 import { AnalyticsService } from './analytics.service';
@@ -36,6 +37,8 @@ const listingInclude = {
   category: true,
   subcategory: true,
   images: { orderBy: { sortOrder: 'asc' as const } },
+  estateCommunity: true,
+  movingSale: true,
   seller: {
     include: {
       profile: true,
@@ -63,6 +66,7 @@ export class ListingsService {
     private readonly priceIntel: PriceIntelligenceService,
     private readonly media: MediaService,
     @Inject(GEOCODING_PROVIDER) private readonly geo: GeocodingProvider,
+    private readonly visibility: CommunityVisibilityService,
     @Optional()
     @Inject(forwardRef(() => FavouritesService))
     private readonly favourites?: FavouritesService,
@@ -120,6 +124,9 @@ export class ListingsService {
         sellingMode: dto.sellingMode ?? 'SELL',
         status: 'DRAFT',
         community: dto.community ?? '',
+        communityId: dto.communityId,
+        communityOnly: dto.communityOnly ?? false,
+        movingSaleId: dto.movingSaleId,
         geoLat,
         geoLng,
         addressPrivate: dto.addressPrivate,
@@ -143,12 +150,14 @@ export class ListingsService {
     const status = (query.status as ListingStatus) || 'LIVE';
     const where: Prisma.ListingWhereInput = {
       status: status === 'LIVE' ? { in: PUBLIC_STATUSES } : status,
+      AND: [this.visibility.visibleListingWhere(viewerId)],
     };
     if (query.community) where.community = query.community;
     if (query.categoryId) where.categoryId = query.categoryId;
     if (query.mine === '1' && viewerId) {
       where.sellerId = viewerId;
       where.status = status;
+      delete where.AND;
     }
 
     const rows = await this.prisma.listing.findMany({
@@ -189,6 +198,11 @@ export class ListingsService {
     const isOwner = viewerId && listing.sellerId === viewerId;
     const isPublic = PUBLIC_STATUSES.includes(listing.status);
     if (!isPublic && !isOwner) {
+      throw new NotFoundException('Listing not found');
+    }
+
+    const canView = await this.visibility.canViewListing(listing, viewerId);
+    if (!canView) {
       throw new NotFoundException('Listing not found');
     }
 
@@ -238,6 +252,15 @@ export class ListingsService {
           ? { sellingMode: dto.sellingMode }
           : {}),
         ...(dto.community !== undefined ? { community: dto.community } : {}),
+        ...(dto.communityId !== undefined
+          ? { communityId: dto.communityId }
+          : {}),
+        ...(dto.communityOnly !== undefined
+          ? { communityOnly: dto.communityOnly }
+          : {}),
+        ...(dto.movingSaleId !== undefined
+          ? { movingSaleId: dto.movingSaleId }
+          : {}),
         ...(dto.geoLat !== undefined ? { geoLat: dto.geoLat } : {}),
         ...(dto.geoLng !== undefined ? { geoLng: dto.geoLng } : {}),
         ...(dto.addressPrivate !== undefined

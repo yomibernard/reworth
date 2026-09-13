@@ -9,6 +9,7 @@ import { PrismaClient, AdminRole, ChatScanKind } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { seedRiskAndModeration } from './seed-risk-moderation';
+import { PHASE22_COMMUNITY_SEEDS } from '../src/communities/community-seeds';
 
 const prisma = new PrismaClient();
 
@@ -380,11 +381,46 @@ async function seedMeetPoints() {
   console.info(`[seed] Meet points ready: ${MEET_POINTS.length}`);
 }
 
+async function seedCommunities() {
+  for (const c of PHASE22_COMMUNITY_SEEDS) {
+    await prisma.community.upsert({
+      where: { slug: c.slug },
+      create: {
+        id: randomUUID(),
+        slug: c.slug,
+        name: c.name,
+        type: c.type,
+        privacy: c.privacy,
+        about: c.about,
+        geoLat: c.geoLat,
+        geoLng: c.geoLng,
+        verified: c.verified ?? false,
+        active: true,
+      },
+      update: {
+        name: c.name,
+        type: c.type,
+        privacy: c.privacy,
+        about: c.about,
+        geoLat: c.geoLat,
+        geoLng: c.geoLng,
+        verified: c.verified ?? false,
+        active: true,
+      },
+    });
+  }
+  // eslint-disable-next-line no-console
+  console.info(
+    `[seed] Communities ready: ${PHASE22_COMMUNITY_SEEDS.length} PRD examples`,
+  );
+}
+
 async function main() {
   await seedAdmin();
   await seedCategories();
   await seedChatScanRules();
   await seedMeetPoints();
+  await seedCommunities();
   await seedRiskAndModeration(prisma);
 }
 

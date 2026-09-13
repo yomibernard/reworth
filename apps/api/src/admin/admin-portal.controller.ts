@@ -34,6 +34,7 @@ import {
   FINANCE,
   FRAUD,
   LISTINGS_MOD,
+  OPS,
   ORDERS_READ,
   PROMOTIONS,
   REPORTS,
@@ -46,6 +47,8 @@ import {
   AdminCategoryDto,
   AdminChatScanRuleDto,
   AdminCommunityDto,
+  AdminAddCommunityManagerDto,
+  AdminPatchCommunityDto,
   AdminAppealResolveDto,
   AdminExtendExpiryDto,
   AdminFeatureListingDto,
@@ -576,6 +579,79 @@ export class AdminPortalController {
     @Req() req: { ip?: string },
   ) {
     return this.portal.createCommunity(actor, dto, req.ip);
+  }
+
+  @Patch('communities/:id')
+  @Roles(...OPS, ...CATALOG)
+  patchCommunity(
+    @CurrentUser() actor: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: AdminPatchCommunityDto,
+    @Req() req: { ip?: string },
+  ) {
+    return this.portal.patchCommunity(actor, id, dto, req.ip);
+  }
+
+  @Get('communities/:id/memberships')
+  @Roles(...OPS, ...CATALOG)
+  listCommunityMemberships(
+    @CurrentUser() actor: AuthUser,
+    @Param('id') id: string,
+    @Query('status') status?: string,
+  ) {
+    return this.portal.listCommunityMemberships(actor, id, status);
+  }
+
+  @Post('memberships/:id/approve')
+  @Roles(...OPS, ...CATALOG)
+  approveMembership(
+    @CurrentUser() actor: AuthUser,
+    @Param('id') id: string,
+    @Req() req: { ip?: string },
+  ) {
+    return this.portal.approveMembership(actor, id, req.ip);
+  }
+
+  @Post('memberships/:id/reject')
+  @Roles(...OPS, ...CATALOG)
+  rejectMembership(
+    @CurrentUser() actor: AuthUser,
+    @Param('id') id: string,
+    @Req() req: { ip?: string },
+  ) {
+    return this.portal.rejectMembership(actor, id, req.ip);
+  }
+
+  @Post('memberships/:id/suspend')
+  @Roles(...OPS, ...CATALOG)
+  suspendMembership(
+    @CurrentUser() actor: AuthUser,
+    @Param('id') id: string,
+    @Req() req: { ip?: string },
+  ) {
+    return this.portal.suspendMembership(actor, id, req.ip);
+  }
+
+  @Post('communities/:id/managers')
+  @Roles(...OPS)
+  addManager(
+    @CurrentUser() actor: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: AdminAddCommunityManagerDto,
+    @Req() req: { ip?: string },
+  ) {
+    return this.portal.addCommunityManager(actor, id, dto.userId, req.ip);
+  }
+
+  @Delete('communities/:id/managers/:userId')
+  @Roles(...OPS)
+  removeManager(
+    @CurrentUser() actor: AuthUser,
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Req() req: { ip?: string },
+  ) {
+    return this.portal.removeCommunityManager(actor, id, userId, req.ip);
   }
 
   // ── Promotions ─────────────────────────────────────────────────────

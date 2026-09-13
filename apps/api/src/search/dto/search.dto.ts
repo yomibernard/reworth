@@ -41,6 +41,10 @@ export class SearchQueryDto {
   community?: string;
 
   @IsOptional()
+  @IsString()
+  communityId?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @IsIn([2, 5, 10, 25])

@@ -1,9 +1,14 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import {
+  AdminRole,
+  CommunityMembershipStatus,
+  CommunityPrivacy,
+  CommunityType,
   ListingStatus,
   Prisma,
   SupportTicketStatus,
@@ -27,6 +32,7 @@ import type {
   AdminExtendExpiryDto,
   AdminFeatureListingDto,
   AdminHeroBannerDto,
+  AdminPatchCommunityDto,
   AdminPromotionCreateDto,
   AdminRefundDto,
   AdminRejectListingDto,
@@ -1095,16 +1101,51 @@ export class AdminPortalService {
   }
 
   async listCommunities() {
+    const items = await this.prisma.community.findMany({
+      orderBy: { name: 'asc' },
+      include: {
+        _count: {
+          select: {
+            memberships: true,
+            listings: true,
+            managers: true,
+          },
+        },
+      },
+    });
     return {
-      items: await this.prisma.community.findMany({
-        orderBy: { name: 'asc' },
-      }),
+      items: items.map((c) => ({
+        id: c.id,
+        slug: c.slug,
+        name: c.name,
+        type: c.type,
+        privacy: c.privacy,
+        coverUrl: c.coverUrl,
+        about: c.about,
+        verified: c.verified,
+        active: c.active,
+        geoLat: c.geoLat,
+        geoLng: c.geoLng,
+        membershipCount: c._count.memberships,
+        listingCount: c._count.listings,
+        managerCount: c._count.managers,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+      })),
     };
   }
 
   async createCommunity(
     actor: AuthUser,
-    data: { slug: string; name: string; active?: boolean },
+    data: {
+      slug: string;
+      name: string;
+      active?: boolean;
+      type?: string;
+      privacy?: string;
+      about?: string;
+      verified?: boolean;
+    },
     ip?: string,
   ) {
     const row = await this.prisma.community.create({
@@ -1112,6 +1153,10 @@ export class AdminPortalService {
         slug: data.slug,
         name: data.name,
         active: data.active ?? true,
+        type: (data.type as CommunityType) ?? 'ESTATE',
+        privacy: (data.privacy as CommunityPrivacy) ?? 'PUBLIC',
+        about: data.about ?? '',
+        verified: data.verified ?? false,
       },
     });
     await this.audit.log({
@@ -1123,6 +1168,252 @@ export class AdminPortalService {
       ip: ip ?? null,
     });
     return row;
+  }
+
+  async patchCommunity(
+    actor: AuthUser,
+    id: string,
+    dto: AdminPatchCommunityDto,
+    ip?: string,
+  ) {
+    await this.assertCanManageCommunity(actor, id);
+    const existing = await this.prisma.community.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Community not found');
+
+    const row = await this.prisma.community.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.type !== undefined
+          ? { type: dto.type as CommunityType }
+          : {}),
+        ...(dto.privacy !== undefined
+          ? { privacy: dto.privacy as CommunityPrivacy }
+          : {}),
+        ...(dto.coverUrl !== undefined ? { coverUrl: dto.coverUrl } : {}),
+        ...(dto.about !== undefined ? { about: dto.about } : {}),
+        ...(dto.verified !== undefined ? { verified: dto.verified } : {}),
+        ...(dto.active !== undefined ? { active: dto.active } : {}),
+        ...(dto.geoLat !== undefined ? { geoLat: dto.geoLat } : {}),
+        ...(dto.geoLng !== undefined ? { geoLng: dto.geoLng } : {}),
+      },
+    });
+    await this.audit.log({
+      actorUserId: actor.id,
+      actorRole: actor.roles[0] ?? null,
+      action: 'COMMUNITY_UPDATED',
+      entityType: 'Community',
+      entityId: id,
+      ip: ip ?? null,
+    });
+    return row;
+  }
+
+  async listCommunityMemberships(
+    actor: AuthUser,
+    communityId: string,
+    status?: string,
+  ) {
+    await this.assertCanManageCommunity(actor, communityId);
+    const community = await this.prisma.community.findUnique({
+      where: { id: communityId },
+    });
+    if (!community) throw new NotFoundException('Community not found');
+
+    const items = await this.prisma.communityMembership.findMany({
+      where: {
+        communityId,
+        ...(status
+          ? { status: status as CommunityMembershipStatus }
+          : {}),
+      },
+      include: {
+        user: { include: { profile: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+
+    return {
+      communityId,
+      items: items.map((m) => ({
+        id: m.id,
+        userId: m.userId,
+        status: m.status,
+        joinedAt: m.joinedAt,
+        createdAt: m.createdAt,
+        displayName: m.user.profile?.displayName ?? null,
+      })),
+      kpi: await this.communityKpi(communityId),
+    };
+  }
+
+  async approveMembership(actor: AuthUser, membershipId: string, ip?: string) {
+    const membership = await this.requireMembership(membershipId);
+    await this.assertCanManageCommunity(actor, membership.communityId);
+    const updated = await this.prisma.communityMembership.update({
+      where: { id: membershipId },
+      data: {
+        status: 'MEMBER',
+        verifiedById: actor.id,
+        joinedAt: new Date(),
+      },
+    });
+    await this.audit.log({
+      actorUserId: actor.id,
+      actorRole: actor.roles[0] ?? null,
+      action: 'COMMUNITY_MEMBERSHIP_APPROVED',
+      entityType: 'CommunityMembership',
+      entityId: membershipId,
+      ip: ip ?? null,
+    });
+    return updated;
+  }
+
+  async rejectMembership(actor: AuthUser, membershipId: string, ip?: string) {
+    const membership = await this.requireMembership(membershipId);
+    await this.assertCanManageCommunity(actor, membership.communityId);
+    const updated = await this.prisma.communityMembership.update({
+      where: { id: membershipId },
+      data: { status: 'LEFT', verifiedById: actor.id, joinedAt: null },
+    });
+    await this.audit.log({
+      actorUserId: actor.id,
+      actorRole: actor.roles[0] ?? null,
+      action: 'COMMUNITY_MEMBERSHIP_REJECTED',
+      entityType: 'CommunityMembership',
+      entityId: membershipId,
+      ip: ip ?? null,
+    });
+    return updated;
+  }
+
+  async suspendMembership(actor: AuthUser, membershipId: string, ip?: string) {
+    const membership = await this.requireMembership(membershipId);
+    await this.assertCanManageCommunity(actor, membership.communityId);
+    const updated = await this.prisma.communityMembership.update({
+      where: { id: membershipId },
+      data: { status: 'SUSPENDED', verifiedById: actor.id },
+    });
+    await this.audit.log({
+      actorUserId: actor.id,
+      actorRole: actor.roles[0] ?? null,
+      action: 'COMMUNITY_MEMBERSHIP_SUSPENDED',
+      entityType: 'CommunityMembership',
+      entityId: membershipId,
+      ip: ip ?? null,
+    });
+    return updated;
+  }
+
+  async addCommunityManager(
+    actor: AuthUser,
+    communityId: string,
+    userId: string,
+    ip?: string,
+  ) {
+    this.assertUnrestrictedOps(actor);
+    const community = await this.prisma.community.findUnique({
+      where: { id: communityId },
+    });
+    if (!community) throw new NotFoundException('Community not found');
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const row = await this.prisma.communityManager.upsert({
+      where: {
+        communityId_userId: { communityId, userId },
+      },
+      create: { communityId, userId },
+      update: {},
+    });
+    await this.audit.log({
+      actorUserId: actor.id,
+      actorRole: actor.roles[0] ?? null,
+      action: 'COMMUNITY_MANAGER_ADDED',
+      entityType: 'CommunityManager',
+      entityId: row.id,
+      ip: ip ?? null,
+    });
+    return row;
+  }
+
+  async removeCommunityManager(
+    actor: AuthUser,
+    communityId: string,
+    userId: string,
+    ip?: string,
+  ) {
+    this.assertUnrestrictedOps(actor);
+    await this.prisma.communityManager.deleteMany({
+      where: { communityId, userId },
+    });
+    await this.audit.log({
+      actorUserId: actor.id,
+      actorRole: actor.roles[0] ?? null,
+      action: 'COMMUNITY_MANAGER_REMOVED',
+      entityType: 'CommunityManager',
+      entityId: `${communityId}:${userId}`,
+      ip: ip ?? null,
+    });
+    return { ok: true };
+  }
+
+  /**
+   * OPERATIONS / SUPER_ADMIN unrestricted; CommunityManager only for
+   * their assigned community.
+   */
+  async assertCanManageCommunity(actor: AuthUser, communityId: string) {
+    if (this.isUnrestrictedOps(actor)) return;
+    const mgr = await this.prisma.communityManager.findUnique({
+      where: {
+        communityId_userId: { communityId, userId: actor.id },
+      },
+    });
+    if (!mgr) {
+      throw new ForbiddenException(
+        'Not allowed to manage this community',
+      );
+    }
+  }
+
+  private isUnrestrictedOps(actor: AuthUser): boolean {
+    return (
+      actor.roles.includes(AdminRole.SUPER_ADMIN) ||
+      actor.roles.includes(AdminRole.OPERATIONS)
+    );
+  }
+
+  private assertUnrestrictedOps(actor: AuthUser) {
+    if (!this.isUnrestrictedOps(actor)) {
+      throw new ForbiddenException('OPERATIONS role required');
+    }
+  }
+
+  private async requireMembership(id: string) {
+    const membership = await this.prisma.communityMembership.findUnique({
+      where: { id },
+    });
+    if (!membership) throw new NotFoundException('Membership not found');
+    return membership;
+  }
+
+  private async communityKpi(communityId: string) {
+    const [members, pending, liveListings] = await Promise.all([
+      this.prisma.communityMembership.count({
+        where: {
+          communityId,
+          status: { in: ['MEMBER', 'APPROVED'] },
+        },
+      }),
+      this.prisma.communityMembership.count({
+        where: { communityId, status: 'INVITED' },
+      }),
+      this.prisma.listing.count({
+        where: { communityId, status: 'LIVE' },
+      }),
+    ]);
+    return { members, pending, liveListings };
   }
 
   async listPromotions() {
