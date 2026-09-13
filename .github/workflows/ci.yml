@@ -59,3 +59,11 @@ jobs:
         run: pnpm turbo run build --filter=@reworth/api --filter=@reworth/web --filter=@reworth/admin
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reworth
+
+      # Golden-path Playwright. Specs skip when /healthz ≠ 200 (default CI green).
+      # Set repo variable E2E=1 and start API + seed:staging to enforce real runs.
+      - name: Playwright e2e (skip if API down)
+        run: pnpm exec playwright install --with-deps chromium && pnpm test:e2e
+        env:
+          API_BASE_URL: http://localhost:3001/api/v1
+          WEB_BASE_URL: http://localhost:3000

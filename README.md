@@ -4,60 +4,63 @@ Lagos-first consumer recommerce marketplace — **buy · sell · swap · give aw
 
 > *Lagos, your unused things are worth something.*
 
+**Release:** [`v0.9.0-rc`](CHANGELOG.md) — see [`docs/MVP_STATUS.md`](docs/MVP_STATUS.md).
+
 ## Docs
 
 | File | Purpose |
 | --- | --- |
-| [`PRD.md`](PRD.md) | Product requirements (v1.0, 60 sections) |
+| [`PRD.md`](PRD.md) | Product requirements |
 | [`AGENTS.md`](AGENTS.md) | Living engineering context |
-| [`CURSOR-PROMPT.md`](CURSOR-PROMPT.md) | MVP phase prompts 1–11 |
-| [`CURSOR-PROMPT-PHASE2-3.md`](CURSOR-PROMPT-PHASE2-3.md) | Post-launch prompts |
-| [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) | Current phase / resume |
+| [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) | Resume / current phase |
+| [`docs/UAT.md`](docs/UAT.md) | §58 acceptance checklist |
+| [`docs/DEMO.md`](docs/DEMO.md) | 10-minute demo script |
+| [`docs/LAUNCH.md`](docs/LAUNCH.md) | Launch checklist |
+| [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | Incident playbooks |
+| [`docs/API.md`](docs/API.md) | REST `/api/v1` |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release notes |
 
-## Current status
+## 10-minute local run
 
-**Phase 0 — Foundations complete** (scaffold + healthz + landing). See `docs/PHASE_STATUS.md`. Next: Phase 1 Auth.
-
-## How to run locally
-
-Prerequisites: **Node 20+**, **pnpm 9**, **Docker Desktop** (for infra).
+Prerequisites: **Node 20+**, **pnpm 9**, **Docker Desktop**.
 
 ```bash
 # 1. Env
 cp .env.example .env
-# Edit placeholders only — never commit real secrets
 
 # 2. Install
 pnpm install
 
-# 3. Infra (requires Docker running)
+# 3. Infra
 docker compose -f infra/docker-compose.yml up -d
 
-# 4. Dev (api + web + admin)
+# 4. Migrate + seed
+pnpm --filter @reworth/api exec prisma migrate deploy
+pnpm --filter @reworth/api prisma:seed
+pnpm seed:staging
+# Fast demos only: SEED_STAGING_SKIP_HEAVY=1 pnpm seed:staging
+
+# 5. Dev
 pnpm dev
 ```
 
 | Surface | URL |
 | --- | --- |
 | Web | http://localhost:3000 |
-| API health | http://localhost:3001/api/v1/healthz |
+| API | http://localhost:3001/api/v1/healthz |
 | Admin | http://localhost:3002 |
 
-Mobile: `pnpm --filter @reworth/mobile dev` (Expo).
-
-API alone: `pnpm --filter @reworth/api build && pnpm --filter @reworth/api start`
-
-### Phase 6 — delivery demo
+**Demo login:** Ori `ori@demo.reworth.ng` / `DemoOri!2026` — walkthrough in [`docs/DEMO.md`](docs/DEMO.md).
 
 ```bash
-cd apps/api && pnpm exec prisma migrate deploy && pnpm exec prisma db seed
-pnpm --filter @reworth/api demo:delivery
-# Walks a funded DELIVERY order ASSIGNED → … → DELIVERED
+# Golden-path e2e (skips if API down)
+pnpm exec playwright install chromium
+pnpm test:e2e
 ```
 
-## Stack (summary)
+## Stack
 
-Expo · Next.js 15 · NestJS · PostgreSQL/Prisma · Redis/BullMQ · MinIO · OpenSearch · Paystack · Termii/Twilio · OpenAI — see `AGENTS.md` and ADR-001.
+Expo · Next.js 15 · NestJS · PostgreSQL/Prisma · Redis/BullMQ · MinIO · OpenSearch · Paystack · Termii/Twilio · OpenAI — see ADR-001.
 
 ## License
 

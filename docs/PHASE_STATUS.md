@@ -2,37 +2,23 @@
 
 | Field | Value |
 | --- | --- |
-| Current phase | **9 â€” Risk, Moderation & Security** |
-| Prompt | Prompt 10 |
-| Target tag | `v0.9-risk-security` |
-| Branch | `phase-9-risk-security` |
-| Status | **Complete — merged** |
+| Current phase | **10 — UAT, Seed & Launch Readiness** |
+| Prompt | Prompt 11 |
+| Target tag | `v0.9.0-rc` |
+| Branch | `phase-10-rc` |
+| Status | **Complete (pending PR merge)** |
 | Last updated | 2026-09-13 |
 
-## What exists (Phase 9)
+## What exists (Phase 10)
 
-### Risk engine
-- Weighted `RiskRule` table + `RiskEngineService` (duplicate image, low price, rapid listing, reported user, device fingerprint, cancellations, suspicious payment, off-platform chat, location jump)
-- Per-user/listing Low/Med/High; HIGH â†’ under_review + fraud queue + enhanced verification + support ticket
-- `RiskAssessment.rulesFired` explainability
+- `docs/UAT.md` §58 checklist; Playwright `e2e/web/golden-0*.spec.ts`; Maestro stubs
+- `pnpm seed:staging` — demo Ori/Ayo/Risk + up to ~2k listings
+- `docs/DEMO.md`, `LAUNCH.md`, `RUNBOOK.md`, `MVP_STATUS.md`, `BACKLOG_PHASE2.md`, `CHANGELOG.md`
+- `docs/API.md` route reference; README 10-minute run
 
-### Moderation
-- Prohibited keyword taxonomy; mock image NSFW adapter; publish pipeline â†’ reject / under_review
-- Appeals â†’ admin queue (`/admin/appeals`)
-
-### Security & privacy
-- Helmet CSP/headers; named rate limits; Zod boundary helpers; `pnpm audit --prod` CI (critical)
-- `docs/SECURITY.md`, `docs/PRIVACY.md`, `docs/PERF.md`
-- DSAR: `GET /me/export`, consents, delete+pseudonymise; web/mobile privacy settings
-
-### Perf
-- `infra/k6/mixed-load.js` + `phase9-500vu-gate.js` (500 VU); Lighthouse CI config on web
-- Local single-node cannot meet p95 budget at 500 open VUs â€” staging re-run in Phase 10
-
-## Resume point
-**Phase 9 complete.** Next: **Phase 10 â€” UAT & launch readiness** (`v0.9.0-rc`).
+## Resume
+**MVP RC.** Post-launch prompts in `CURSOR-PROMPT-PHASE2-3.md` (entry gate: stable RC).
 
 ```
-Continue: resume Phase 10 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
-PRD.md, verify the last commit's tests still pass, then continue the plan.
+Continue: post-MVP from CURSOR-PROMPT-PHASE2-3.md after v0.9.0-rc is accepted.
 ```
