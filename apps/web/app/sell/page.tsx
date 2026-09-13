@@ -95,6 +95,11 @@ export default function SellPage() {
   const [brand, setBrand] = useState("");
   const [priceNaira, setPriceNaira] = useState("");
   const [priceIntel, setPriceIntel] = useState<PriceIntelligence | null>(null);
+  const [vehicleYear, setVehicleYear] = useState("");
+  const [vehicleMake, setVehicleMake] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+  const [vehicleMileage, setVehicleMileage] = useState("");
+  const [authRequired, setAuthRequired] = useState(false);
 
   const [sellingMode, setSellingMode] = useState<SellingModeValue>("SELL");
   const [negotiable, setNegotiable] = useState(true);
@@ -184,6 +189,26 @@ export default function SellPage() {
     setFulfilmentPickup(l.fulfilmentPickup);
     setFulfilmentMeet(l.fulfilmentMeet);
     setFulfilmentDelivery(l.fulfilmentDelivery);
+    setAuthRequired(Boolean(l.authRequired));
+    const v = l.vehicle;
+    if (v && typeof v === "object") {
+      setVehicleYear(v.year != null ? String(v.year) : "");
+      setVehicleMake(
+        typeof v.make === "string"
+          ? v.make
+          : typeof v.brand === "string"
+            ? v.brand
+            : "",
+      );
+      setVehicleModel(typeof v.model === "string" ? v.model : "");
+      setVehicleMileage(
+        v.mileage != null
+          ? String(v.mileage)
+          : v.mileageKm != null
+            ? String(v.mileageKm)
+            : "",
+      );
+    }
   }
 
   function onPickFiles(e: ChangeEvent<HTMLInputElement>) {
@@ -280,7 +305,13 @@ export default function SellPage() {
     if (!listingId) return;
     const token = tokenOrThrow();
     const naira = Number(priceNaira.replace(/,/g, ""));
-    const body = {
+    const catLower = categoryName.trim().toLowerCase();
+    const isVehicleCat =
+      catLower.includes("vehicle") ||
+      catLower.includes("car") ||
+      catLower === "cars";
+    const isLuxuryCat = catLower.includes("luxury");
+    const body: Parameters<typeof patchListing>[2] = {
       title: title.trim(),
       description: description.trim(),
       brand: brand.trim() || undefined,
@@ -295,6 +326,19 @@ export default function SellPage() {
       fulfilmentMeet,
       fulfilmentDelivery,
     };
+    if (isVehicleCat || vehicleYear || vehicleMake || vehicleMileage) {
+      body.vehicle = {
+        year: vehicleYear ? Number(vehicleYear) : undefined,
+        make: vehicleMake.trim() || undefined,
+        model: vehicleModel.trim() || brand.trim() || undefined,
+        mileageKm: vehicleMileage
+          ? Number(vehicleMileage.replace(/,/g, ""))
+          : undefined,
+      };
+    }
+    if (isLuxuryCat || authRequired) {
+      body.authRequired = authRequired || isLuxuryCat;
+    }
     const updated = await patchListing(listingId, token, body);
     syncFromListing(updated);
     return updated;
@@ -587,6 +631,78 @@ export default function SellPage() {
                     onChange={(e) => setCategoryName(e.target.value)}
                     hint="Suggested by AI — edit freely"
                   />
+                  {(() => {
+                    const catLower = categoryName.trim().toLowerCase();
+                    const showVehicle =
+                      catLower.includes("vehicle") ||
+                      catLower.includes("car") ||
+                      Boolean(listing?.vehicle);
+                    const showLuxury =
+                      catLower.includes("luxury") ||
+                      Boolean(listing?.authRequired);
+                    return (
+                      <>
+                        {showVehicle ? (
+                          <fieldset className="rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] p-4">
+                            <legend className="px-1 text-sm font-semibold">
+                              Vehicle details
+                            </legend>
+                            <div className="mt-3 flex flex-col gap-4">
+                              <Input
+                                label="Year"
+                                inputMode="numeric"
+                                value={vehicleYear}
+                                onChange={(e) =>
+                                  setVehicleYear(
+                                    e.target.value.replace(/[^\d]/g, "").slice(0, 4),
+                                  )
+                                }
+                              />
+                              <Input
+                                label="Make"
+                                value={vehicleMake}
+                                onChange={(e) => setVehicleMake(e.target.value)}
+                              />
+                              <Input
+                                label="Model"
+                                value={vehicleModel}
+                                onChange={(e) => setVehicleModel(e.target.value)}
+                              />
+                              <Input
+                                label="Mileage (km)"
+                                inputMode="numeric"
+                                value={vehicleMileage}
+                                onChange={(e) =>
+                                  setVehicleMileage(
+                                    e.target.value.replace(/[^\d]/g, ""),
+                                  )
+                                }
+                              />
+                            </div>
+                          </fieldset>
+                        ) : null}
+                        {showLuxury ? (
+                          <label className="flex items-start gap-3 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] p-4">
+                            <input
+                              type="checkbox"
+                              className="mt-1 h-4 w-4"
+                              checked={authRequired}
+                              onChange={(e) => setAuthRequired(e.target.checked)}
+                            />
+                            <span>
+                              <span className="block text-sm font-semibold">
+                                Require authentication
+                              </span>
+                              <span className="mt-1 block text-sm text-[var(--rw-ink-muted)]">
+                                Luxury items ship through auth before handover
+                                (order status IN_AUTHENTICATION).
+                              </span>
+                            </span>
+                          </label>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                   <Input
                     label="Brand"
                     value={brand}

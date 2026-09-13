@@ -124,3 +124,68 @@ export enum CommunityMembershipStatus {
   Suspended = "SUSPENDED",
   Left = "LEFT",
 }
+
+export enum OrderStatus {
+  Created = "CREATED",
+  PaymentPending = "PAYMENT_PENDING",
+  Funded = "FUNDED",
+  InAuthentication = "IN_AUTHENTICATION",
+  HandedOver = "HANDED_OVER",
+  Received = "RECEIVED",
+  Completed = "COMPLETED",
+  Cancelled = "CANCELLED",
+  DisputeHold = "DISPUTE_HOLD",
+  RefundRequested = "REFUND_REQUESTED",
+  RefundIssued = "REFUND_ISSUED",
+}
+
+export enum InspectionStatus {
+  Requested = "REQUESTED",
+  PaymentPending = "PAYMENT_PENDING",
+  Scheduled = "SCHEDULED",
+  InProgress = "IN_PROGRESS",
+  Completed = "COMPLETED",
+  Failed = "FAILED",
+  Expired = "EXPIRED",
+  Cancelled = "CANCELLED",
+}
+
+export enum AuthenticationStatus {
+  NotRequired = "NOT_REQUIRED",
+  Required = "REQUIRED",
+  Pending = "PENDING",
+  Passed = "PASSED",
+  Failed = "FAILED",
+  OptedOut = "OPTED_OUT",
+}
+
+export enum LuxuryAuthJobStatus {
+  Pending = "PENDING",
+  InProgress = "IN_PROGRESS",
+  Passed = "PASSED",
+  Failed = "FAILED",
+  Cancelled = "CANCELLED",
+}
+
+export enum ProAccountStatus {
+  Applied = "APPLIED",
+  Approved = "APPROVED",
+  Active = "ACTIVE",
+  Grace = "GRACE",
+  Suspended = "SUSPENDED",
+  Rejected = "REJECTED",
+}
+
+export enum BulkUploadStatus {
+  Pending = "PENDING",
+  Processing = "PROCESSING",
+  Completed = "COMPLETED",
+  Failed = "FAILED",
+}
+
+export enum ReferralRewardStatus {
+  Pending = "PENDING",
+  Granted = "GRANTED",
+  Blocked = "BLOCKED",
+  Flagged = "FLAGGED",
+}

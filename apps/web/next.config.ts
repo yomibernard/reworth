@@ -29,6 +29,15 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  /**
+   * Public storefront lives at `/u/[handle]` (API: GET /storefronts/:handle).
+   * Production vanity `/@handle` can rewrite here via reverse proxy or:
+   * `{ source: '/@:handle', destination: '/u/:handle' }` when the host supports it.
+   * Next.js App Router cannot use `app/@[handle]` (reserved for parallel routes).
+   */
+  async rewrites() {
+    return [];
+  },
 };
 
 export default nextConfig;

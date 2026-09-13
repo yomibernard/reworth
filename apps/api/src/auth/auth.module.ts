@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConsoleSmsMock } from '../providers/console-sms.mock';
 import { SMS_PROVIDER } from '../providers/sms.provider';
+import { ReferralsModule } from '../referrals/referrals.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
@@ -21,6 +22,7 @@ import { JwtStrategy } from './jwt.strategy';
         },
       }),
     }),
+    forwardRef(() => ReferralsModule),
   ],
   controllers: [AuthController],
   providers: [

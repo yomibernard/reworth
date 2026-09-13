@@ -4,6 +4,10 @@
  */
 
 import { publicTrustBadge } from '../reviews/trust-score.compute';
+import {
+  authenticationBadgeFromListing,
+  inspectedBadgeFromLatest,
+} from '../verticals/inspected-badge';
 
 export type PublicListingImage = {
   id: string;
@@ -66,6 +70,11 @@ export type PublicListingDto = {
   createdAt: Date;
   publishedAt: Date | null;
   vehicle?: Record<string, unknown> | null;
+  inspectedBadge?: 'Inspected ✓' | `Inspected ${string}` | null;
+  authenticationBadge?: string | null;
+  authRequired?: boolean;
+  authenticationStatus?: string | null;
+  proSellerBadge?: string | null;
 };
 
 type ListingWithRelations = {
@@ -92,6 +101,8 @@ type ListingWithRelations = {
   publishedAt: Date | null;
   vehicle: unknown;
   addressPrivate?: string | null;
+  authRequired?: boolean;
+  authenticationStatus?: string | null;
   category?: { id: string; slug: string; name: string } | null;
   estateCommunity?: {
     id: string;
@@ -105,6 +116,11 @@ type ListingWithRelations = {
     deadline: Date;
     status: string;
   } | null;
+  vehicleInspections?: Array<{
+    status: string;
+    completedAt: Date | null;
+    expiresAt: Date | null;
+  }>;
   images?: Array<{
     id: string;
     sortOrder: number;
@@ -117,13 +133,14 @@ type ListingWithRelations = {
     id: string;
     phone?: string | null;
     email?: string | null;
-    profile?: { displayName: string } | null;
+    profile?: { displayName: string; handle?: string | null } | null;
     verifications?: Array<{ level: string; status: string }>;
     trustScore?: {
       avgRating: number | null;
       tier: string | null;
       medianResponseMinutes: number | null;
     } | null;
+    proAccount?: { status: string } | null;
     _count?: {
       reviewsReceived?: number;
     };
@@ -264,6 +281,20 @@ export function toPublicListing(
     createdAt: listing.createdAt,
     publishedAt: listing.publishedAt,
     vehicle: stripVehicleVin(listing.vehicle),
+    inspectedBadge: inspectedBadgeFromLatest(
+      listing.vehicleInspections?.[0] ?? null,
+    ),
+    authenticationBadge: authenticationBadgeFromListing({
+      authRequired: listing.authRequired,
+      authenticationStatus: listing.authenticationStatus,
+    }),
+    authRequired: listing.authRequired ?? false,
+    authenticationStatus: listing.authenticationStatus ?? 'NOT_REQUIRED',
+    proSellerBadge:
+      listing.seller?.proAccount &&
+      ['ACTIVE', 'GRACE'].includes(listing.seller.proAccount.status)
+        ? 'Pro Seller'
+        : null,
   };
 
   // Hard privacy guarantee — strip any accidental private keys

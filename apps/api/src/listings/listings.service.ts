@@ -40,11 +40,17 @@ const listingInclude = {
   images: { orderBy: { sortOrder: 'asc' as const } },
   estateCommunity: true,
   movingSale: true,
+  vehicleInspections: {
+    where: { status: { in: ['COMPLETED', 'EXPIRED'] as const } },
+    orderBy: { completedAt: 'desc' as const },
+    take: 1,
+  },
   seller: {
     include: {
       profile: true,
       verifications: true,
       trustScore: true,
+      proAccount: true,
       _count: {
         select: {
           reviewsReceived: { where: { status: 'PUBLISHED' as const } },
@@ -137,6 +143,7 @@ export class ListingsService {
         fulfilmentMeet: dto.fulfilmentMeet ?? true,
         fulfilmentDelivery: dto.fulfilmentDelivery ?? false,
         vehicle: dto.vehicle ? (dto.vehicle as Prisma.InputJsonValue) : undefined,
+        ...(await this.luxuryAuthDefaults(dto.categoryId)),
       },
       include: listingInclude,
     });
@@ -306,6 +313,17 @@ export class ListingsService {
           : {}),
         ...(dto.vehicle !== undefined
           ? { vehicle: dto.vehicle as Prisma.InputJsonValue }
+          : {}),
+        ...(dto.authRequired !== undefined
+          ? {
+              authRequired: dto.authRequired,
+              authenticationStatus: dto.authRequired
+                ? ('REQUIRED' as const)
+                : ('OPTED_OUT' as const),
+            }
+          : {}),
+        ...(dto.categoryId !== undefined
+          ? await this.luxuryAuthDefaults(dto.categoryId, dto.authRequired)
           : {}),
       },
       include: listingInclude,
@@ -480,6 +498,32 @@ export class ListingsService {
       throw new ForbiddenException('Not the listing owner');
     }
     return listing;
+  }
+
+  /** Luxury category defaults authRequired=true / REQUIRED unless seller opted out. */
+  private async luxuryAuthDefaults(
+    categoryId?: string | null,
+    authRequiredOverride?: boolean,
+  ): Promise<{
+    authRequired?: boolean;
+    authenticationStatus?: 'REQUIRED' | 'OPTED_OUT' | 'NOT_REQUIRED';
+  }> {
+    if (!categoryId) return {};
+    const category = await this.prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { slug: true },
+    });
+    if (!category || category.slug !== 'luxury') {
+      if (authRequiredOverride === undefined) return {};
+      return {
+        authRequired: authRequiredOverride,
+        authenticationStatus: authRequiredOverride ? 'REQUIRED' : 'OPTED_OUT',
+      };
+    }
+    if (authRequiredOverride === false) {
+      return { authRequired: false, authenticationStatus: 'OPTED_OUT' };
+    }
+    return { authRequired: true, authenticationStatus: 'REQUIRED' };
   }
 
   private async emitStatus(

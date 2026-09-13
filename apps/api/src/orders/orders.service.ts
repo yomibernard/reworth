@@ -33,7 +33,9 @@ import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
 } from '../providers/payment.provider';
+import { ReferralsService } from '../referrals/referrals.service';
 import { TrustScoreService } from '../reviews/trust-score.service';
+import { LuxuryAuthService } from '../verticals/luxury-auth.service';
 import { CreateOrderDto } from './dto/orders.dto';
 import {
   computeOrderTotalKobo,
@@ -164,6 +166,10 @@ export class OrdersService {
     @Inject(forwardRef(() => DeliveryService))
     private readonly delivery?: DeliveryService,
     @Optional() private readonly trust?: TrustScoreService,
+    @Optional()
+    @Inject(forwardRef(() => LuxuryAuthService))
+    private readonly luxuryAuth?: LuxuryAuthService,
+    @Optional() private readonly referrals?: ReferralsService,
   ) {}
 
   private feePct(): number {
@@ -403,6 +409,14 @@ export class OrdersService {
     if (order.sellerId !== sellerId) {
       throw new ForbiddenException('Only the seller can mark handed over');
     }
+
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: order.listingId },
+    });
+    if (listing && this.luxuryAuth) {
+      this.luxuryAuth.assertCanHandOver(listing, order.status);
+    }
+
     OrderStateMachine.assertTransition(order.status, 'HANDED_OVER');
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -577,6 +591,19 @@ export class OrdersService {
 
     if (updated.fulfilmentMethod === FulfilmentMethod.DELIVERY) {
       await this.delivery?.assignAfterFunding(orderId);
+    }
+
+    // Luxury auth gate: FUNDED → IN_AUTHENTICATION when required
+    if (this.luxuryAuth) {
+      await this.luxuryAuth.afterOrderFunded(orderId).catch((err) =>
+        this.logger.warn(
+          `Luxury auth after fund failed: ${(err as Error).message}`,
+        ),
+      );
+      const refreshed = await this.requireOrder(orderId);
+      if (refreshed.status === 'IN_AUTHENTICATION') {
+        return toOrderDto(refreshed);
+      }
     }
 
     // Swap+cash: if both legs already RECEIVED, release + complete now
@@ -816,6 +843,16 @@ export class OrdersService {
         `Trust recompute after complete failed: ${(err as Error).message}`,
       ),
     );
+
+    if (this.referrals) {
+      void this.referrals
+        .onOrderCompleted(order.buyerId, orderId)
+        .catch((err) =>
+          this.logger.warn(
+            `Referral reward after complete failed: ${(err as Error).message}`,
+          ),
+        );
+    }
 
     return toOrderDto(updated);
   }
@@ -1138,6 +1175,7 @@ export class OrdersService {
 
   private isPostFunded(status: OrderStatus): boolean {
     return [
+      'IN_AUTHENTICATION',
       'HANDED_OVER',
       'RECEIVED',
       'COMPLETED',

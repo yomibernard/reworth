@@ -78,6 +78,19 @@ export type PublicListing = {
   buyerProtection: true;
   createdAt: string;
   publishedAt: string | null;
+  vehicle?: Record<string, unknown> | null;
+  inspectedBadge?:
+    | boolean
+    | {
+        inspected: boolean;
+        completedAt?: string | null;
+        inspectionId?: string | null;
+      }
+    | null;
+  inspectedAt?: string | null;
+  authRequired?: boolean;
+  authenticationStatus?: string | null;
+  certificateId?: string | null;
 };
 
 export type PriceIntelligence = {

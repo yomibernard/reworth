@@ -37,6 +37,14 @@ export class OtpVerifyDto {
   @ValidateNested()
   @Type(() => DeviceDto)
   device?: DeviceDto;
+
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
+
+  @IsOptional()
+  @IsString()
+  deviceFingerprintHash?: string;
 }
 
 export class LoginDto {

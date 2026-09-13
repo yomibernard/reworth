@@ -207,6 +207,18 @@ export default function AccountPage() {
               Seller analytics
             </Link>
             <Link
+              href="/pro"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Pro seller
+            </Link>
+            <Link
+              href="/referrals"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Referrals
+            </Link>
+            <Link
               href="/orders"
               className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
             >
