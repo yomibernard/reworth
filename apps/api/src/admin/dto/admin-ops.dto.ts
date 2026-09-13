@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Min,
   MinLength,
 } from 'class-validator';
@@ -222,6 +223,63 @@ export class AdminCommunityDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @IsOptional()
+  @IsString()
+  privacy?: string;
+
+  @IsOptional()
+  @IsString()
+  about?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  verified?: boolean;
+}
+
+export class AdminPatchCommunityDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @IsOptional()
+  @IsString()
+  privacy?: string;
+
+  @IsOptional()
+  @IsString()
+  coverUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  about?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  verified?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+
+  @IsOptional()
+  geoLat?: number | null;
+
+  @IsOptional()
+  geoLng?: number | null;
+}
+
+export class AdminAddCommunityManagerDto {
+  @IsUUID()
+  userId!: string;
 }
 
 export class AdminAppealResolveDto {

@@ -57,6 +57,7 @@ export default function CatalogPage() {
             : [
                 { key: "name", label: "Name" },
                 { key: "slug", label: "Slug" },
+                { key: "privacy", label: "Privacy" },
                 { key: "active", label: "Active" },
               ];
 
@@ -64,7 +65,7 @@ export default function CatalogPage() {
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title="Catalog"
-        description="Categories, meet points, scan rules, banners, communities."
+        description="Categories, meet points, scan rules, banners, communities (quick create). Full membership queue: Communities nav."
         actions={
           <Button
             size="sm"

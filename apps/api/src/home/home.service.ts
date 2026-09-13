@@ -6,15 +6,28 @@ import {
   toPublicListing,
   type PublicListingDto,
 } from '../listings/public-listing.mapper';
+import { MovingSalesService } from '../moving-sales/moving-sales.service';
+import { CommunityVisibilityService } from '../communities/community-visibility.service';
 import { haversineKm } from '../providers/search.provider';
 import { HomeCache } from './home.cache';
 import { RecommendationService } from './recommendation.service';
+
+export type MovingSaleRailItem = {
+  id: string;
+  title: string;
+  itemCount: number;
+  combinedPriceKobo: number;
+  deadline: Date;
+  community: string;
+  coverListingId?: string;
+};
 
 export type HomeRail = {
   id: string;
   title: string;
   items: PublicListingDto[];
   emptyMessage?: string;
+  movingSales?: MovingSaleRailItem[];
 };
 
 export type HomeResponse = {
@@ -27,6 +40,8 @@ const listingInclude = {
   category: true,
   subcategory: true,
   images: { orderBy: { sortOrder: 'asc' as const } },
+  estateCommunity: true,
+  movingSale: true,
   seller: {
     include: {
       profile: true,
@@ -42,6 +57,8 @@ export class HomeService {
     private readonly cache: HomeCache,
     private readonly recommendations: RecommendationService,
     private readonly analytics: DiscoveryAnalyticsService,
+    private readonly movingSales: MovingSalesService,
+    private readonly visibility: CommunityVisibilityService,
   ) {}
 
   async getHome(query: {
@@ -49,6 +66,7 @@ export class HomeService {
     radiusKm?: number;
     lat?: number;
     lng?: number;
+    viewerId?: string | null;
   }): Promise<HomeResponse> {
     const community = query.community ?? '';
     const radiusKm = query.radiusKm;
@@ -56,7 +74,7 @@ export class HomeService {
     const key = this.cache.buildKey(
       community,
       radiusKm ?? 'all',
-      grid,
+      `${grid}:${query.viewerId ?? 'anon'}`,
     );
 
     const cached = await this.cache.get<HomeResponse>(key);
@@ -104,11 +122,13 @@ export class HomeService {
     radiusKm?: number;
     lat?: number;
     lng?: number;
+    viewerId?: string | null;
   }): Promise<HomeRail[]> {
     const live = await this.prisma.listing.findMany({
       where: {
         status: 'LIVE',
         ...(query.community ? { community: query.community } : {}),
+        AND: [this.visibility.visibleListingWhere(query.viewerId)],
       },
       include: {
         ...listingInclude,
@@ -195,6 +215,13 @@ export class HomeService {
       popularMeta,
     );
 
+    const movingSaleItems = await this.movingSales.topForHome({
+      lat: query.lat,
+      lng: query.lng,
+      radiusKm: query.radiusKm,
+      limit: 12,
+    });
+
     return [
       {
         id: 'nearby',
@@ -231,7 +258,11 @@ export class HomeService {
         id: 'moving_sales',
         title: 'Moving sales',
         items: [],
-        emptyMessage: 'Moving sales launch soon',
+        movingSales: movingSaleItems,
+        emptyMessage:
+          movingSaleItems.length === 0
+            ? 'No active moving sales nearby'
+            : undefined,
       },
       {
         id: 'recommended_for_you',

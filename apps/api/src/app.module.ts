@@ -26,6 +26,8 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { RiskModule } from './risk/risk.module';
 import { SearchModule } from './search/search.module';
 import { SwapModule } from './swap/swap.module';
+import { MovingSalesModule } from './moving-sales/moving-sales.module';
+import { CommunitiesModule } from './communities/communities.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -79,6 +81,8 @@ import { UsersModule } from './users/users.module';
     ChatModule,
     OffersModule,
     SwapModule,
+    MovingSalesModule,
+    CommunitiesModule,
     NotificationsModule,
     DeliveryModule,
     OrdersModule,

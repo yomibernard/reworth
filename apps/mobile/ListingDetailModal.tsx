@@ -301,6 +301,19 @@ export function ListingDetailModal({
             <Text style={styles.meta}>
               {listing.condition} · {listing.community || "Lagos"}
             </Text>
+            {listing.movingSale ? (
+              <Text style={styles.chip}>
+                Moving sale: {listing.movingSale.title}
+              </Text>
+            ) : null}
+            {listing.communityChip ? (
+              <Text style={styles.chip}>
+                {listing.communityChip.name}
+                {listing.communityChip.privacy !== "PUBLIC"
+                  ? " · members"
+                  : ""}
+              </Text>
+            ) : null}
 
             <Pressable
               style={styles.seller}
@@ -561,6 +574,13 @@ const styles = StyleSheet.create({
     color: "#111315",
   },
   meta: { marginTop: 8, fontSize: 14, color: "#5C636A" },
+  chip: {
+    marginTop: 8,
+    alignSelf: "flex-start",
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0E9F6E",
+  },
   seller: {
     marginTop: 20,
     padding: 14,

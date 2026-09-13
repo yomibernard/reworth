@@ -22,6 +22,20 @@ export type PublicListingSeller = {
   responseMinutes?: number | null;
 };
 
+export type PublicListingCommunityChip = {
+  id: string;
+  slug: string;
+  name: string;
+  privacy: string;
+};
+
+export type PublicListingMovingSale = {
+  id: string;
+  title: string;
+  deadline: Date;
+  status: string;
+};
+
 export type PublicListingDto = {
   id: string;
   title: string;
@@ -35,6 +49,10 @@ export type PublicListingDto = {
   sellingMode: string;
   status: string;
   community: string;
+  communityId?: string | null;
+  communityOnly?: boolean;
+  communityChip?: PublicListingCommunityChip | null;
+  movingSale?: PublicListingMovingSale | null;
   geoLat: number | null;
   geoLng: number | null;
   distanceKm?: number | null;
@@ -61,6 +79,8 @@ type ListingWithRelations = {
   sellingMode: string;
   status: string;
   community: string;
+  communityId?: string | null;
+  communityOnly?: boolean;
   geoLat: number | null;
   geoLng: number | null;
   fulfilmentPickup: boolean;
@@ -71,6 +91,18 @@ type ListingWithRelations = {
   vehicle: unknown;
   addressPrivate?: string | null;
   category?: { id: string; slug: string; name: string } | null;
+  estateCommunity?: {
+    id: string;
+    slug: string;
+    name: string;
+    privacy: string;
+  } | null;
+  movingSale?: {
+    id: string;
+    title: string;
+    deadline: Date;
+    status: string;
+  } | null;
   images?: Array<{
     id: string;
     sortOrder: number;
@@ -192,6 +224,24 @@ export function toPublicListing(
     sellingMode: listing.sellingMode,
     status: listing.status,
     community: listing.community,
+    communityId: listing.communityId ?? null,
+    communityOnly: listing.communityOnly ?? false,
+    communityChip: listing.estateCommunity
+      ? {
+          id: listing.estateCommunity.id,
+          slug: listing.estateCommunity.slug,
+          name: listing.estateCommunity.name,
+          privacy: listing.estateCommunity.privacy,
+        }
+      : null,
+    movingSale: listing.movingSale
+      ? {
+          id: listing.movingSale.id,
+          title: listing.movingSale.title,
+          deadline: listing.movingSale.deadline,
+          status: listing.movingSale.status,
+        }
+      : null,
     geoLat: listing.geoLat,
     geoLng: listing.geoLng,
     distanceKm,

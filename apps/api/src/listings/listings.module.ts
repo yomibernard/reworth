@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MediaModule } from '../media/media.module';
 import { AuthModule } from '../auth/auth.module';
+import { CommunitiesModule } from '../communities/communities.module';
 import { FavouritesModule } from '../favourites/favourites.module';
 import { ModerationModule } from '../moderation/moderation.module';
 import { RiskModule } from '../risk/risk.module';
@@ -26,6 +27,7 @@ import { PriceIntelligenceService } from './price-intelligence.service';
     ConfigModule,
     MediaModule,
     AuthModule,
+    CommunitiesModule,
     forwardRef(() => FavouritesModule),
     forwardRef(() => RiskModule),
     ModerationModule,

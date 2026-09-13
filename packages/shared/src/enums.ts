@@ -96,3 +96,31 @@ export enum AdminRole {
   Finance = "FINANCE",
   Ops = "OPS",
 }
+
+export enum MovingSaleStatus {
+  Active = "ACTIVE",
+  Completed = "COMPLETED",
+  Cancelled = "CANCELLED",
+}
+
+export enum CommunityType {
+  Estate = "ESTATE",
+  Corporate = "CORPORATE",
+  Church = "CHURCH",
+  Alumni = "ALUMNI",
+  Public = "PUBLIC",
+}
+
+export enum CommunityPrivacy {
+  Public = "PUBLIC",
+  SemiPrivate = "SEMI_PRIVATE",
+  Private = "PRIVATE",
+}
+
+export enum CommunityMembershipStatus {
+  Invited = "INVITED",
+  Approved = "APPROVED",
+  Member = "MEMBER",
+  Suspended = "SUSPENDED",
+  Left = "LEFT",
+}

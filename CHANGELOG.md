@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.1-moving-communities — 2026-09-13
+
+### Added
+- Moving Sales: collections, follow, deadline expiry → COMPLETED, home rail, analytics events
+- Estate Communities: privacy matrix, invite codes, membership queue, CommunityManager scope
+- Listings/search visibility gating (private → 404-equivalent, no access leaks)
+- Web: moving sale pages, communities browse/detail, My Communities, sell communityOnly
+- Admin Communities page: CRUD fields, membership approve/reject/suspend, managers
+- Mobile thin helpers + PDP chips; seeds for VGC, Banana Island, Lekki Ph1, Eko Atlantic, Corporate/Church/Alumni
+- Tests: gating matrix, invites, moving totals, estate-manager scope, 404-leak
+- RBAC: Estate Manager (CommunityManager) scoped permissions
+
 ## v1.0-swap — 2026-09-13
 
 ### Added

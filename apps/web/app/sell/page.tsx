@@ -16,6 +16,11 @@ import { ApiError } from "../../lib/api";
 import { getAccessToken } from "../../lib/auth";
 import { COMMUNITIES, type Community } from "../../lib/communities";
 import {
+  listEstateCommunities,
+  listMyCommunities,
+  type EstateCommunity,
+} from "../../lib/estate-communities";
+import {
   assistListing,
   attachListingImages,
   CONDITIONS,
@@ -94,6 +99,11 @@ export default function SellPage() {
   const [sellingMode, setSellingMode] = useState<SellingModeValue>("SELL");
   const [negotiable, setNegotiable] = useState(true);
   const [community, setCommunity] = useState<Community | "">("");
+  const [estateCommunities, setEstateCommunities] = useState<EstateCommunity[]>(
+    [],
+  );
+  const [estateCommunityId, setEstateCommunityId] = useState("");
+  const [communityOnly, setCommunityOnly] = useState(false);
   const [fulfilmentPickup, setFulfilmentPickup] = useState(true);
   const [fulfilmentMeet, setFulfilmentMeet] = useState(true);
   const [fulfilmentDelivery, setFulfilmentDelivery] = useState(false);
@@ -107,6 +117,28 @@ export default function SellPage() {
       return;
     }
     setReady(true);
+    void (async () => {
+      try {
+        const [all, mine] = await Promise.all([
+          listEstateCommunities({ limit: 50 }, token),
+          listMyCommunities(token).catch(() => ({ items: [] })),
+        ]);
+        const memberIds = new Set(
+          mine.items
+            .filter((m) =>
+              ["MEMBER", "APPROVED"].includes(m.status),
+            )
+            .map((m) => m.community.id),
+        );
+        const preferred = [
+          ...all.items.filter((c) => memberIds.has(c.id)),
+          ...all.items.filter((c) => !memberIds.has(c.id)),
+        ];
+        setEstateCommunities(preferred);
+      } catch {
+        setEstateCommunities([]);
+      }
+    })();
   }, [router]);
 
   const tokenOrThrow = useCallback(() => {
@@ -147,6 +179,8 @@ export default function SellPage() {
     if (l.community && (COMMUNITIES as readonly string[]).includes(l.community)) {
       setCommunity(l.community as Community);
     }
+    if (l.communityId) setEstateCommunityId(l.communityId);
+    setCommunityOnly(Boolean(l.communityOnly));
     setFulfilmentPickup(l.fulfilmentPickup);
     setFulfilmentMeet(l.fulfilmentMeet);
     setFulfilmentDelivery(l.fulfilmentDelivery);
@@ -255,6 +289,8 @@ export default function SellPage() {
       negotiable,
       sellingMode,
       community: community || undefined,
+      communityId: estateCommunityId || null,
+      communityOnly,
       fulfilmentPickup,
       fulfilmentMeet,
       fulfilmentDelivery,
@@ -728,6 +764,37 @@ export default function SellPage() {
                   </Chip>
                 ))}
               </div>
+              {estateCommunities.length > 0 ? (
+                <div className="mt-8 space-y-3">
+                  <label className="block text-sm font-medium">
+                    Estate community (optional)
+                    <select
+                      value={estateCommunityId}
+                      onChange={(e) => setEstateCommunityId(e.target.value)}
+                      className="mt-2 w-full rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+                      disabled={busy}
+                    >
+                      <option value="">None — public Lagos listing</option>
+                      {estateCommunities.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                          {c.verified ? " ✓" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-3 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={communityOnly}
+                      onChange={(e) => setCommunityOnly(e.target.checked)}
+                      disabled={busy || !estateCommunityId}
+                      className="h-4 w-4 accent-[var(--rw-accent)]"
+                    />
+                    Show only to community members
+                  </label>
+                </div>
+              ) : null}
               {error ? (
                 <p className="mt-4 text-sm text-[var(--rw-error)]" role="alert">
                   {error}

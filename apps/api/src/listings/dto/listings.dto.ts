@@ -74,6 +74,18 @@ export class CreateListingDto {
   community?: string;
 
   @IsOptional()
+  @IsUUID()
+  communityId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  communityOnly?: boolean;
+
+  @IsOptional()
+  @IsUUID()
+  movingSaleId?: string;
+
+  @IsOptional()
   @IsNumber()
   geoLat?: number;
 
@@ -158,6 +170,18 @@ export class UpdateListingDto {
   @IsOptional()
   @IsString()
   community?: string;
+
+  @IsOptional()
+  @IsUUID()
+  communityId?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  communityOnly?: boolean;
+
+  @IsOptional()
+  @IsUUID()
+  movingSaleId?: string | null;
 
   @IsOptional()
   @IsNumber()

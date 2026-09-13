@@ -50,6 +50,34 @@ enum AdminRole {
   CONTENT_MODERATOR
 }
 
+enum MovingSaleStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum CommunityType {
+  ESTATE
+  CORPORATE
+  CHURCH
+  ALUMNI
+  PUBLIC
+}
+
+enum CommunityPrivacy {
+  PUBLIC
+  SEMI_PRIVATE
+  PRIVATE
+}
+
+enum CommunityMembershipStatus {
+  INVITED
+  APPROVED
+  MEMBER
+  SUSPENDED
+  LEFT
+}
+
 enum ListingStatus {
   DRAFT
   UNDER_REVIEW
@@ -345,6 +373,11 @@ model User {
   swapProposals        SwapProposal[]       @relation("SwapProposer")
   giveawayClaims       GiveawayClaim[]      @relation("GiveawayClaimant")
   ordersAsCashRecipient Order[]             @relation("OrderCashRecipient")
+  movingSales          MovingSale[]         @relation("MovingSaleSeller")
+  movingSaleFollows    MovingSaleFollow[]
+  communityMemberships CommunityMembership[]
+  communityInvitesCreated CommunityInvite[] @relation("CommunityInviteCreator")
+  communityManagers    CommunityManager[]
 
   @@map("users")
 }
@@ -532,6 +565,9 @@ model Listing {
   sellingMode        SellingMode   @default(SELL)
   status             ListingStatus @default(DRAFT)
   community          String        @default("")
+  communityId        String?       @db.Uuid
+  communityOnly      Boolean       @default(false)
+  movingSaleId       String?       @db.Uuid
   geoLat             Float?
   geoLng             Float?
   /// Private meetup / pickup address — NEVER expose in public DTOs.
@@ -552,6 +588,8 @@ model Listing {
   seller       User           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   category     Category?      @relation("ListingCategory", fields: [categoryId], references: [id], onDelete: SetNull)
   subcategory  Category?      @relation("ListingSubcategory", fields: [subcategoryId], references: [id], onDelete: SetNull)
+  estateCommunity Community?  @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  movingSale   MovingSale?    @relation(fields: [movingSaleId], references: [id], onDelete: SetNull)
   images       ListingImage[]
   events       ListingEvent[]
   riskEvents   RiskEvent[]
@@ -576,6 +614,8 @@ model Listing {
   @@index([status])
   @@index([categoryId])
   @@index([community])
+  @@index([communityId])
+  @@index([movingSaleId])
   @@index([publishedAt])
   @@index([expiresAt])
   @@map("listings")
@@ -1296,14 +1336,137 @@ model HeroBanner {
 }
 
 model Community {
-  id        String   @id @default(uuid()) @db.Uuid
-  slug      String   @unique
-  name      String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id          String            @id @default(uuid()) @db.Uuid
+  slug        String            @unique
+  name        String
+  type        CommunityType     @default(ESTATE)
+  privacy     CommunityPrivacy  @default(PUBLIC)
+  coverUrl    String?
+  about       String            @default("")
+  verified    Boolean           @default(false)
+  active      Boolean           @default(true)
+  geoLat      Float?
+  geoLng      Float?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  memberships CommunityMembership[]
+  invites     CommunityInvite[]
+  managers    CommunityManager[]
+  listings    Listing[]
+  movingSales MovingSale[]
 
   @@index([active])
+  @@index([privacy])
+  @@index([type])
   @@map("communities")
+}
+
+model CommunityMembership {
+  id           String                     @id @default(uuid()) @db.Uuid
+  communityId  String                     @db.Uuid
+  userId       String                     @db.Uuid
+  status       CommunityMembershipStatus  @default(INVITED)
+  verifiedById String?                    @db.Uuid
+  joinedAt     DateTime?
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@index([userId, status])
+  @@index([communityId, status])
+  @@map("community_memberships")
+}
+
+model CommunityInvite {
+  id          String    @id @default(uuid()) @db.Uuid
+  communityId String    @db.Uuid
+  code        String    @unique
+  createdById String    @db.Uuid
+  maxUses     Int       @default(1)
+  useCount    Int       @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("CommunityInviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([communityId])
+  @@index([expiresAt])
+  @@map("community_invites")
+}
+
+/// Estate-manager scope: Operations sub-role bound to one community.
+model CommunityManager {
+  id          String   @id @default(uuid()) @db.Uuid
+  communityId String   @db.Uuid
+  userId      String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@index([userId])
+  @@map("community_managers")
+}
+
+model MovingSale {
+  id          String           @id @default(uuid()) @db.Uuid
+  sellerId    String           @db.Uuid
+  title       String
+  blurb       String           @default("")
+  deadline    DateTime
+  community   String           @default("")
+  communityId String?          @db.Uuid
+  geoLat      Float?
+  geoLng      Float?
+  status      MovingSaleStatus @default(ACTIVE)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  seller    User               @relation("MovingSaleSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  estate    Community?         @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  listings  Listing[]
+  follows   MovingSaleFollow[]
+  events    MovingSaleEvent[]
+
+  @@index([sellerId, status])
+  @@index([status, deadline])
+  @@index([community])
+  @@map("moving_sales")
+}
+
+model MovingSaleFollow {
+  id           String   @id @default(uuid()) @db.Uuid
+  movingSaleId String   @db.Uuid
+  userId       String   @db.Uuid
+  createdAt    DateTime @default(now())
+
+  movingSale MovingSale @relation(fields: [movingSaleId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([movingSaleId, userId])
+  @@index([userId])
+  @@map("moving_sale_follows")
+}
+
+model MovingSaleEvent {
+  id           String   @id @default(uuid()) @db.Uuid
+  movingSaleId String   @db.Uuid
+  type         String
+  actorId      String?  @db.Uuid
+  payload      Json?
+  createdAt    DateTime @default(now())
+
+  movingSale MovingSale @relation(fields: [movingSaleId], references: [id], onDelete: Cascade)
+
+  @@index([movingSaleId, type])
+  @@index([createdAt])
+  @@map("moving_sale_events")
 }
 
 model WhitelistEntry {

@@ -173,7 +173,8 @@ function ListingTile({
       </Text>
       <Text style={styles.tilePrice}>{price}</Text>
       <Text style={styles.tileMeta} numberOfLines={1}>
-        {listing.community || "Lagos"}
+        {listing.communityChip?.name || listing.community || "Lagos"}
+        {listing.movingSale ? ` · Moving sale` : ""}
       </Text>
     </Pressable>
   );

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { CommunityVisibilityService } from '../communities/community-visibility.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { DiscoveryAnalyticsService } from '../discovery/discovery-analytics.service';
 import {
@@ -18,10 +19,14 @@ export class SearchService {
     @Inject(SEARCH_PROVIDER) private readonly searchProvider: SearchProvider,
     private readonly prisma: PrismaService,
     private readonly analytics: DiscoveryAnalyticsService,
+    private readonly visibility: CommunityVisibilityService,
   ) {}
 
-  async search(query: SearchQueryDto): Promise<SearchProviderResult> {
-    const filters = this.mapQuery(query);
+  async search(
+    query: SearchQueryDto,
+    viewerId?: string | null,
+  ): Promise<SearchProviderResult> {
+    const filters = this.mapQuery(query, viewerId);
     const result = await this.searchProvider.search(filters);
     this.analytics.searchPerformed({
       q: filters.q,
@@ -34,13 +39,17 @@ export class SearchService {
     return result;
   }
 
-  async searchNl(dto: NlSearchDto) {
+  async searchNl(dto: NlSearchDto, viewerId?: string | null) {
     const interpreted = this.nlParser.parse(dto.query, {
       lat: dto.lat,
       lng: dto.lng,
     });
 
     const filters = await this.resolveCategorySlugs(interpreted.filters);
+    filters.viewerId = viewerId;
+    filters.visibilityWhere = this.visibility.visibleListingWhere(
+      viewerId,
+    ) as Record<string, unknown>;
     const results = await this.searchProvider.search(filters);
 
     this.analytics.nlSearchUsed({
@@ -70,7 +79,10 @@ export class SearchService {
     return this.nlParser.parse(query, opts);
   }
 
-  private mapQuery(query: SearchQueryDto): SearchFilters {
+  private mapQuery(
+    query: SearchQueryDto,
+    viewerId?: string | null,
+  ): SearchFilters {
     return {
       q: query.q,
       categoryId: query.categoryId,
@@ -79,6 +91,7 @@ export class SearchService {
       priceMaxKobo: query.priceMaxKobo,
       condition: query.condition,
       community: query.community,
+      communityId: query.communityId,
       radiusKm: query.radiusKm,
       lat: query.lat,
       lng: query.lng,
@@ -88,6 +101,10 @@ export class SearchService {
       sort: query.sort,
       cursor: query.cursor,
       limit: query.limit,
+      viewerId,
+      visibilityWhere: this.visibility.visibleListingWhere(
+        viewerId,
+      ) as Record<string, unknown>,
     };
   }
 

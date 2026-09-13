@@ -14,6 +14,8 @@ Roles (Prisma `AdminRole`):
 
 `SUPER_ADMIN` bypasses all role checks. **AdminOnlyGuard** rejects JWTs with zero roles on every `/admin/*` route (except `POST /admin/auth/login` and challenge-based `POST /admin/auth/totp/verify`).
 
+**Estate Manager** is not an `AdminRole` enum value — it is a scoped `CommunityManager` assignment (user ↔ community). See Phase 2.2 matrix below.
+
 ## Page / action matrix (Phase 8)
 
 | Area | CONTENT_MODERATOR | RISK_FRAUD | FINANCE | CUSTOMER_SUPPORT | MARKETING | OPERATIONS | SUPER_ADMIN |
@@ -35,6 +37,18 @@ Roles (Prisma `AdminRole`):
 | Catalog (categories, meet points, scan rules, banners, communities) | ✓ (keywords/catalog) | — | — | — | ✓ | ✓ | ✓ |
 | Analytics | — | — | ✓ | — | ✓ | ✓ | ✓ |
 | Audit log | — | ✓ | — | — | — | ✓ | ✓ |
+
+## Estate communities (Phase 2.2 / `v1.1`)
+
+| Area | Estate Manager (`CommunityManager`) | OPERATIONS | SUPER_ADMIN |
+| --- | --- | --- | --- |
+| List / edit own scoped community | ✓ (assigned community only) | ✓ all | ✓ all |
+| Membership approve / reject / suspend | ✓ scoped community | ✓ all | ✓ all |
+| Community KPIs (members, pending, live listings) | ✓ scoped community | ✓ all | ✓ all |
+| Assign / remove managers | — | ✓ | ✓ |
+| Full `/admin/communities` admin UI | scoped via assignment | ✓ | ✓ |
+
+Catalog “communities” tab remains for quick create; membership queue lives on Admin **Communities**.
 
 ### Explicit denials
 
