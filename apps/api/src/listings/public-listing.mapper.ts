@@ -53,6 +53,7 @@ export type PublicListingDto = {
   communityOnly?: boolean;
   communityChip?: PublicListingCommunityChip | null;
   movingSale?: PublicListingMovingSale | null;
+  city: string;
   geoLat: number | null;
   geoLng: number | null;
   distanceKm?: number | null;
@@ -81,6 +82,7 @@ type ListingWithRelations = {
   community: string;
   communityId?: string | null;
   communityOnly?: boolean;
+  city?: string | null;
   geoLat: number | null;
   geoLng: number | null;
   fulfilmentPickup: boolean;
@@ -242,6 +244,7 @@ export function toPublicListing(
           status: listing.movingSale.status,
         }
       : null,
+    city: listing.city?.trim() || 'Lagos',
     geoLat: listing.geoLat,
     geoLng: listing.geoLng,
     distanceKm,

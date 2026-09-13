@@ -1,12 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { FraudRulesService } from './fraud-rules.service';
+import {
+  VALUATION_PROVIDER,
+  type ValuationProvider,
+} from '../intelligence/valuation.provider';
+import { DEFAULT_CITY, normalizeCity } from '../intelligence/city-scope';
 
 @Injectable()
 export class PriceIntelligenceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fraud: FraudRulesService,
+    @Optional()
+    @Inject(VALUATION_PROVIDER)
+    private readonly valuation?: ValuationProvider,
   ) {}
 
   async getForListing(listingId: string) {
@@ -15,6 +23,21 @@ export class PriceIntelligenceService {
     });
     if (!listing) throw new NotFoundException('Listing not found');
 
+    if (this.valuation) {
+      return this.valuation.value({
+        id: listing.id,
+        city: normalizeCity(listing.city ?? DEFAULT_CITY),
+        categoryId: listing.categoryId,
+        brand: listing.brand,
+        condition: listing.condition,
+        priceKobo: listing.priceKobo,
+        title: listing.title,
+        model: listing.model,
+        originalPriceKobo: listing.originalPriceKobo,
+      });
+    }
+
+    // Legacy rule-based fallback when ValuationProvider not wired
     const lowKobo = this.fraud.estimateLowKobo(listing);
     const blob = `${listing.brand ?? ''} ${listing.title}`.toLowerCase();
 
@@ -34,14 +57,21 @@ export class PriceIntelligenceService {
 
     return {
       listingId,
-      currency: 'NGN',
+      currency: 'NGN' as const,
+      city: normalizeCity(listing.city ?? DEFAULT_CITY),
       estimatedLowKobo: low,
       estimatedHighKobo: high,
       recommendedKobo: recommended,
+      quickSaleKobo: Math.round(recommended * 0.9),
+      maxValueKobo: high,
       estimatedLowNaira: Math.round(low / 100),
       estimatedHighNaira: Math.round(high / 100),
       recommendedNaira: Math.round(recommended / 100),
-      basis: 'rule_based_mock',
+      quickSaleNaira: Math.round((recommended * 0.9) / 100),
+      maxValueNaira: Math.round(high / 100),
+      confidenceLabel: 'Estimated from live listings',
+      sampleCount: 0,
+      basis: 'rule_based_mock' as const,
     };
   }
 }

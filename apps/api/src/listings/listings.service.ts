@@ -23,6 +23,7 @@ import { ListingAssistService } from './listing-assist.service';
 import { ListingStateMachine } from './listing-state.machine';
 import { PriceIntelligenceService } from './price-intelligence.service';
 import { toPublicListing } from './public-listing.mapper';
+import { FeatureStoreService } from '../intelligence/feature-store.service';
 import type {
   AttachImagesDto,
   BrowseListingsQueryDto,
@@ -70,6 +71,7 @@ export class ListingsService {
     @Optional()
     @Inject(forwardRef(() => FavouritesService))
     private readonly favourites?: FavouritesService,
+    @Optional() private readonly features?: FeatureStoreService,
   ) {}
 
   async listCategories() {
@@ -127,6 +129,7 @@ export class ListingsService {
         communityId: dto.communityId,
         communityOnly: dto.communityOnly ?? false,
         movingSaleId: dto.movingSaleId,
+        city: dto.city?.trim() || 'Lagos',
         geoLat,
         geoLng,
         addressPrivate: dto.addressPrivate,
@@ -153,6 +156,7 @@ export class ListingsService {
       AND: [this.visibility.visibleListingWhere(viewerId)],
     };
     if (query.community) where.community = query.community;
+    if (query.city) where.city = query.city;
     if (query.categoryId) where.categoryId = query.categoryId;
     if (query.mine === '1' && viewerId) {
       where.sellerId = viewerId;
@@ -218,6 +222,28 @@ export class ListingsService {
           actorUserId: viewerId ?? null,
         },
       });
+      if (this.features) {
+        void this.features
+          .recordListingEvent({
+            listingId: id,
+            city: listing.city,
+            kind: 'view',
+          })
+          .catch(() => undefined);
+        if (viewerId) {
+          void this.features
+            .recordUserEvent({
+              userId: viewerId,
+              city: listing.city,
+              categoryId: listing.categoryId,
+              brand: listing.brand,
+              community: listing.community,
+              priceKobo: listing.priceKobo,
+              kind: 'view',
+            })
+            .catch(() => undefined);
+        }
+      }
     }
 
     return toPublicListing(listing);
@@ -260,6 +286,9 @@ export class ListingsService {
           : {}),
         ...(dto.movingSaleId !== undefined
           ? { movingSaleId: dto.movingSaleId }
+          : {}),
+        ...(dto.city !== undefined
+          ? { city: dto.city.trim() || 'Lagos' }
           : {}),
         ...(dto.geoLat !== undefined ? { geoLat: dto.geoLat } : {}),
         ...(dto.geoLng !== undefined ? { geoLng: dto.geoLng } : {}),

@@ -13,8 +13,10 @@ import {
   Toast,
 } from "@reworth/ui-web";
 import { ReviewForm } from "../../../components/trust/ReviewForm";
+import { DiscoveryListingCard } from "../../../components/discovery/DiscoveryListingCard";
 import { ApiError, apiFetch } from "../../../lib/api";
 import { getAccessToken } from "../../../lib/auth";
+import { fetchRecommendations } from "../../../lib/intelligence";
 import {
   cancelOrder,
   confirmReceipt,
@@ -30,7 +32,7 @@ import {
   type DisputeReason,
   type OrderDetail,
 } from "../../../lib/orders";
-import type { MeResponse } from "../../../lib/types";
+import type { MeResponse, PublicListing } from "../../../lib/types";
 import {
   createOrderReview,
   markOrderReviewPending,
@@ -61,6 +63,7 @@ export default function OrderDetailPage() {
     null,
   );
   const [reviewBusy, setReviewBusy] = useState(false);
+  const [alsoLike, setAlsoLike] = useState<PublicListing[]>([]);
 
   const load = useCallback(async () => {
     if (!orderId) return;
@@ -87,8 +90,23 @@ export default function OrderDetailPage() {
           counterpartId,
         });
         setReviewState(resolved.state);
+        if (me.id === detail.buyerId) {
+          void fetchRecommendations(
+            {
+              surface: "post_checkout",
+              listingId: detail.listingId,
+              limit: 6,
+            },
+            token,
+          )
+            .then((res) => setAlsoLike(res.items ?? []))
+            .catch(() => setAlsoLike([]));
+        } else {
+          setAlsoLike([]);
+        }
       } else {
         setReviewState(null);
+        setAlsoLike([]);
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
@@ -412,6 +430,21 @@ export default function OrderDetailPage() {
                 </p>
               </aside>
             ) : null}
+          </section>
+        ) : null}
+
+        {alsoLike.length > 0 ? (
+          <section className="mt-12" aria-labelledby="also-like-heading">
+            <h2 id="also-like-heading" className="text-lg font-semibold">
+              You might also like
+            </h2>
+            <ul className="mt-4 flex gap-3 overflow-x-auto pb-2">
+              {alsoLike.map((item) => (
+                <li key={item.id} className="w-40 shrink-0">
+                  <DiscoveryListingCard listing={item} />
+                </li>
+              ))}
+            </ul>
           </section>
         ) : null}
       </div>

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button, Chip, EmptyState, Skeleton } from "@reworth/ui-web";
 import { DiscoveryListingCard } from "../components/discovery/DiscoveryListingCard";
 import { ApiError } from "../lib/api";
+import { getAccessToken } from "../lib/auth";
 import { COMMUNITIES } from "../lib/communities";
 import {
   RADIUS_OPTIONS,
@@ -45,10 +46,13 @@ export default function HomePage() {
           ? undefined
           : (location.radiusKm as RadiusKm);
       const [home, cats] = await Promise.all([
-        fetchHome({
-          community: location.community || undefined,
-          radiusKm,
-        }),
+        fetchHome(
+          {
+            community: location.community || undefined,
+            radiusKm,
+          },
+          getAccessToken(),
+        ),
         fetchCategories().catch(() => [] as CategoryNode[]),
       ]);
       setRails(home.rails ?? []);

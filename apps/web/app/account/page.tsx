@@ -201,6 +201,12 @@ export default function AccountPage() {
               Communities
             </Link>
             <Link
+              href="/sell/analytics"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Seller analytics
+            </Link>
+            <Link
               href="/orders"
               className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
             >

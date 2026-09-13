@@ -568,6 +568,8 @@ model Listing {
   communityId        String?       @db.Uuid
   communityOnly      Boolean       @default(false)
   movingSaleId       String?       @db.Uuid
+  /// City scope for discovery / comps / alerts (default Lagos).
+  city               String        @default("Lagos")
   geoLat             Float?
   geoLng             Float?
   /// Private meetup / pickup address — NEVER expose in public DTOs.
@@ -616,6 +618,7 @@ model Listing {
   @@index([community])
   @@index([communityId])
   @@index([movingSaleId])
+  @@index([city])
   @@index([publishedAt])
   @@index([expiresAt])
   @@map("listings")
@@ -742,13 +745,121 @@ model SavedSearch {
   filters         Json
   newMatchesCount Int       @default(0)
   lastCheckedAt   DateTime?
+  /// Pause alert evaluation without deleting the search.
+  paused          Boolean   @default(false)
+  /// Opt-in daily digest at 9am WAT.
+  digestEnabled   Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alerts SavedSearchAlertDedupe[]
 
   @@index([userId])
+  @@index([paused, digestEnabled])
   @@map("saved_searches")
+}
+
+/// Dedupes alert notifications per (saved search, listing).
+model SavedSearchAlertDedupe {
+  id            String   @id @default(uuid()) @db.Uuid
+  savedSearchId String   @db.Uuid
+  listingId     String   @db.Uuid
+  notifiedAt    DateTime @default(now())
+
+  savedSearch SavedSearch @relation(fields: [savedSearchId], references: [id], onDelete: Cascade)
+
+  @@unique([savedSearchId, listingId])
+  @@index([notifiedAt])
+  @@map("saved_search_alert_dedupe")
+}
+
+/// Hot user behaviour features for recommendations (city-scoped).
+model UserFeature {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid
+  city      String   @default("Lagos")
+  payload   Json     @default("{}")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([city])
+  @@map("user_features")
+}
+
+model ListingFeature {
+  id        String   @id @default(uuid()) @db.Uuid
+  listingId String   @unique @db.Uuid
+  city      String   @default("Lagos")
+  payload   Json     @default("{}")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([city])
+  @@map("listing_features")
+}
+
+model Experiment {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  name        String
+  description String   @default("")
+  variants    Json
+  /// Traffic percent 0-100 allocated to experiment (rest = control).
+  trafficPct  Int      @default(100)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments ExperimentAssignment[]
+  metrics     ExperimentMetric[]
+
+  @@map("experiments")
+}
+
+model ExperimentAssignment {
+  id           String   @id @default(uuid()) @db.Uuid
+  experimentId String   @db.Uuid
+  userId       String   @db.Uuid
+  variant      String
+  createdAt    DateTime @default(now())
+
+  experiment Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@unique([experimentId, userId])
+  @@index([userId])
+  @@map("experiment_assignments")
+}
+
+model ExperimentMetric {
+  id           String   @id @default(uuid()) @db.Uuid
+  experimentId String   @db.Uuid
+  userId       String   @db.Uuid
+  variant      String
+  event        String
+  listingId    String?  @db.Uuid
+  meta         Json?
+  createdAt    DateTime @default(now())
+
+  experiment Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@index([experimentId, event, variant])
+  @@index([createdAt])
+  @@map("experiment_metrics")
+}
+
+model ValuationModelReport {
+  id          String   @id @default(uuid()) @db.Uuid
+  city        String
+  categoryId  String?
+  sampleCount Int
+  maeKobo     Float
+  coveragePct Float
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@index([city, createdAt])
+  @@map("valuation_model_reports")
 }
 
 model Conversation {

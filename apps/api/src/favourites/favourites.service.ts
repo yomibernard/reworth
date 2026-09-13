@@ -2,11 +2,14 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DiscoveryAnalyticsService } from '../discovery/discovery-analytics.service';
 import { toPublicListing } from '../listings/public-listing.mapper';
+import { matchesSavedFilters } from '../intelligence/saved-search-matcher';
+import { FeatureStoreService } from '../intelligence/feature-store.service';
 import type {
   CreateSavedSearchDto,
   UpdateSavedSearchDto,
@@ -29,6 +32,7 @@ export class FavouritesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly analytics: DiscoveryAnalyticsService,
+    @Optional() private readonly features?: FeatureStoreService,
   ) {}
 
   async favourite(userId: string, listingId: string) {
@@ -57,6 +61,26 @@ export class FavouritesService {
     });
 
     this.analytics.listingSaved({ userId, listingId });
+    if (this.features) {
+      void this.features
+        .recordUserEvent({
+          userId,
+          city: listing.city,
+          categoryId: listing.categoryId,
+          brand: listing.brand,
+          community: listing.community,
+          priceKobo: listing.priceKobo,
+          kind: 'save',
+        })
+        .catch(() => undefined);
+      void this.features
+        .recordListingEvent({
+          listingId,
+          city: listing.city,
+          kind: 'save',
+        })
+        .catch(() => undefined);
+    }
     return { ok: true, favouriteId: fav.id };
   }
 
@@ -150,6 +174,8 @@ export class FavouritesService {
         filters: s.filters,
         newMatchesCount: s.newMatchesCount,
         lastCheckedAt: s.lastCheckedAt,
+        paused: s.paused,
+        digestEnabled: s.digestEnabled,
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
       })),
@@ -162,6 +188,8 @@ export class FavouritesService {
         userId,
         name: dto.name,
         filters: dto.filters as Prisma.InputJsonValue,
+        paused: dto.paused ?? false,
+        digestEnabled: dto.digestEnabled ?? false,
       },
     });
   }
@@ -189,6 +217,10 @@ export class FavouritesService {
         ...(dto.newMatchesCount != null
           ? { newMatchesCount: dto.newMatchesCount }
           : {}),
+        ...(dto.paused != null ? { paused: dto.paused } : {}),
+        ...(dto.digestEnabled != null
+          ? { digestEnabled: dto.digestEnabled }
+          : {}),
       },
     });
   }
@@ -201,7 +233,8 @@ export class FavouritesService {
 
   /**
    * Lightweight hook: when a listing goes LIVE, bump newMatchesCount
-   * for saved searches whose filters roughly match.
+   * for non-paused saved searches whose filters roughly match.
+   * Batch alert wording is owned by SavedSearchAlertsService (scheduler).
    */
   async onListingLive(listing: {
     id: string;
@@ -212,84 +245,26 @@ export class FavouritesService {
     priceKobo: number;
     condition: string;
     community: string;
+    city?: string | null;
     fulfilmentDelivery: boolean;
+    geoLat?: number | null;
+    geoLng?: number | null;
+    brand?: string | null;
   }): Promise<void> {
-    const searches = await this.prisma.savedSearch.findMany({ take: 500 });
+    const searches = await this.prisma.savedSearch.findMany({
+      where: { paused: false },
+      take: 500,
+    });
     for (const s of searches) {
       const filters = (s.filters ?? {}) as Record<string, unknown>;
-      if (!this.matchesSavedFilters(listing, filters)) continue;
+      if (!matchesSavedFilters(listing, filters)) continue;
       await this.prisma.savedSearch.update({
         where: { id: s.id },
         data: {
           newMatchesCount: { increment: 1 },
-          lastCheckedAt: new Date(),
         },
       });
     }
-  }
-
-  private matchesSavedFilters(
-    listing: {
-      title: string;
-      description: string;
-      categoryId: string | null;
-      subcategoryId: string | null;
-      priceKobo: number;
-      condition: string;
-      community: string;
-      fulfilmentDelivery: boolean;
-    },
-    filters: Record<string, unknown>,
-  ): boolean {
-    if (
-      typeof filters.categoryId === 'string' &&
-      filters.categoryId &&
-      listing.categoryId !== filters.categoryId
-    ) {
-      return false;
-    }
-    if (
-      typeof filters.subcategoryId === 'string' &&
-      filters.subcategoryId &&
-      listing.subcategoryId !== filters.subcategoryId
-    ) {
-      return false;
-    }
-    if (
-      typeof filters.community === 'string' &&
-      filters.community &&
-      listing.community !== filters.community
-    ) {
-      return false;
-    }
-    if (
-      typeof filters.condition === 'string' &&
-      filters.condition &&
-      listing.condition !== filters.condition
-    ) {
-      return false;
-    }
-    if (
-      typeof filters.priceMaxKobo === 'number' &&
-      listing.priceKobo > filters.priceMaxKobo
-    ) {
-      return false;
-    }
-    if (
-      typeof filters.priceMinKobo === 'number' &&
-      listing.priceKobo < filters.priceMinKobo
-    ) {
-      return false;
-    }
-    if (filters.deliveryAvailable === true && !listing.fulfilmentDelivery) {
-      return false;
-    }
-    if (typeof filters.q === 'string' && filters.q.trim()) {
-      const hay = `${listing.title} ${listing.description}`.toLowerCase();
-      const q = filters.q.trim().toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
   }
 
   private async requireSavedSearchOwner(userId: string, id: string) {

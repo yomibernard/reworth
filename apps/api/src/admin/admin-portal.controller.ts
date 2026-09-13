@@ -680,8 +680,9 @@ export class AdminPortalController {
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('community') community?: string,
+    @Query('city') city?: string,
   ) {
-    return this.portal.analytics(from, to, community);
+    return this.portal.analytics(from, to, community, city);
   }
 
   @Get('analytics/export.csv')
@@ -691,9 +692,10 @@ export class AdminPortalController {
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('community') community?: string,
+    @Query('city') city?: string,
     @Res() res?: Response,
   ) {
-    const csv = await this.portal.analyticsCsv(from, to, community);
+    const csv = await this.portal.analyticsCsv(from, to, community, city);
     res!.setHeader(
       'Content-Disposition',
       'attachment; filename="analytics.csv"',

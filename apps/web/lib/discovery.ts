@@ -159,19 +159,22 @@ export async function fetchCategories(): Promise<CategoryNode[]> {
   return apiFetch<CategoryNode[]>("/categories");
 }
 
-export async function fetchHome(params: {
-  community?: string;
-  radiusKm?: RadiusKm;
-  lat?: number;
-  lng?: number;
-}): Promise<HomeResponse> {
+export async function fetchHome(
+  params: {
+    community?: string;
+    radiusKm?: RadiusKm;
+    lat?: number;
+    lng?: number;
+  },
+  token?: string | null,
+): Promise<HomeResponse> {
   const qs = buildSearchQueryString({
     community: params.community,
     radiusKm: params.radiusKm,
     lat: params.lat,
     lng: params.lng,
   });
-  return apiFetch<HomeResponse>(`/home${qs}`);
+  return apiFetch<HomeResponse>(`/home${qs}`, { token });
 }
 
 export async function searchListings(
@@ -258,6 +261,26 @@ export async function deleteSavedSearch(
   return apiFetch(`/me/saved-searches/${id}`, {
     method: "DELETE",
     token,
+  });
+}
+
+export type UpdateSavedSearchBody = {
+  name?: string;
+  filters?: Record<string, unknown>;
+  paused?: boolean;
+  digestEnabled?: boolean;
+  newMatchesCount?: number;
+};
+
+export async function updateSavedSearch(
+  token: string,
+  id: string,
+  body: UpdateSavedSearchBody,
+): Promise<SavedSearch> {
+  return apiFetch<SavedSearch>(`/me/saved-searches/${id}`, {
+    method: "PATCH",
+    token,
+    body,
   });
 }
 

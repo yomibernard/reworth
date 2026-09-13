@@ -412,11 +412,19 @@ export default function SellPage() {
           >
             ReWorth
           </Link>
-          {step !== "done" ? (
-            <p className="text-sm text-[var(--rw-ink-muted)]">
-              {STEP_LABELS[step]} · {Math.max(stepIndex, 0) + 1}/{STEPS.length}
-            </p>
-          ) : null}
+          <div className="flex items-center gap-3">
+            <Link
+              href="/sell/analytics"
+              className="text-sm font-medium text-[var(--rw-ink-muted)] underline-offset-2 hover:underline"
+            >
+              Analytics
+            </Link>
+            {step !== "done" ? (
+              <p className="text-sm text-[var(--rw-ink-muted)]">
+                {STEP_LABELS[step]} · {Math.max(stepIndex, 0) + 1}/{STEPS.length}
+              </p>
+            ) : null}
+          </div>
         </header>
 
         {step !== "done" ? (
@@ -620,7 +628,7 @@ export default function SellPage() {
                       aria-label="Price intelligence"
                     >
                       <p className="text-sm font-semibold text-[var(--rw-ink)]">
-                        Lagos price sense
+                        {priceIntel.city ?? "Lagos"} price sense
                       </p>
                       <p className="mt-1 text-sm text-[var(--rw-ink-muted)]">
                         Suggested range{" "}
@@ -638,6 +646,22 @@ export default function SellPage() {
                           amountKobo: priceIntel.recommendedKobo,
                         })}
                       </p>
+                      {priceIntel.quickSaleKobo != null ? (
+                        <p className="mt-1 text-sm text-[var(--rw-ink-muted)]">
+                          Quick sale{" "}
+                          {formatNgn({
+                            amountKobo: priceIntel.quickSaleKobo,
+                          })}
+                          {priceIntel.maxValueKobo != null
+                            ? ` · Max value ${formatNgn({ amountKobo: priceIntel.maxValueKobo })}`
+                            : ""}
+                        </p>
+                      ) : null}
+                      {priceIntel.confidenceLabel ? (
+                        <p className="mt-2 text-xs text-[var(--rw-ink-muted)]">
+                          {priceIntel.confidenceLabel}
+                        </p>
+                      ) : null}
                     </aside>
                   ) : null}
                 </div>

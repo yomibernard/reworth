@@ -92,6 +92,7 @@ export class SearchService {
       condition: query.condition,
       community: query.community,
       communityId: query.communityId,
+      city: query.city,
       radiusKm: query.radiusKm,
       lat: query.lat,
       lng: query.lng,

@@ -86,6 +86,11 @@ export class CreateListingDto {
   movingSaleId?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  city?: string;
+
+  @IsOptional()
   @IsNumber()
   geoLat?: number;
 
@@ -184,6 +189,11 @@ export class UpdateListingDto {
   movingSaleId?: string | null;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  city?: string;
+
+  @IsOptional()
   @IsNumber()
   geoLat?: number;
 
@@ -256,6 +266,10 @@ export class BrowseListingsQueryDto {
   @IsOptional()
   @IsString()
   community?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
 
   @IsOptional()
   @Type(() => Number)

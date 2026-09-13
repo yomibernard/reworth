@@ -14,6 +14,7 @@ import { FavouritesModule } from './favourites/favourites.module';
 import { HealthModule } from './health/health.module';
 import { HomeModule } from './home/home.module';
 import { IdentityModule } from './identity/identity.module';
+import { IntelligenceModule } from './intelligence/intelligence.module';
 import { ListingsModule } from './listings/listings.module';
 import { MediaModule } from './media/media.module';
 import { ModerationModule } from './moderation/moderation.module';
@@ -77,6 +78,7 @@ import { UsersModule } from './users/users.module';
     ModerationModule,
     SearchModule,
     HomeModule,
+    IntelligenceModule,
     FavouritesModule,
     ChatModule,
     OffersModule,

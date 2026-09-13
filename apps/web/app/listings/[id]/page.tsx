@@ -25,16 +25,23 @@ import {
   getMeFavourites,
   unfavouriteListing,
 } from "../../../lib/discovery";
+import { fetchRecommendations } from "../../../lib/intelligence";
 import {
   CONDITION_LABELS,
   formatPostedAt,
   getListing,
+  getPriceIntelligence,
   listingImageUrl,
   reportListing,
 } from "../../../lib/listings";
 import { createGiveawayClaim } from "../../../lib/swap";
 import { formatResponseShort } from "../../../lib/trust";
-import type { MeResponse, PublicListing } from "../../../lib/types";
+import type {
+  MeResponse,
+  PriceIntelligence,
+  PublicListing,
+} from "../../../lib/types";
+import { DiscoveryListingCard } from "../../../components/discovery/DiscoveryListingCard";
 
 export default function ListingPdpPage() {
   const params = useParams<{ id: string }>();
@@ -61,6 +68,8 @@ export default function ListingPdpPage() {
   const [swapOpen, setSwapOpen] = useState(false);
   const [claimBusy, setClaimBusy] = useState(false);
   const [meId, setMeId] = useState<string | null>(null);
+  const [similar, setSimilar] = useState<PublicListing[]>([]);
+  const [priceIntel, setPriceIntel] = useState<PriceIntelligence | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -71,6 +80,23 @@ export default function ListingPdpPage() {
       const data = await getListing(id, token);
       setListing(data);
       setActiveImage(0);
+
+      void fetchRecommendations(
+        {
+          surface: "similar",
+          listingId: id,
+          city: data.city ?? undefined,
+          limit: 8,
+        },
+        token,
+      )
+        .then((res) => setSimilar(res.items ?? []))
+        .catch(() => setSimilar([]));
+
+      void getPriceIntelligence(id)
+        .then((intel) => setPriceIntel(intel))
+        .catch(() => setPriceIntel(null));
+
       if (token) {
         try {
           const me = await apiFetch<MeResponse>("/me", { token });
@@ -377,12 +403,19 @@ export default function ListingPdpPage() {
               {CONDITION_LABELS[listing.condition] ?? listing.condition}
             </span>
             <span aria-hidden>·</span>
-            <span>{listing.community || "Lagos"}</span>
+            <span>
+              {listing.community || listing.city || "Lagos"}
+            </span>
             <span aria-hidden>·</span>
             <time dateTime={listing.publishedAt ?? listing.createdAt}>
               {posted}
             </time>
           </p>
+          {priceIntel?.confidenceLabel ? (
+            <p className="mt-2 text-sm text-[var(--rw-ink-muted)]">
+              {priceIntel.confidenceLabel}
+            </p>
+          ) : null}
           {listing.movingSale ? (
             <p className="mt-3">
               <Link
@@ -512,6 +545,21 @@ export default function ListingPdpPage() {
           <p className="mt-8 text-center text-sm font-medium text-[var(--rw-ink-muted)]">
             Interested in swapping? Chat with the seller
           </p>
+        ) : null}
+
+        {similar.length > 0 ? (
+          <section className="mt-12" aria-labelledby="similar-heading">
+            <h2 id="similar-heading" className="text-lg font-semibold">
+              Similar items
+            </h2>
+            <ul className="mt-4 flex gap-3 overflow-x-auto pb-2">
+              {similar.map((item) => (
+                <li key={item.id} className="w-40 shrink-0 sm:w-44">
+                  <DiscoveryListingCard listing={item} />
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
       </div>
 
