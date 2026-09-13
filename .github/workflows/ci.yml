@@ -33,14 +33,25 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile=false
 
+      - name: Generate Prisma client
+        run: pnpm --filter @reworth/api prisma:generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reworth
+
       - name: Lint
         run: pnpm lint
 
       - name: Typecheck
         run: pnpm typecheck
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reworth
 
       - name: Test
         run: pnpm test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reworth
 
       - name: Build api, web, admin
         run: pnpm turbo run build --filter=@reworth/api --filter=@reworth/web --filter=@reworth/admin
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reworth

@@ -2,46 +2,30 @@
 
 | Field | Value |
 | --- | --- |
-| Current phase | **0 — Foundations** |
-| Prompt | Prompt 1 (`CURSOR-PROMPT.md`) |
-| Target tag | `v0.0-scaffold` |
-| Branch | `phase-0-foundations` |
-| Status | **Complete (pending PR merge)** |
-| Last updated | 2026-09-12 |
+| Current phase | **8 — Admin Operations Portal** |
+| Prompt | Prompt 9 |
+| Target tag | `v0.8-admin` |
+| Branch | `phase-8-admin` (or current) |
+| Status | **Complete (pending PR merge)** — tag `v0.8-admin` cut |
+| Last updated | 2026-09-13 |
 
-## What exists
+## What exists (Phase 8)
 
-- Prompt package: `PRD.md`, `CURSOR-PROMPT.md`, `CURSOR-PROMPT-PHASE2-3.md`, `AGENTS.md`, `.cursor/rules/*`, ADRs, doc stubs
-- Turborepo + pnpm monorepo: `apps/api|web|admin|mobile`, `packages/shared|ui-web|config`
-- Infra: `infra/docker-compose.yml` (postgres:16, redis:7, minio, opensearch, mailhog), `infra/k6/health-smoke.js`
-- CI: `.github/workflows/ci.yml` (lint → typecheck → test → build)
-- Design system `@reworth/ui-web`: tokens + Button (SELL), ListingCard, Input, Chip, BottomNav, Modal, Toast, Skeleton, EmptyState
-- API: `/api/v1/healthz`, `/readyz`, `/metrics` + provider interface/mock stubs
-- Web landing: ReWorth + tagline + SELL CTA
-- Admin shell (Phase 8 placeholder); mobile Expo bottom-nav shell
-- Verified locally: `pnpm install`, typecheck, unit tests (4), build api/web/admin, **GET /api/v1/healthz → { status: ok }**
+### API
+- Schema: AdminTotp, Promotion, HeroBanner, Community, SupportTicketNote, WhitelistEntry, UserWarning; SupportTicket assignee + IN_PROGRESS; RiskEvent review fields
+- Admin auth: `POST /admin/auth/login`, TOTP setup/verify (otplib); AdminOnlyGuard on `/admin/*`
+- Dashboard KPIs, users, listings, orders/refunds, disputes, verifications, reports, fraud, support, catalog CRUD, promotions, analytics (+ CSV), audit
+- Every mutation audit-logged; RBAC matrix in [`docs/RBAC.md`](RBAC.md)
 
-## Known gaps / environment notes
+### Admin UI (`apps/admin`)
+- Login + TOTP second step
+- Role-gated nav shell
+- Pages: `/`, `/users`, `/listings`, `/orders`, `/disputes`, `/verifications`, `/reports`, `/fraud`, `/support`, `/catalog`, `/promotions`, `/analytics`, `/audit`
 
-- Docker Desktop was **not running** on the implementer’s machine — compose not verified live; configs are present. Start Docker then `docker compose -f infra/docker-compose.yml up -d` for full readyz DB/Redis checks.
-- Auth, listings, payments, etc. start at Phase 1+
-- Full PRD §36 analytics deferred
-- Prisma schema is empty (domain models Phase 1+)
-- Strict ESLint flat configs deferred (lint scripts are placeholders; typecheck + tests gate CI)
-
-## Exact resume point
-
-**Phase 0 DoD met for code.** Next user instruction should be **Prompt 2 / Phase 1** (Accounts, Auth & Identity) → tag `v0.1-auth`.
-
-If merging first: merge PR `phase-0-foundations` → `main`, then tag `v0.0-scaffold`.
-
-## Resume cheat sheet
+## Resume point
+**Phase 8 complete.** Next: **Phase 9 — Risk, Moderation & Security** (`v0.9-risk-security`).
 
 ```
-Continue: resume Phase N from docs/PHASE_STATUS.md. Re-read AGENTS.md and
-PRD.md, verify the last commit's tests still pass, then continue the plan. Do not restart completed work.
+Continue: resume Phase 9 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
+PRD.md, verify the last commit's tests still pass, then continue the plan.
 ```
-
-**MVP tags:** `v0.0-scaffold` · `v0.1-auth` · `v0.2-listings` · `v0.3-discovery` · `v0.4-chat-offers` · `v0.5-orders-payments` · `v0.6-logistics-notifications` · `v0.7-trust` · `v0.8-admin` · `v0.9-risk-security` · `v0.9.0-rc`
-
-**Post-launch:** only after entry gate in `CURSOR-PROMPT-PHASE2-3.md` — `v1.0` … `v2.1`

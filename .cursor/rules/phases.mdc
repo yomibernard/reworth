@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 0 (Foundations)** — target tag `v0.0-scaffold`.
+**Current phase: 8 (Admin Operations Portal)** — API + admin UI complete; tag `v0.8-admin` pending.
 
 Do **not** implement features from later phases in the same PR.
 

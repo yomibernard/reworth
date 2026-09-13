@@ -16,11 +16,11 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **0 — Foundations** |
-| Prompt | Prompt 1 |
-| Target tag | `v0.0-scaffold` |
+| Phase | **8 — Admin Operations Portal** |
+| Prompt | Prompt 9 |
+| Target tag | `v0.8-admin` |
 | Status | **Complete (pending PR merge)** |
-| Next | Phase 1 — Accounts, Auth & Identity (`v0.1-auth`) |
+| Next | Phase 9 — Risk / Security (`v0.9-risk-security`) |
 
 ## 14-role team
 
@@ -123,13 +123,17 @@ Per **PRD §59**: functional · UX · responsive · security · analytics · err
 
 ## Known gaps
 
-**Everything after Phase 0** is not built yet:
+**Phase 8 Admin portal complete** (API + ops UI). Tag `v0.8-admin` cut; PR pending merge.
 
-- Auth, listings, discovery, chat, payments, logistics, trust, admin depth, risk, UAT
+Still not built:
+
+- Expo/FCM push (mock only); deeper notification-center polish
+- TOTP enforcement for all admins (setup available; policy optional)
+- Risk/moderation hardening (Phase 9); UAT (Phase 10)
 - All PRD §51–53 / post-launch features
-- Production credentials, pen test, store submissions
+- Production credentials, pen test, store submissions; httpOnly token cookies
 
-Track exact resume detail in [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md).
+Track exact resume detail in [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md). See [`docs/RBAC.md`](docs/RBAC.md).
 
 ## Key links
 

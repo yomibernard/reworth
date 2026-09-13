@@ -1,11 +1,28 @@
 export enum ListingStatus {
   Draft = "DRAFT",
-  PendingReview = "PENDING_REVIEW",
-  Active = "ACTIVE",
+  UnderReview = "UNDER_REVIEW",
+  Live = "LIVE",
   Reserved = "RESERVED",
   Sold = "SOLD",
   Expired = "EXPIRED",
   Removed = "REMOVED",
+  Rejected = "REJECTED",
+}
+
+export enum SellingMode {
+  Sell = "SELL",
+  Swap = "SWAP",
+  SwapCash = "SWAP_CASH",
+  GiveAway = "GIVE_AWAY",
+}
+
+export enum ItemCondition {
+  New = "NEW",
+  LikeNew = "LIKE_NEW",
+  VeryGood = "VERY_GOOD",
+  Good = "GOOD",
+  Fair = "FAIR",
+  ForParts = "FOR_PARTS",
 }
 
 export enum VerificationLevel {
@@ -13,12 +30,6 @@ export enum VerificationLevel {
   Phone = "PHONE",
   Identity = "IDENTITY",
   Trusted = "TRUSTED",
-}
-
-export enum SellingMode {
-  FixedPrice = "FIXED_PRICE",
-  MakeOffer = "MAKE_OFFER",
-  Auction = "AUCTION",
 }
 
 /** Lagos community labels for local discovery. */
