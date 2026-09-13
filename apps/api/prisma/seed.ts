@@ -8,6 +8,7 @@
 import { PrismaClient, AdminRole, ChatScanKind } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
+import { seedRiskAndModeration } from './seed-risk-moderation';
 
 const prisma = new PrismaClient();
 
@@ -384,6 +385,7 @@ async function main() {
   await seedCategories();
   await seedChatScanRules();
   await seedMeetPoints();
+  await seedRiskAndModeration(prisma);
 }
 
 main()

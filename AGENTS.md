@@ -16,11 +16,11 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **8 — Admin Operations Portal** (done) · next **9** |
-| Prompt | Prompt 9 complete · Prompt 10 next |
-| Target tag | `v0.8-admin` ✅ · next `v0.9-risk-security` |
-| Status | **Merged** (PR #8) |
-| Next | Phase 9 — Risk / Security (`v0.9-risk-security`) |
+| Phase | **9 — Risk / Security** |
+| Prompt | Prompt 10 |
+| Target tag | `v0.9-risk-security` |
+| Status | **Complete (pending PR merge)** |
+| Next | Phase 10 — UAT / RC (`v0.9.0-rc`) |
 
 ## 14-role team
 
@@ -123,17 +123,19 @@ Per **PRD §59**: functional · UX · responsive · security · analytics · err
 
 ## Known gaps
 
-**Phase 8 Admin portal complete** (API + ops UI). Tag `v0.8-admin` · merged via [PR #8](https://github.com/yomibernard/reworth/pull/8).
+**Phase 8 Admin portal complete** (merged PR #8, tag `v0.8-admin`).
+
+**Phase 9 complete** (risk engine, moderation, SECURITY/PRIVACY, k6 scripts). Tag `v0.9-risk-security` pending merge.
 
 Still not built:
 
 - Expo/FCM push (mock only); deeper notification-center polish
 - TOTP enforcement for all admins (setup available; policy optional)
-- Risk/moderation hardening (Phase 9); UAT (Phase 10)
+- UAT / launch readiness (Phase 10)
 - All PRD §51–53 / post-launch features
-- Production credentials, pen test, store submissions; httpOnly token cookies
+- Production credentials, external pen test, store submissions; httpOnly token cookies
 
-Track exact resume detail in [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md). See [`docs/RBAC.md`](docs/RBAC.md).
+Track exact resume detail in [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md). See [`docs/RBAC.md`](docs/RBAC.md), [`docs/SECURITY.md`](docs/SECURITY.md), [`docs/PRIVACY.md`](docs/PRIVACY.md).
 
 ## Key links
 

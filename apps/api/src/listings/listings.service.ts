@@ -15,8 +15,9 @@ import {
 } from '../providers/geocoding.provider';
 import { MediaService } from '../media/media.service';
 import { FavouritesService } from '../favourites/favourites.service';
+import { ModerationService } from '../moderation/moderation.service';
+import { RiskEngineService } from '../risk/risk-engine.service';
 import { AnalyticsService } from './analytics.service';
-import { FraudRulesService } from './fraud-rules.service';
 import { ListingAssistService } from './listing-assist.service';
 import { ListingStateMachine } from './listing-state.machine';
 import { PriceIntelligenceService } from './price-intelligence.service';
@@ -55,7 +56,9 @@ export class ListingsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly analytics: AnalyticsService,
-    private readonly fraud: FraudRulesService,
+    @Inject(forwardRef(() => RiskEngineService))
+    private readonly riskEngine: RiskEngineService,
+    private readonly moderation: ModerationService,
     private readonly assistService: ListingAssistService,
     private readonly priceIntel: PriceIntelligenceService,
     private readonly media: MediaService,
@@ -148,7 +151,7 @@ export class ListingsService {
       where,
       include: listingInclude,
       orderBy: { publishedAt: 'desc' },
-      take: Math.min(query.limit ?? 50, 100),
+      take: Math.min(query.limit ?? 20, 50),
     });
 
     let filtered = rows;
@@ -307,22 +310,29 @@ export class ListingsService {
     const listing = await this.requireOwner(id, sellerId);
     const startedAt = listing.createdAt.getTime();
 
-    const risk = await this.fraud.evaluateListing(id);
-    for (const ev of risk.riskEvents) {
-      await this.prisma.riskEvent.create({
-        data: {
-          userId: sellerId,
-          listingId: id,
-          kind: ev.kind,
-          score: ev.score,
-          detail: ev.detail as Prisma.InputJsonValue,
-        },
+    // 1. Moderation first
+    const mod = await this.moderation.evaluateOnPublish(id);
+    if (mod.outcome === 'REJECTED') {
+      ListingStateMachine.assertTransition(listing.status, 'REJECTED');
+      await this.emitStatus(id, sellerId, listing.status, 'REJECTED');
+      this.analytics.log('published', {
+        listingId: id,
+        status: 'REJECTED',
+        moderationReasons: mod.reasons,
       });
+      const rejected = await this.prisma.listing.findUniqueOrThrow({
+        where: { id },
+        include: listingInclude,
+      });
+      return toPublicListing(rejected);
     }
 
-    const target: ListingStatus = risk.forceUnderReview
-      ? 'UNDER_REVIEW'
-      : 'LIVE';
+    // 2. Risk engine
+    const risk = await this.riskEngine.evaluateOnPublish(id, sellerId);
+
+    const forceReview =
+      risk.forceUnderReview || mod.outcome === 'UNDER_REVIEW';
+    const target: ListingStatus = forceReview ? 'UNDER_REVIEW' : 'LIVE';
 
     ListingStateMachine.assertTransition(listing.status, target);
 
@@ -348,9 +358,6 @@ export class ListingsService {
 
     await this.emitStatus(id, sellerId, listing.status, target);
 
-    // UNDER_REVIEW can auto-promote later; for Phase 2 if no risk we go LIVE.
-    // If under review with no admin, leave as UNDER_REVIEW.
-
     if (target === 'LIVE' && this.favourites) {
       await this.favourites.onListingLive(updated).catch(() => undefined);
     }
@@ -359,6 +366,8 @@ export class ListingsService {
       listingId: id,
       status: target,
       riskFlags: risk.flags,
+      riskLevel: risk.level,
+      moderationOutcome: mod.outcome,
     });
     this.analytics.log('publish_duration_ms', {
       listingId: id,
@@ -366,6 +375,10 @@ export class ListingsService {
     });
 
     return toPublicListing(updated);
+  }
+
+  async createAppeal(id: string, sellerId: string, reason: string) {
+    return this.moderation.createAppeal(id, sellerId, reason);
   }
 
   async attachImages(id: string, sellerId: string, dto: AttachImagesDto) {

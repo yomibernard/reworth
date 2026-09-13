@@ -25,6 +25,7 @@ import {
   SearchPanel,
 } from "./DiscoveryScreens";
 import { UserProfileModal } from "./UserProfileModal";
+import { PrivacySettings } from "./PrivacySettings";
 import { apiFetch, ApiError } from "./lib/api";
 import {
   clearTokens,
@@ -502,6 +503,12 @@ export default function App() {
                     ok={Boolean(me?.verificationLevels.L3_IDENTITY)}
                   />
                 </View>
+
+                <PrivacySettings
+                  onDeleted={() => {
+                    void signOut();
+                  }}
+                />
 
                 <Pressable
                   style={styles.secondaryBtn}

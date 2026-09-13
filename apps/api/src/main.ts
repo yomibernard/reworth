@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { json, raw } from 'express';
+import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 
@@ -11,6 +12,37 @@ async function bootstrap() {
     bodyParser: false,
   });
   app.useLogger(app.get(Logger));
+
+  const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3000';
+  const adminOrigin = process.env.ADMIN_ORIGIN ?? 'http://localhost:3002';
+  app.enableCors({
+    origin: [webOrigin, adminOrigin],
+    credentials: true,
+  });
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+          connectSrc: ["'self'", webOrigin, adminOrigin],
+          frameAncestors: ["'none'"],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    }),
+  );
+  app.use(helmet.hidePoweredBy());
+  app.use(helmet.noSniff());
+  app.use(helmet.frameguard({ action: 'deny' }));
+  app.use(helmet.hsts({ maxAge: 15552000, includeSubDomains: true }));
 
   // Preserve raw body for Paystack webhook HMAC (ADR-002)
   app.use(

@@ -1,4 +1,4 @@
-// ReWorth API — Phase 1–8: Auth … Trust + Admin Operations
+// ReWorth API — Phase 1–9: Auth … Trust + Admin + Risk / Moderation / Privacy
 
 generator client {
   provider = "prisma-client-js"
@@ -199,6 +199,30 @@ enum SupportTicketStatus {
   CLOSED
 }
 
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ModerationOutcome {
+  PASS
+  UNDER_REVIEW
+  REJECTED
+}
+
+enum AppealStatus {
+  OPEN
+  APPROVED
+  DENIED
+}
+
+enum ConsentChannel {
+  SMS
+  MARKETING
+  EMAIL
+}
+
 enum PromotionKind {
   FEATURED
   BOOST
@@ -218,6 +242,9 @@ model User {
   emailVerifiedAt DateTime?
   passwordHash    String?
   status          UserStatus @default(ACTIVE)
+  riskLevel       RiskLevel  @default(LOW)
+  riskScore       Int        @default(0)
+  enhancedVerificationRequired Boolean @default(false)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   deletedAt       DateTime?
@@ -275,6 +302,10 @@ model User {
   warningsReceived     UserWarning[]        @relation("WarnedUser")
   warningsCreated      UserWarning[]        @relation("WarningCreator")
   riskEventsReviewed   RiskEvent[]          @relation("RiskReviewer")
+  riskAssessments      RiskAssessment[]
+  moderationAppeals    ModerationAppeal[]
+  moderationAppealsReviewed ModerationAppeal[] @relation("AppealReviewer")
+  consentRecords       ConsentRecord[]
 
   @@map("users")
 }
@@ -342,18 +373,21 @@ model Verification {
 }
 
 model Device {
-  id         String         @id @default(uuid()) @db.Uuid
-  userId     String         @db.Uuid
-  name       String
-  platform   DevicePlatform @default(UNKNOWN)
-  lastSeenAt DateTime       @default(now())
-  createdAt  DateTime       @default(now())
-  revokedAt  DateTime?
+  id          String         @id @default(uuid()) @db.Uuid
+  userId      String         @db.Uuid
+  name        String
+  platform    DevicePlatform @default(UNKNOWN)
+  /// Optional client-supplied fingerprint for DEVICE_FINGERPRINT risk rule.
+  fingerprint String?
+  lastSeenAt  DateTime       @default(now())
+  createdAt   DateTime       @default(now())
+  revokedAt   DateTime?
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   refreshTokens RefreshToken[]
 
   @@index([userId])
+  @@index([fingerprint])
   @@map("devices")
 }
 
@@ -489,7 +523,10 @@ model Listing {
   orderIntents OrderIntent[]
   orders       Order[]
   listingCards Message[]      @relation("MessageListingCard")
-  promotions   Promotion[]
+  promotions           Promotion[]
+  moderationDecisions  ModerationDecision[]
+  moderationAppeals    ModerationAppeal[]
+  riskAssessments      RiskAssessment[]
 
   @@index([sellerId])
   @@index([status])
@@ -1283,4 +1320,101 @@ model ChatResponseSample {
 
   @@index([sellerId, firstReplyAt])
   @@map("chat_response_samples")
+}
+
+/// Weighted fraud/risk rule definition (PRD §32).
+model RiskRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  name      String
+  weight    Int
+  enabled   Boolean  @default(true)
+  config    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("risk_rules")
+}
+
+/// Explainable risk score snapshot for a user and/or listing.
+model RiskAssessment {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String?   @db.Uuid
+  listingId  String?   @db.Uuid
+  level      RiskLevel
+  score      Int
+  rulesFired Json
+  createdAt  DateTime  @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  listing Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([listingId])
+  @@index([level])
+  @@index([createdAt])
+  @@map("risk_assessments")
+}
+
+model ModerationKeyword {
+  id        String   @id @default(uuid()) @db.Uuid
+  pattern   String
+  category  String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([enabled])
+  @@index([category])
+  @@map("moderation_keywords")
+}
+
+model ModerationDecision {
+  id        String            @id @default(uuid()) @db.Uuid
+  listingId String            @db.Uuid
+  outcome   ModerationOutcome
+  reasons   String[]
+  detail    Json?
+  createdAt DateTime          @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([outcome])
+  @@index([createdAt])
+  @@map("moderation_decisions")
+}
+
+model ModerationAppeal {
+  id           String       @id @default(uuid()) @db.Uuid
+  listingId    String       @db.Uuid
+  userId       String       @db.Uuid
+  reason       String
+  status       AppealStatus @default(OPEN)
+  createdAt    DateTime     @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?      @db.Uuid
+
+  listing    Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User?   @relation("AppealReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([listingId])
+  @@index([userId])
+  @@index([status])
+  @@map("moderation_appeals")
+}
+
+model ConsentRecord {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @db.Uuid
+  channel   ConsentChannel
+  granted   Boolean
+  updatedAt DateTime       @updatedAt
+  createdAt DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel])
+  @@index([userId])
+  @@map("consent_records")
 }

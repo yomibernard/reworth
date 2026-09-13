@@ -3,6 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MediaModule } from '../media/media.module';
 import { AuthModule } from '../auth/auth.module';
 import { FavouritesModule } from '../favourites/favourites.module';
+import { ModerationModule } from '../moderation/moderation.module';
+import { RiskModule } from '../risk/risk.module';
 import {
   AI_LISTING_PROVIDER,
 } from '../providers/ai-listing.provider';
@@ -25,6 +27,8 @@ import { PriceIntelligenceService } from './price-intelligence.service';
     MediaModule,
     AuthModule,
     forwardRef(() => FavouritesModule),
+    forwardRef(() => RiskModule),
+    ModerationModule,
   ],
   controllers: [ListingsController],
   providers: [

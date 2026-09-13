@@ -2,14 +2,14 @@ import { ConflictException } from '@nestjs/common';
 import { ListingStatus } from '@prisma/client';
 
 const TRANSITIONS: Record<ListingStatus, ListingStatus[]> = {
-  DRAFT: ['UNDER_REVIEW', 'LIVE', 'REMOVED'],
+  DRAFT: ['UNDER_REVIEW', 'LIVE', 'REMOVED', 'REJECTED'],
   UNDER_REVIEW: ['LIVE', 'REJECTED', 'REMOVED'],
   LIVE: ['RESERVED', 'SOLD', 'EXPIRED', 'REMOVED', 'UNDER_REVIEW'],
   RESERVED: ['LIVE', 'SOLD', 'REMOVED'],
   SOLD: [],
   EXPIRED: ['DRAFT', 'REMOVED'],
   REMOVED: [],
-  REJECTED: ['DRAFT', 'REMOVED'],
+  REJECTED: ['DRAFT', 'REMOVED', 'UNDER_REVIEW'],
 };
 
 export class ListingStateMachine {

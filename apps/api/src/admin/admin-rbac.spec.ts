@@ -138,7 +138,8 @@ describe('audit — suspend user', () => {
       { revokeAllRefreshTokens: revoke } as never,
       { log: auditLog } as never,
       { notify } as never,
-      {} as never,
+      {} as never, // ModerationService
+      {} as never, // PaymentProvider
     );
 
     await service.suspendUser(

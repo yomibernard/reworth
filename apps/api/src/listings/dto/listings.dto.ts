@@ -8,6 +8,7 @@ import {
   IsObject,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
   Min,
   ValidateNested,
@@ -221,6 +222,12 @@ export class ReportListingDto {
   detail?: string;
 }
 
+export class AppealListingDto {
+  @IsString()
+  @MaxLength(2000)
+  reason!: string;
+}
+
 export class BrowseListingsQueryDto {
   @IsOptional()
   @IsString()
@@ -253,5 +260,6 @@ export class BrowseListingsQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(50)
   limit?: number;
 }
