@@ -13,20 +13,18 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **3.2 — B2B & Expansion** |
-| Prompt | Post-launch 3.2 |
-| Target tag | `v2.1-expansion` |
-| Status | **Complete (pending PR merge)** |
-| Last completed | **3.1 — AI** (`v2.0-ai-assistant`) |
-| Next | Post-series complete after merge (or ops hardening) |
+| Phase | **Post-launch series complete** |
+| Last completed | **3.2 — B2B & Expansion** (`v2.1-expansion`, PR #16) |
+| Status | **Shipped** |
+| Next | Ops hardening / city launches via CITY_PLAYBOOK (config-only) |
 
 ## MVP / post-launch
 
-Shipped through `v2.0-ai-assistant`. This branch: corporate relocation, estate partners, circular hand-offs, region config.
+Shipped through `v2.1-expansion`: swap → communities → intelligence → verticals → AI → B2B/expansion.
 
 ## Known gaps
 
 - Expo push mock; staging k6 certification; pen-test / NDPR / store sign-offs
-- Cross-border: ADR-007 design only; Ibadan not in prod region bundle yet (config-only test proof)
+- Cross-border: ADR-007 design only; next cities (e.g. Ibadan) via config + seed only
 
 See `docs/PHASE_STATUS.md`, `docs/CITY_PLAYBOOK.md`, `docs/ADRS/008-region-config.md`.
