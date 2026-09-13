@@ -5,6 +5,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { DELIVERY_PROVIDER } from '../providers/delivery.provider';
 import { MockDeliveryProvider } from '../providers/mock-delivery.provider';
+import { RegionConfigService } from '../region/region-config.service';
 import {
   DeliveryWebhookController,
   MeetPointsController,
@@ -12,12 +13,15 @@ import {
 } from './delivery.controller';
 import { DeliveryService } from './delivery.service';
 
-export function createDeliveryProvider(config: ConfigService) {
+export function createDeliveryProvider(
+  config: ConfigService,
+  regions?: RegionConfigService,
+) {
   const provider = (
     config.get<string>('DELIVERY_PROVIDER') ?? 'mock'
   ).toLowerCase();
   void provider;
-  return new MockDeliveryProvider();
+  return new MockDeliveryProvider(regions);
 }
 
 @Module({
@@ -32,7 +36,7 @@ export function createDeliveryProvider(config: ConfigService) {
     {
       provide: DELIVERY_PROVIDER,
       useFactory: createDeliveryProvider,
-      inject: [ConfigService],
+      inject: [ConfigService, RegionConfigService],
     },
   ],
   exports: [DeliveryService, DELIVERY_PROVIDER],

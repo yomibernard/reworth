@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 3.2 (B2B & Expansion)** — next tag `v2.1`.
+**Current phase: 3.2 (B2B & Expansion)** — tag `v2.1-expansion` (Complete pending PR).
 
 Do **not** implement features from later prompts in the same PR.
 
@@ -15,7 +15,7 @@ Do **not** implement features from later prompts in the same PR.
 
 ## Post-launch
 
-`v1.0-swap` · `v1.1-moving-communities` · `v1.2-intelligence` · `v1.3-verticals` · `v2.0-ai-assistant` (done) · `v2.1` B2B
+`v1.0-swap` · `v1.1-moving-communities` · `v1.2-intelligence` · `v1.3-verticals` · `v2.0-ai-assistant` (done) · `v2.1-expansion` B2B (Complete pending PR)
 
 ## Resume
 

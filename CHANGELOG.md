@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.1-expansion — 2026-09-13
+
+### Added
+- Region config layer (`config/regions/*`) for Lagos, Abuja, Port Harcourt; config-only city proof + CITY_PLAYBOOK
+- Corporate relocation workspace (Persona C 12-item flow, moving sale, completion report + invoice)
+- Estate partner API-key auth + signed webhooks (replay-safe) + partner console
+- Circular hand-offs (charity/recycler) + donate-if-unsold; ADRs 007 (cross-border design) / 008 (region)
+- Admin corporate + partners; tests (13) + `scripts/validate-city-config.mjs`
+
 ## v2.0-ai-assistant — 2026-09-13
 
 ### Added

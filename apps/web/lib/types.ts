@@ -156,6 +156,8 @@ export type PublicListing = {
   authenticatedAt?: string | null;
   /** Phase 3.1 — Instant Buy (platform-fulfilled BIN). */
   instantBuyEligible?: boolean;
+  /** Phase 3.2 — schedule circular hand-off after N unsold days. */
+  donateIfUnsoldDays?: number | null;
 };
 
 export type CategoryNode = {
@@ -291,6 +293,10 @@ export type CreateListingBody = {
   vehicle?: Record<string, unknown> | null;
   /** Phase 2.4 — luxury authentication gate. */
   authRequired?: boolean;
+  /** Phase 3.2 — city key from GET /regions (config-driven). */
+  city?: string;
+  /** Phase 3.2 — donate / circular hand-off after N unsold days (null = off). */
+  donateIfUnsoldDays?: number | null;
 };
 
 export type UpdateListingBody = CreateListingBody;

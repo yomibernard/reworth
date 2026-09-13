@@ -300,6 +300,43 @@ enum ManagedPickupStatus {
   NO_SHOW
 }
 
+enum CorporateAccountStatus {
+  APPLIED
+  APPROVED
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum RelocationProjectStatus {
+  DRAFT
+  INTAKE
+  LISTED
+  IN_FULFILMENT
+  COMPLETING
+  COMPLETED
+  CANCELLED
+}
+
+enum EstatePartnerStatus {
+  APPLIED
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum CircularPartnerKind {
+  CHARITY
+  RECYCLER
+}
+
+enum CircularHandoffStatus {
+  SCHEDULED
+  PICKED_UP
+  COMPLETED
+  CANCELLED
+}
+
 enum FulfilmentMethod {
   PICKUP
   MEET_POINT
@@ -489,6 +526,10 @@ model User {
   valuations           ValuationLog[]
   consignments         Consignment[]
   managedPickups       ManagedPickup[]
+  corporateMemberships CorporateMembership[]
+  relocationProjectsOwned RelocationProject[] @relation("RelocationOwner")
+  estatePartners       EstatePartner[]
+  circularHandoffsAsSeller CircularHandoff[] @relation("CircularHandoffSeller")
 
   @@map("users")
 }
@@ -704,6 +745,8 @@ model Listing {
   authenticatedAt    DateTime?
   /// Instant Buy eligible (phones/electronics curated).
   instantBuyEligible Boolean       @default(false)
+  /// If set, schedule circular hand-off when unsold for N days.
+  donateIfUnsoldDays Int?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
@@ -735,6 +778,8 @@ model Listing {
   luxuryAuthJobs        LuxuryAuthJob[]
   instantBuyFulfilment  InstantBuyFulfilment?
   consignment           Consignment?
+  circularHandoffs      CircularHandoff[]
+  relocationItems       RelocationItem[]
 
   @@index([sellerId])
   @@index([status])
@@ -1580,8 +1625,11 @@ model Community {
   name        String
   type        CommunityType     @default(ESTATE)
   privacy     CommunityPrivacy  @default(PUBLIC)
+  /// Region/city key from config/regions (Lagos | Abuja | Port Harcourt | …).
+  city        String            @default("Lagos")
   coverUrl    String?
   about       String            @default("")
+  brandingJson Json             @default("{}")
   verified    Boolean           @default(false)
   active      Boolean           @default(true)
   geoLat      Float?
@@ -1594,10 +1642,12 @@ model Community {
   managers    CommunityManager[]
   listings    Listing[]
   movingSales MovingSale[]
+  estatePartners EstatePartner[]
 
   @@index([active])
   @@index([privacy])
   @@index([type])
+  @@index([city])
   @@map("communities")
 }
 
@@ -1672,6 +1722,7 @@ model MovingSale {
   listings  Listing[]
   follows   MovingSaleFollow[]
   events    MovingSaleEvent[]
+  relocationProject RelocationProject?
 
   @@index([sellerId, status])
   @@index([status, deadline])
@@ -2307,4 +2358,165 @@ model ManagedPickup {
   @@index([userId, createdAt])
   @@index([slotStartAt])
   @@map("managed_pickups")
+}
+
+model CorporateAccount {
+  id              String                 @id @default(uuid()) @db.Uuid
+  companyName     String
+  billingContact  String
+  billingEmail    String
+  dpaRecordRef    String?
+  supportTier     String                 @default("standard")
+  status          CorporateAccountStatus @default(APPLIED)
+  reviewedById    String?                @db.Uuid
+  reviewedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  members  CorporateMembership[]
+  projects RelocationProject[]
+
+  @@index([status])
+  @@map("corporate_accounts")
+}
+
+model CorporateMembership {
+  id                 String @id @default(uuid()) @db.Uuid
+  corporateAccountId String @db.Uuid
+  userId             String @db.Uuid
+  role               String @default("COORDINATOR")
+  createdAt          DateTime @default(now())
+
+  corporateAccount CorporateAccount @relation(fields: [corporateAccountId], references: [id], onDelete: Cascade)
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([corporateAccountId, userId])
+  @@index([userId])
+  @@map("corporate_memberships")
+}
+
+model RelocationProject {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  corporateAccountId String                   @db.Uuid
+  ownerUserId        String                   @db.Uuid
+  title              String
+  employeeName       String
+  deadline           DateTime
+  cityFrom           String
+  cityTo             String
+  communityFrom      String                   @default("")
+  communityTo        String                   @default("")
+  status             RelocationProjectStatus  @default(DRAFT)
+  movingSaleId       String?                  @unique @db.Uuid
+  completionReport   Json?
+  invoiceNumber      String?
+  invoicePdfKey      String?
+  settledAt          DateTime?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  corporateAccount CorporateAccount @relation(fields: [corporateAccountId], references: [id], onDelete: Cascade)
+  owner            User             @relation("RelocationOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  movingSale       MovingSale?      @relation(fields: [movingSaleId], references: [id], onDelete: SetNull)
+  items            RelocationItem[]
+
+  @@index([corporateAccountId, status])
+  @@index([ownerUserId])
+  @@map("relocation_projects")
+}
+
+model RelocationItem {
+  id        String  @id @default(uuid()) @db.Uuid
+  projectId String  @db.Uuid
+  title     String
+  notes     String  @default("")
+  listingId String? @unique @db.Uuid
+  createdAt DateTime @default(now())
+
+  project RelocationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  listing Listing?          @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@map("relocation_items")
+}
+
+model EstatePartner {
+  id           String              @id @default(uuid()) @db.Uuid
+  communityId  String              @db.Uuid
+  companyName  String
+  contactEmail String
+  status       EstatePartnerStatus @default(APPLIED)
+  apiKeyHash   String?
+  apiKeyPrefix String?
+  webhookSecret String?
+  webhookUrl   String?
+  brandingJson Json                @default("{}")
+  createdById  String?             @db.Uuid
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  community Community            @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdBy User?                @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  webhookEvents EstatePartnerWebhookEvent[]
+
+  @@index([communityId])
+  @@index([status])
+  @@index([apiKeyPrefix])
+  @@map("estate_partners")
+}
+
+model EstatePartnerWebhookEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  estatePartnerId String  @db.Uuid
+  eventId        String
+  eventType      String
+  payload        Json
+  processedAt    DateTime @default(now())
+
+  partner EstatePartner @relation(fields: [estatePartnerId], references: [id], onDelete: Cascade)
+
+  @@unique([estatePartnerId, eventId])
+  @@index([processedAt])
+  @@map("estate_partner_webhook_events")
+}
+
+model CircularPartner {
+  id                 String              @id @default(uuid()) @db.Uuid
+  name               String
+  kind               CircularPartnerKind
+  city               String              @default("Lagos")
+  acceptedCategories String[]            @default([])
+  verified           Boolean             @default(false)
+  active             Boolean             @default(true)
+  contactEmail       String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  handoffs CircularHandoff[]
+
+  @@index([city, active])
+  @@map("circular_partners")
+}
+
+model CircularHandoff {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  listingId          String                 @db.Uuid
+  sellerId           String                 @db.Uuid
+  circularPartnerId  String                 @db.Uuid
+  status             CircularHandoffStatus  @default(SCHEDULED)
+  scheduledAt        DateTime?
+  completedAt        DateTime?
+  receiptKey         String?
+  recipientLabel     String                 @default("")
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  listing Listing         @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  seller  User            @relation("CircularHandoffSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  partner CircularPartner @relation(fields: [circularPartnerId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([sellerId])
+  @@index([status])
+  @@map("circular_handoffs")
 }

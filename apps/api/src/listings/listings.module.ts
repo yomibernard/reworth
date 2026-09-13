@@ -15,6 +15,7 @@ import {
   GEOCODING_PROVIDER,
   MockGeocodingProvider,
 } from '../providers/geocoding.provider';
+import { RegionConfigService } from '../region/region-config.service';
 import { AnalyticsService } from './analytics.service';
 import { FraudRulesService } from './fraud-rules.service';
 import { ListingAssistService } from './listing-assist.service';
@@ -54,7 +55,9 @@ import { PriceIntelligenceService } from './price-intelligence.service';
     },
     {
       provide: GEOCODING_PROVIDER,
-      useClass: MockGeocodingProvider,
+      useFactory: (regions: RegionConfigService) =>
+        new MockGeocodingProvider(regions),
+      inject: [RegionConfigService],
     },
   ],
   exports: [ListingsService, FraudRulesService, ListingExpiryScheduler],
