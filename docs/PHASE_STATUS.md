@@ -2,11 +2,11 @@
 
 | Field | Value |
 | --- | --- |
-| Current phase | **8 — Admin Operations Portal** |
-| Prompt | Prompt 9 |
-| Target tag | `v0.8-admin` |
-| Branch | `phase-8-admin` (or current) |
-| Status | **Complete (pending PR merge)** — tag `v0.8-admin` cut |
+| Current phase | **8 done** · resume **9 — Risk / Security** |
+| Prompt | Prompt 9 ✅ · Prompt 10 next |
+| Target tag | `v0.8-admin` ✅ · next `v0.9-risk-security` |
+| Branch | `main` (merged PR #8) · cut `phase-9-risk-security` next |
+| Status | **Complete — merged** |
 | Last updated | 2026-09-13 |
 
 ## What exists (Phase 8)

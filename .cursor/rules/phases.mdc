@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 8 (Admin Operations Portal)** — API + admin UI complete; tag `v0.8-admin` pending.
+**Current phase: 9 (Risk / Security)** — Phase 8 merged (`v0.8-admin`, PR #8). Next tag `v0.9-risk-security`.
 
 Do **not** implement features from later phases in the same PR.
 

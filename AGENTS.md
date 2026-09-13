@@ -16,10 +16,10 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **8 — Admin Operations Portal** |
-| Prompt | Prompt 9 |
-| Target tag | `v0.8-admin` |
-| Status | **Complete (pending PR merge)** |
+| Phase | **8 — Admin Operations Portal** (done) · next **9** |
+| Prompt | Prompt 9 complete · Prompt 10 next |
+| Target tag | `v0.8-admin` ✅ · next `v0.9-risk-security` |
+| Status | **Merged** (PR #8) |
 | Next | Phase 9 — Risk / Security (`v0.9-risk-security`) |
 
 ## 14-role team
@@ -123,7 +123,7 @@ Per **PRD §59**: functional · UX · responsive · security · analytics · err
 
 ## Known gaps
 
-**Phase 8 Admin portal complete** (API + ops UI). Tag `v0.8-admin` cut; PR pending merge.
+**Phase 8 Admin portal complete** (API + ops UI). Tag `v0.8-admin` · merged via [PR #8](https://github.com/yomibernard/reworth/pull/8).
 
 Still not built:
 
