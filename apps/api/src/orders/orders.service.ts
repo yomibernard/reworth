@@ -31,6 +31,7 @@ import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
 } from '../providers/payment.provider';
+import { TrustScoreService } from '../reviews/trust-score.service';
 import { CreateOrderDto } from './dto/orders.dto';
 import {
   computeOrderTotalKobo,
@@ -144,6 +145,7 @@ export class OrdersService {
     @Optional()
     @Inject(forwardRef(() => DeliveryService))
     private readonly delivery?: DeliveryService,
+    @Optional() private readonly trust?: TrustScoreService,
   ) {}
 
   private feePct(): number {
@@ -740,6 +742,16 @@ export class OrdersService {
       deepLink: `reworth://orders/${orderId}`,
       meta: { orderId, reason },
     });
+
+    void Promise.all([
+      this.trust?.recompute(order.buyerId, 'order_completed'),
+      this.trust?.recompute(order.sellerId, 'order_completed'),
+    ]).catch((err) =>
+      this.logger.warn(
+        `Trust recompute after complete failed: ${(err as Error).message}`,
+      ),
+    );
+
     return toOrderDto(updated);
   }
 

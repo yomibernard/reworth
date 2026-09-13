@@ -1,4 +1,4 @@
-// ReWorth API — Phase 1–6: Auth … Orders + Payments + Logistics + Notifications
+// ReWorth API — Phase 1–7: Auth … Logistics + Notifications + Trust
 
 generator client {
   provider = "prisma-client-js"
@@ -198,6 +198,12 @@ enum SupportTicketStatus {
   CLOSED
 }
 
+enum ReviewStatus {
+  PENDING_MUTUAL
+  PUBLISHED
+  HIDDEN
+}
+
 model User {
   id              String     @id @default(uuid()) @db.Uuid
   phone           String?    @unique
@@ -248,6 +254,12 @@ model User {
   devicePushTokens     DevicePushToken[]
   supportTickets       SupportTicket[]
   addressDisclosures   AddressDisclosure[]  @relation("AddressDiscloser")
+  reviewsGiven         Review[]             @relation("ReviewReviewer")
+  reviewsReceived      Review[]             @relation("ReviewReviewee")
+  reviewReports        ReviewReport[]       @relation("ReviewReporter")
+  trustScore           TrustScore?
+  trustScoreHistory    TrustScoreHistory[]
+  chatResponseSamples  ChatResponseSample[] @relation("ChatResponseSeller")
 
   @@map("users")
 }
@@ -611,8 +623,9 @@ model Conversation {
   seller   User      @relation("ConversationSeller", fields: [sellerId], references: [id], onDelete: Cascade)
   messages Message[]
   offers   Offer[]
-  mutes    UserMute[]
-  reports  Report[]
+  mutes             UserMute[]
+  reports           Report[]
+  chatResponseSample ChatResponseSample?
 
   @@unique([listingId, buyerId, sellerId])
   @@index([buyerId, lastMessageAt])
@@ -753,6 +766,7 @@ model Order {
   deliveryShipment   DeliveryShipment?
   addressDisclosure  AddressDisclosure?
   supportTickets     SupportTicket[]
+  reviews            Review[]
 
   @@index([buyerId, createdAt])
   @@index([sellerId, createdAt])
@@ -1047,4 +1061,102 @@ model SupportTicket {
   @@index([userId, status])
   @@index([orderId])
   @@map("support_tickets")
+}
+
+/// Two-way post-transaction review. Visible only when both sides have submitted (PUBLISHED).
+model Review {
+  id                     String       @id @default(uuid()) @db.Uuid
+  orderId                String       @db.Uuid
+  reviewerId             String       @db.Uuid
+  revieweeId             String       @db.Uuid
+  overall                Int
+  accuracy               Int
+  communication          Int
+  punctuality            Int
+  transactionExperience  Int
+  body                   String?      @db.VarChar(500)
+  photoKeys              String[]     @default([])
+  status                 ReviewStatus @default(PENDING_MUTUAL)
+  reply                  String?      @db.VarChar(200)
+  repliedAt              DateTime?
+  publishedAt            DateTime?
+  createdAt              DateTime     @default(now())
+
+  order    Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reviewer User          @relation("ReviewReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewee User          @relation("ReviewReviewee", fields: [revieweeId], references: [id], onDelete: Cascade)
+  reports  ReviewReport[]
+
+  @@unique([orderId, reviewerId])
+  @@index([revieweeId, status])
+  @@index([orderId])
+  @@map("reviews")
+}
+
+model ReviewReport {
+  id         String   @id @default(uuid()) @db.Uuid
+  reviewId   String   @db.Uuid
+  reporterId String   @db.Uuid
+  reason     String
+  createdAt  DateTime @default(now())
+
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reporter User   @relation("ReviewReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@index([reporterId])
+  @@map("review_reports")
+}
+
+/// Computed 0–100 reputation; public APIs expose tier only when ≥70.
+model TrustScore {
+  id                     String   @id @default(uuid()) @db.Uuid
+  userId                 String   @unique @db.Uuid
+  score                  Int
+  /// TOP_SELLER | TRUSTED | null
+  tier                   String?
+  completionRate         Float
+  avgRating              Float?
+  medianResponseMinutes  Float?
+  cancellationRate       Float
+  disputeRate            Float
+  accountAgeDays         Int
+  verificationPoints     Int
+  computedAt             DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([score])
+  @@index([tier])
+  @@map("trust_scores")
+}
+
+model TrustScoreHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  score     Int
+  tier      String?
+  reason    String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("trust_score_history")
+}
+
+/// First seller reply latency per conversation (for median response time).
+model ChatResponseSample {
+  id               String   @id @default(uuid()) @db.Uuid
+  conversationId   String   @unique @db.Uuid
+  sellerId         String   @db.Uuid
+  buyerMessageAt   DateTime
+  firstReplyAt     DateTime
+  latencyMinutes   Float
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  seller       User         @relation("ChatResponseSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId, firstReplyAt])
+  @@map("chat_response_samples")
 }

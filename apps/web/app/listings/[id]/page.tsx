@@ -31,6 +31,7 @@ import {
   listingImageUrl,
   reportListing,
 } from "../../../lib/listings";
+import { formatResponseShort } from "../../../lib/trust";
 import type { PublicListing } from "../../../lib/types";
 
 export default function ListingPdpPage() {
@@ -373,28 +374,48 @@ export default function ListingPdpPage() {
         </section>
 
         <section
-          className="mt-8 flex items-center gap-4 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)]/90 p-4"
+          className="mt-8 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)]/90 p-4"
           aria-label="Seller"
         >
-          <div
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--rw-accent-muted)] text-lg font-semibold text-[var(--rw-accent)]"
-            aria-hidden
+          <Link
+            href={`/users/${listing.seller.id}`}
+            className="flex items-center gap-4 rounded-[var(--rw-radius)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
           >
-            {(listing.seller.displayName || "S").slice(0, 1).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold">
-              {listing.seller.displayName}
-              {listing.seller.verificationBadge ? (
-                <span className="ml-2 text-sm font-medium text-[var(--rw-accent)]">
-                  Verified
-                </span>
-              ) : null}
-            </p>
-            <p className="text-sm text-[var(--rw-ink-muted)]">
-              Rating · {listing.seller.ratingLabel}
-            </p>
-          </div>
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--rw-accent-muted)] text-lg font-semibold text-[var(--rw-accent)]"
+              aria-hidden
+            >
+              {(listing.seller.displayName || "S").slice(0, 1).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">
+                {listing.seller.displayName}
+                {listing.seller.verificationBadge ? (
+                  <span className="ml-2 text-sm font-medium text-[var(--rw-accent)]">
+                    Identity Verified ✓
+                  </span>
+                ) : null}
+              </p>
+              <p className="text-sm text-[var(--rw-ink-muted)]">
+                {listing.seller.ratingLabel}
+              </p>
+              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                {listing.seller.trustBadge ? (
+                  <span className="rounded-[var(--rw-radius)] bg-[var(--rw-gold-muted)] px-2 py-0.5 text-xs font-semibold text-[var(--rw-ink)]">
+                    {listing.seller.trustBadge}
+                  </span>
+                ) : null}
+                {formatResponseShort(listing.seller.responseMinutes) ? (
+                  <span className="text-[var(--rw-ink-muted)]">
+                    {formatResponseShort(listing.seller.responseMinutes)}
+                  </span>
+                ) : null}
+              </p>
+            </div>
+            <span className="text-sm font-medium text-[var(--rw-accent)]">
+              Profile →
+            </span>
+          </Link>
         </section>
 
         <section className="mt-8" aria-labelledby="pdp-desc">

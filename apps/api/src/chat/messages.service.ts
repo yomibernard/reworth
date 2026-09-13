@@ -267,7 +267,55 @@ export class MessagesService {
 
     const mapped = toMessageDto(message);
     this.gateway?.emitToConversation(conversationId, 'message.new', mapped);
+
+    if (userId === conversation.sellerId) {
+      void this.trackSellerFirstReply(conversation, userId, created.createdAt);
+    }
+
     return mapped;
+  }
+
+  /**
+   * Persist first seller reply latency for trust median response time.
+   */
+  private async trackSellerFirstReply(
+    conversation: { id: string; buyerId: string; sellerId: string },
+    sellerId: string,
+    replyAt: Date,
+  ): Promise<void> {
+    if (conversation.sellerId !== sellerId) return;
+
+    const existing = await this.prisma.chatResponseSample.findUnique({
+      where: { conversationId: conversation.id },
+    });
+    if (existing) return;
+
+    const firstBuyerMsg = await this.prisma.message.findFirst({
+      where: {
+        conversationId: conversation.id,
+        senderId: conversation.buyerId,
+        createdAt: { lt: replyAt },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!firstBuyerMsg) return;
+
+    const latencyMinutes =
+      (replyAt.getTime() - firstBuyerMsg.createdAt.getTime()) / 60_000;
+
+    try {
+      await this.prisma.chatResponseSample.create({
+        data: {
+          conversationId: conversation.id,
+          sellerId,
+          buyerMessageAt: firstBuyerMsg.createdAt,
+          firstReplyAt: replyAt,
+          latencyMinutes,
+        },
+      });
+    } catch {
+      // Unique race — another request already recorded the sample.
+    }
   }
 
   async markRead(

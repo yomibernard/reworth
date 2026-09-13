@@ -16,11 +16,11 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **6 — Logistics + Notification Engine** |
-| Prompt | Prompt 7 |
-| Target tag | `v0.6-logistics-notifications` |
+| Phase | **7 — Trust (Reviews + Trust Score)** |
+| Prompt | Prompt 8 |
+| Target tag | `v0.7-trust` |
 | Status | **Complete (pending PR merge)** |
-| Next | Phase 7 — Trust (`v0.7-trust`) |
+| Next | Phase 8 — Admin (`v0.8-admin`) |
 
 ## 14-role team
 
@@ -123,14 +123,13 @@ Per **PRD §59**: functional · UX · responsive · security · analytics · err
 
 ## Known gaps
 
-**Phase 6 API complete** (delivery quotes, meet points, address disclosure, notification engine). Tag `v0.6-logistics-notifications` pending.
+**Phase 7 Trust UI complete** (API + web/mobile profile, PDP seller card, order review). Tag `v0.7-trust` pending.
 
 Still not built:
 
-- Web/mobile fulfilment + notification-center UX
-- Expo/FCM push (mock only)
-- Admin TOTP enforcement; listing moderation queue UI
-- Trust, admin depth, risk, UAT
+- Expo/FCM push (mock only); deeper notification-center polish
+- Admin portal depth (Phase 8); TOTP enforcement; listing moderation queue UI
+- Risk/moderation hardening (Phase 9); UAT (Phase 10)
 - All PRD §51–53 / post-launch features
 - Production credentials, pen test, store submissions; httpOnly token cookies
 

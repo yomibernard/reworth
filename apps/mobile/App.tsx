@@ -24,6 +24,7 @@ import {
   FavouritesPanel,
   SearchPanel,
 } from "./DiscoveryScreens";
+import { UserProfileModal } from "./UserProfileModal";
 import { apiFetch, ApiError } from "./lib/api";
 import {
   clearTokens,
@@ -80,6 +81,7 @@ export default function App() {
   } | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [disputeId, setDisputeId] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
   const refreshMe = useCallback(async () => {
     const token = await getAccessToken();
@@ -600,6 +602,20 @@ export default function App() {
         onBuyNow={(listingId) => {
           setDetailId(null);
           setCheckoutParams({ listingId });
+        }}
+        onOpenSeller={(sellerId) => {
+          setDetailId(null);
+          setProfileUserId(sellerId);
+        }}
+      />
+
+      <UserProfileModal
+        userId={profileUserId}
+        meId={me?.id ?? null}
+        onClose={() => setProfileUserId(null)}
+        onOpenListing={(listingId) => {
+          setProfileUserId(null);
+          setDetailId(listingId);
         }}
       />
 

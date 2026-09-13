@@ -12,6 +12,7 @@ import {
   Skeleton,
   Toast,
 } from "@reworth/ui-web";
+import { ReviewForm } from "../../../components/trust/ReviewForm";
 import { ApiError, apiFetch } from "../../../lib/api";
 import { getAccessToken } from "../../../lib/auth";
 import {
@@ -30,6 +31,13 @@ import {
   type OrderDetail,
 } from "../../../lib/orders";
 import type { MeResponse } from "../../../lib/types";
+import {
+  createOrderReview,
+  markOrderReviewPending,
+  resolveOrderReviewState,
+  type CreateReviewBody,
+  type OrderReviewUiState,
+} from "../../../lib/trust";
 
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
@@ -49,6 +57,10 @@ export default function OrderDetailPage() {
     message: string;
     tone?: "info" | "success" | "warn" | "error";
   } | null>(null);
+  const [reviewState, setReviewState] = useState<OrderReviewUiState | null>(
+    null,
+  );
+  const [reviewBusy, setReviewBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!orderId) return;
@@ -66,6 +78,18 @@ export default function OrderDetailPage() {
       ]);
       setMeId(me.id);
       setOrder(detail);
+      if (detail.status === "COMPLETED") {
+        const counterpartId =
+          me.id === detail.buyerId ? detail.sellerId : detail.buyerId;
+        const resolved = await resolveOrderReviewState({
+          orderId: detail.id,
+          meId: me.id,
+          counterpartId,
+        });
+        setReviewState(resolved.state);
+      } else {
+        setReviewState(null);
+      }
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         router.replace("/onboarding");
@@ -124,6 +148,41 @@ export default function OrderDetailPage() {
       });
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function submitReview(body: CreateReviewBody) {
+    const token = getAccessToken();
+    if (!token || !orderId) return;
+    setReviewBusy(true);
+    try {
+      const created = await createOrderReview(token, orderId, body);
+      if (created.status === "PUBLISHED") {
+        setReviewState("done");
+        setToast({ message: "Reviews published", tone: "success" });
+      } else {
+        markOrderReviewPending(orderId);
+        setReviewState("waiting");
+        setToast({
+          message: "Review saved — waiting for the other party",
+          tone: "success",
+        });
+      }
+    } catch (err) {
+      const msg =
+        err instanceof ApiError ? err.message : "Could not submit review";
+      if (/already reviewed/i.test(msg)) {
+        markOrderReviewPending(orderId);
+        setReviewState("waiting");
+        setToast({
+          message: "Waiting for the other party",
+          tone: "info",
+        });
+      } else {
+        setToast({ message: msg, tone: "error" });
+      }
+    } finally {
+      setReviewBusy(false);
     }
   }
 
@@ -323,6 +382,38 @@ export default function OrderDetailPage() {
             </Link>
           ) : null}
         </div>
+
+        {order.status === "COMPLETED" ? (
+          <section className="mt-10" aria-labelledby="review-section">
+            <h2 id="review-section" className="sr-only">
+              Review
+            </h2>
+            {reviewState === "form" ? (
+              <ReviewForm
+                submitting={reviewBusy}
+                onSubmit={submitReview}
+              />
+            ) : null}
+            {reviewState === "waiting" ? (
+              <aside className="mt-4 rounded-[var(--rw-radius-lg)] border border-[var(--rw-gold)]/40 bg-[var(--rw-gold-muted)]/50 px-4 py-4">
+                <p className="font-semibold">Waiting for other party</p>
+                <p className="mt-1 text-sm text-[var(--rw-ink-muted)]">
+                  Your review is saved. It will publish when they leave theirs.
+                </p>
+              </aside>
+            ) : null}
+            {reviewState === "done" ? (
+              <aside className="mt-4 rounded-[var(--rw-radius-lg)] border border-[var(--rw-accent)]/30 bg-[var(--rw-accent-muted)]/40 px-4 py-4">
+                <p className="font-semibold text-[var(--rw-accent)]">
+                  Review published
+                </p>
+                <p className="mt-1 text-sm text-[var(--rw-ink-muted)]">
+                  Thanks — both sides have rated this order.
+                </p>
+              </aside>
+            ) : null}
+          </section>
+        ) : null}
       </div>
 
       <Modal

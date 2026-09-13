@@ -55,6 +55,26 @@ describe('toPublicListing privacy', () => {
     expect(dto.seller.displayName).toBe('Ada');
     expect(dto.seller.verificationBadge).toBe(true);
     expect(dto.seller.ratingLabel).toBe('New');
+    expect(dto.seller.trustBadge).toBeNull();
+    expect(dto.seller.responseMinutes).toBeNull();
     expect(dto.buyerProtection).toBe(true);
+  });
+
+  it('formats ratingLabel and trustBadge from trustScore', () => {
+    const dto = toPublicListing({
+      ...base,
+      seller: {
+        ...base.seller,
+        trustScore: {
+          avgRating: 4.8,
+          tier: 'TOP_SELLER',
+          medianResponseMinutes: 9.4,
+        },
+        _count: { reviewsReceived: 12 },
+      },
+    });
+    expect(dto.seller.ratingLabel).toBe('★ 4.8 (12)');
+    expect(dto.seller.trustBadge).toBe('Top Seller');
+    expect(dto.seller.responseMinutes).toBe(9);
   });
 });

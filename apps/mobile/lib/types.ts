@@ -54,6 +54,8 @@ export type PublicListing = {
     displayName: string;
     verificationBadge: boolean;
     ratingLabel: string;
+    trustBadge?: "Top Seller" | "Trusted" | null;
+    responseMinutes?: number | null;
   };
   fulfilmentPickup: boolean;
   fulfilmentMeet: boolean;

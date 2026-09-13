@@ -7,6 +7,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { MockPsp } from '../providers/mock-psp';
 import { PAYMENT_PROVIDER } from '../providers/payment.provider';
 import { PaystackAdapter } from '../providers/paystack.adapter';
+import { ReviewsModule } from '../reviews/reviews.module';
 import { AutoReleaseScheduler } from './auto-release.scheduler';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
@@ -32,6 +33,7 @@ export function createPaymentProvider(config: ConfigService) {
     AuthModule,
     ConfigModule,
     NotificationsModule,
+    ReviewsModule,
     forwardRef(() => DeliveryModule),
   ],
   controllers: [OrdersController],

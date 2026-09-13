@@ -14,6 +14,7 @@ export const NotificationCategory = {
   DELIVERY_UPDATE: 'DELIVERY_UPDATE',
   VERIFICATION_UPDATE: 'VERIFICATION_UPDATE',
   DISPUTE_UPDATE: 'DISPUTE_UPDATE',
+  REVIEW_RECEIVED: 'REVIEW_RECEIVED',
 } as const;
 
 export type NotificationCategory =

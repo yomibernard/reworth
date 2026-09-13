@@ -70,6 +70,8 @@ export type PublicListingSeller = {
   displayName: string;
   verificationBadge: boolean;
   ratingLabel: string;
+  trustBadge?: "Top Seller" | "Trusted" | null;
+  responseMinutes?: number | null;
 };
 
 export type SellingModeValue = "SELL" | "SWAP" | "SWAP_CASH" | "GIVE_AWAY";

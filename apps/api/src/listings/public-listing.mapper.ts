@@ -3,6 +3,8 @@
  * NEVER include addressPrivate, address, line1, seller phone/email, or vehicle.vin.
  */
 
+import { publicTrustBadge } from '../reviews/trust-score.compute';
+
 export type PublicListingImage = {
   id: string;
   sortOrder: number;
@@ -16,6 +18,8 @@ export type PublicListingSeller = {
   displayName: string;
   verificationBadge: boolean;
   ratingLabel: string;
+  trustBadge?: 'Top Seller' | 'Trusted' | null;
+  responseMinutes?: number | null;
 };
 
 export type PublicListingDto = {
@@ -81,6 +85,14 @@ type ListingWithRelations = {
     email?: string | null;
     profile?: { displayName: string } | null;
     verifications?: Array<{ level: string; status: string }>;
+    trustScore?: {
+      avgRating: number | null;
+      tier: string | null;
+      medianResponseMinutes: number | null;
+    } | null;
+    _count?: {
+      reviewsReceived?: number;
+    };
   };
 };
 
@@ -107,6 +119,16 @@ function haversineKm(
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function ratingLabelFromTrust(
+  avgRating: number | null | undefined,
+  reviewCount: number,
+): string {
+  if (avgRating != null && reviewCount > 0) {
+    return `★ ${avgRating.toFixed(1)} (${reviewCount})`;
+  }
+  return 'New';
 }
 
 export function toPublicListing(
@@ -143,6 +165,14 @@ export function toPublicListing(
       height: img.height,
     }));
 
+  const reviewCount = seller?._count?.reviewsReceived ?? 0;
+  const avgRating = seller?.trustScore?.avgRating ?? null;
+  const trustBadge = publicTrustBadge(seller?.trustScore?.tier ?? null);
+  const responseMinutes =
+    seller?.trustScore?.medianResponseMinutes != null
+      ? Math.round(seller.trustScore.medianResponseMinutes)
+      : null;
+
   const dto: PublicListingDto = {
     id: listing.id,
     title: listing.title,
@@ -170,7 +200,9 @@ export function toPublicListing(
       id: seller?.id ?? '',
       displayName: seller?.profile?.displayName ?? 'Seller',
       verificationBadge: verified,
-      ratingLabel: 'New',
+      ratingLabel: ratingLabelFromTrust(avgRating, reviewCount),
+      trustBadge,
+      responseMinutes,
     },
     fulfilmentPickup: listing.fulfilmentPickup,
     fulfilmentMeet: listing.fulfilmentMeet,
@@ -190,6 +222,7 @@ export function toPublicListing(
     'phone',
     'email',
     'passwordHash',
+    'score',
   ];
   for (const key of forbidden) {
     delete (dto as Record<string, unknown>)[key];
@@ -197,6 +230,7 @@ export function toPublicListing(
   if (dto.seller) {
     delete (dto.seller as Record<string, unknown>).phone;
     delete (dto.seller as Record<string, unknown>).email;
+    delete (dto.seller as Record<string, unknown>).score;
   }
 
   return dto;

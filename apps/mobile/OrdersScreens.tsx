@@ -50,6 +50,13 @@ import {
   type MeResponse,
   type PublicListing,
 } from "./lib/types";
+import {
+  createOrderReview,
+  markOrderReviewPending,
+  resolveOrderReviewState,
+  type CreateReviewBody,
+  type OrderReviewUiState,
+} from "./lib/trust";
 
 type CheckoutParams = {
   listingId: string;
@@ -426,6 +433,16 @@ export function OrderDetailModal({
     useState<DisputeReason>("NEVER_RECEIVED");
   const [disputeDetail, setDisputeDetail] = useState("");
   const [showDispute, setShowDispute] = useState(false);
+  const [reviewState, setReviewState] = useState<OrderReviewUiState | null>(
+    null,
+  );
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [overall, setOverall] = useState(5);
+  const [accuracy, setAccuracy] = useState(5);
+  const [communication, setCommunication] = useState(5);
+  const [punctuality, setPunctuality] = useState(5);
+  const [experience, setExperience] = useState(5);
+  const [reviewBody, setReviewBody] = useState("");
 
   const load = useCallback(async () => {
     if (!orderId) return;
@@ -434,14 +451,27 @@ export function OrderDetailModal({
     setLoading(true);
     setError(null);
     try {
-      setOrder(await getOrder(token, orderId));
+      const detail = await getOrder(token, orderId);
+      setOrder(detail);
+      if (detail.status === "COMPLETED" && meId) {
+        const counterpartId =
+          meId === detail.buyerId ? detail.sellerId : detail.buyerId;
+        const resolved = await resolveOrderReviewState({
+          orderId: detail.id,
+          meId,
+          counterpartId,
+        });
+        setReviewState(resolved.state);
+      } else {
+        setReviewState(null);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Not found");
       setOrder(null);
     } finally {
       setLoading(false);
     }
-  }, [orderId]);
+  }, [orderId, meId]);
 
   useEffect(() => {
     if (orderId) void load();
@@ -479,6 +509,40 @@ export function OrderDetailModal({
       setError(err instanceof ApiError ? err.message : "Dispute failed");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function submitReview() {
+    const token = await getAccessToken();
+    if (!token || !orderId) return;
+    setReviewBusy(true);
+    const body: CreateReviewBody = {
+      overall,
+      accuracy,
+      communication,
+      punctuality,
+      transactionExperience: experience,
+      body: reviewBody.trim() || undefined,
+    };
+    try {
+      const created = await createOrderReview(token, orderId, body);
+      if (created.status === "PUBLISHED") {
+        setReviewState("done");
+      } else {
+        await markOrderReviewPending(orderId);
+        setReviewState("waiting");
+      }
+    } catch (err) {
+      const msg =
+        err instanceof ApiError ? err.message : "Could not submit review";
+      if (/already reviewed/i.test(msg)) {
+        await markOrderReviewPending(orderId);
+        setReviewState("waiting");
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setReviewBusy(false);
     }
   }
 
@@ -626,6 +690,78 @@ export function OrderDetailModal({
                       disabled={busy}
                       onPress={() => void submitDispute()}
                     />
+                  </View>
+                ) : null}
+
+                {order.status === "COMPLETED" ? (
+                  <View style={styles.reviewBox}>
+                    {reviewState === "form" ? (
+                      <>
+                        <Text style={styles.section}>Leave a review</Text>
+                        <Text style={styles.muted}>
+                          Publishes when both sides have rated.
+                        </Text>
+                        <StarRow
+                          label="Overall"
+                          value={overall}
+                          onChange={setOverall}
+                        />
+                        <StarRow
+                          label="Accuracy"
+                          value={accuracy}
+                          onChange={setAccuracy}
+                        />
+                        <StarRow
+                          label="Communication"
+                          value={communication}
+                          onChange={setCommunication}
+                        />
+                        <StarRow
+                          label="Punctuality"
+                          value={punctuality}
+                          onChange={setPunctuality}
+                        />
+                        <StarRow
+                          label="Experience"
+                          value={experience}
+                          onChange={setExperience}
+                        />
+                        <TextInput
+                          style={styles.input}
+                          value={reviewBody}
+                          onChangeText={setReviewBody}
+                          placeholder="Comments (optional)"
+                          maxLength={500}
+                          multiline
+                        />
+                        <ActionBtn
+                          label={
+                            reviewBusy ? "Submitting…" : "Submit review"
+                          }
+                          disabled={reviewBusy}
+                          onPress={() => void submitReview()}
+                        />
+                      </>
+                    ) : null}
+                    {reviewState === "waiting" ? (
+                      <View style={styles.waitCard}>
+                        <Text style={styles.waitTitle}>
+                          Waiting for other party
+                        </Text>
+                        <Text style={styles.muted}>
+                          Your review is saved. It publishes when they leave
+                          theirs.
+                        </Text>
+                      </View>
+                    ) : null}
+                    {reviewState === "done" ? (
+                      <View style={styles.doneCard}>
+                        <Text style={styles.doneTitle}>Review published</Text>
+                        <Text style={styles.muted}>
+                          Thanks — both sides have rated this order.
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                 ) : null}
               </>
@@ -872,6 +1008,35 @@ function ActionBtn({
   );
 }
 
+function StarRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <View style={styles.starRow}>
+      <Text style={styles.starLabel}>{label}</Text>
+      <View style={styles.starBtns}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <Pressable
+            key={n}
+            onPress={() => onChange(n)}
+            accessibilityRole="button"
+            accessibilityLabel={`${label} ${n} stars`}
+            style={[styles.starBtn, n <= value && styles.starBtnOn]}
+          >
+            <Text style={styles.starGlyph}>{n <= value ? "★" : "☆"}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 /** Prefetch current user id when a parent needs it without Me in scope. */
 export async function fetchMeId(): Promise<string | null> {
   const token = await getAccessToken();
@@ -1003,6 +1168,42 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     gap: 8,
   },
+  reviewBox: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E2DC",
+    backgroundColor: "#fff",
+    gap: 10,
+  },
+  waitCard: {
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "#F5EDD0",
+    gap: 4,
+  },
+  waitTitle: { fontWeight: "700", color: "#1A1A1A", fontSize: 16 },
+  doneCard: {
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "#D1FAE5",
+    gap: 4,
+  },
+  doneTitle: { fontWeight: "700", color: "#0E9F6E", fontSize: 16 },
+  starRow: { gap: 6 },
+  starLabel: { fontSize: 13, fontWeight: "600", color: "#1A1A1A" },
+  starBtns: { flexDirection: "row", gap: 6 },
+  starBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FAF9F7",
+  },
+  starBtnOn: { backgroundColor: "#F5EDD0" },
+  starGlyph: { fontSize: 18, color: "#C9A227" },
   input: {
     borderWidth: 1,
     borderColor: "#E5E2DC",

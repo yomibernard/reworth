@@ -39,6 +39,12 @@ const listingInclude = {
     include: {
       profile: true,
       verifications: true,
+      trustScore: true,
+      _count: {
+        select: {
+          reviewsReceived: { where: { status: 'PUBLISHED' as const } },
+        },
+      },
     },
   },
 } satisfies Prisma.ListingInclude;

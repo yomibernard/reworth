@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 6 (Logistics + Notification Engine)** — API complete; tag `v0.6-logistics-notifications` pending.
+**Current phase: 7 (Reviews + Trust Score)** — Web + mobile Trust UI complete; tag `v0.7-trust` pending.
 
 Do **not** implement features from later phases in the same PR.
 

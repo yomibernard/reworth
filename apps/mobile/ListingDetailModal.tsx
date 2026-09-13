@@ -23,6 +23,7 @@ import {
   unfavouriteListing,
 } from "./lib/discovery";
 import { getListing } from "./lib/listings";
+import { formatResponseShort } from "./lib/trust";
 import {
   formatNgnFromKobo,
   listingImageUrl,
@@ -34,6 +35,7 @@ type Props = {
   onClose: () => void;
   onOpenChat?: (conversationId: string) => void;
   onBuyNow?: (listingId: string) => void;
+  onOpenSeller?: (sellerId: string) => void;
 };
 
 export function ListingDetailModal({
@@ -41,6 +43,7 @@ export function ListingDetailModal({
   onClose,
   onOpenChat,
   onBuyNow,
+  onOpenSeller,
 }: Props) {
   const [listing, setListing] = useState<PublicListing | null>(null);
   const [loading, setLoading] = useState(false);
@@ -218,15 +221,29 @@ export function ListingDetailModal({
               {listing.condition} · {listing.community || "Lagos"}
             </Text>
 
-            <View style={styles.seller}>
+            <Pressable
+              style={styles.seller}
+              onPress={() => onOpenSeller?.(listing.seller.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${listing.seller.displayName}'s profile`}
+            >
               <Text style={styles.sellerName}>
                 {listing.seller.displayName}
-                {listing.seller.verificationBadge ? " · Verified" : ""}
+                {listing.seller.verificationBadge
+                  ? " · Identity Verified ✓"
+                  : ""}
               </Text>
-              <Text style={styles.muted}>
-                Rating · {listing.seller.ratingLabel}
-              </Text>
-            </View>
+              <Text style={styles.muted}>{listing.seller.ratingLabel}</Text>
+              {listing.seller.trustBadge ? (
+                <Text style={styles.trustBadge}>{listing.seller.trustBadge}</Text>
+              ) : null}
+              {formatResponseShort(listing.seller.responseMinutes) ? (
+                <Text style={styles.muted}>
+                  {formatResponseShort(listing.seller.responseMinutes)}
+                </Text>
+              ) : null}
+              <Text style={styles.profileLink}>View profile →</Text>
+            </Pressable>
 
             <Text style={styles.section}>Description</Text>
             <Text style={styles.copy}>
@@ -404,6 +421,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   sellerName: { fontSize: 16, fontWeight: "700", color: "#111315" },
+  trustBadge: {
+    alignSelf: "flex-start",
+    marginTop: 6,
+    backgroundColor: "#F5EDD0",
+    overflow: "hidden",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#111315",
+  },
+  profileLink: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#0E9F6E",
+  },
   section: {
     marginTop: 22,
     fontSize: 16,

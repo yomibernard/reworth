@@ -2,41 +2,33 @@
 
 | Field | Value |
 | --- | --- |
-| Current phase | **6 — Logistics + Notification Engine** |
-| Prompt | Prompt 7 |
-| Target tag | `v0.6-logistics-notifications` |
-| Branch | `phase-6-logistics-notifications` |
+| Current phase | **7 — Trust: Reviews + Trust Score** |
+| Prompt | Prompt 8 |
+| Target tag | `v0.7-trust` |
+| Branch | `phase-7-trust` |
 | Status | **Complete (pending PR merge)** |
 | Last updated | 2026-09-13 |
 
-## What exists (Phase 6)
+## What exists (Phase 7)
 
 ### API
-- MeetPoint, DeliveryShipment/Event, AddressDisclosure, Notification + preferences, SupportTicket
-- Delivery mock quotes (₦1,500 + ₦150/km); webhooks; one-way address disclose
-- Multi-channel notify (in-app / push mock / email mock); hard rules for order-critical; quiet hours; push caps
-- `pnpm --filter @reworth/api demo:delivery`
-- **86 unit tests** green
+- Review (mutual publish), ReviewReport, TrustScore + history, ChatResponseSample
+- Trust recompute on order COMPLETED + daily cron
+- Public profile DTO; admin trust-score preview
+- Listing seller card: ratingLabel, trustBadge, responseMinutes
+- **98 unit tests** green
 
 ### Clients
-- Web notification bell + `/notifications` + settings preferences
-- Order fulfilment helpers (meet point / disclose / quote)
+- Web `/users/[id]`, order review form, PDP seller trust card
+- Mobile profile modal + review on completed orders
 
 ### Docs
-- [`docs/PHASE_6_PLAN.md`](PHASE_6_PLAN.md)
-
-## Local
-
-```bash
-cd apps/api && pnpm exec prisma migrate deploy && pnpm exec prisma db seed
-pnpm --filter @reworth/api demo:delivery
-pnpm dev
-```
+- [`docs/PHASE_7_PLAN.md`](PHASE_7_PLAN.md)
 
 ## Resume point
-**Phase 6 complete.** Next: **Phase 7 — Trust (Reviews + Trust Score)** (`v0.7-trust`).
+**Phase 7 complete.** Next: **Phase 8 — Admin Operations Portal** (`v0.8-admin`).
 
 ```
-Continue: resume Phase 7 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
+Continue: resume Phase 8 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
 PRD.md, verify the last commit's tests still pass, then continue the plan.
 ```
