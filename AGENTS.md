@@ -13,21 +13,19 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **2.3 — Intelligence** |
-| Prompt | Post-launch 2.3 |
-| Target tag | `v1.2-intelligence` |
-| Status | **Complete (pending PR merge)** |
-| Last completed | **2.2 — Moving Sales + Estate Communities** (`v1.1-moving-communities`) |
-| Next | Prompt 2.4 — Verticals (`v1.3`) after merge |
+| Phase | **2.4 — Verticals & Commercial** |
+| Prompt | Post-launch 2.4 |
+| Target tag | `v1.3` |
+| Status | **Not started** |
+| Last completed | **2.3 — Intelligence** (`v1.2-intelligence`, PR #13) |
 
 ## MVP / post-launch
 
-MVP through `v0.9.0-rc`. Shipped: `v1.0-swap`, `v1.1-moving-communities`. Next tag: `v1.2-intelligence`.
+MVP through `v0.9.0-rc`. Shipped: `v1.0-swap`, `v1.1-moving-communities`, `v1.2-intelligence`.
 
 ## Known gaps
 
 - Expo push mock; staging k6 certification; pen-test / NDPR / store sign-offs
-- Richer chat-thread swap actions; deeper mobile community UX
 - CF/MF RecProvider swap deferred (ADR-004 interface ready)
 
-See `docs/PHASE_STATUS.md`, `docs/RBAC.md`, `docs/EXPERIMENTS.md`, `docs/METRICS.md`.
+See `docs/PHASE_STATUS.md`, `docs/EXPERIMENTS.md`, `docs/METRICS.md`.
