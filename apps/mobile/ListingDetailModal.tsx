@@ -33,12 +33,14 @@ type Props = {
   listingId: string | null;
   onClose: () => void;
   onOpenChat?: (conversationId: string) => void;
+  onBuyNow?: (listingId: string) => void;
 };
 
 export function ListingDetailModal({
   listingId,
   onClose,
   onOpenChat,
+  onBuyNow,
 }: Props) {
   const [listing, setListing] = useState<PublicListing | null>(null);
   const [loading, setLoading] = useState(false);
@@ -270,7 +272,10 @@ export function ListingDetailModal({
                     <Action
                       label="Buy now"
                       primary
-                      onPress={() => setToast("Coming soon")}
+                      onPress={() => {
+                        if (listingId) onBuyNow?.(listingId);
+                        else setToast("Coming soon");
+                      }}
                     />
                   ) : null}
                 </>

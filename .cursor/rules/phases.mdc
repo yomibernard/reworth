@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 5 (Orders, Payments & Disputes)** — API complete; tag `v0.5-orders-payments` pending.
+**Current phase: 6 (Logistics + Notification Engine)** — API complete; tag `v0.6-logistics-notifications` pending.
 
 Do **not** implement features from later phases in the same PR.
 

@@ -7,8 +7,8 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Payment, Prisma } from '@prisma/client';
-import { NotificationStub } from '../chat/notification.stub';
+import { FulfilmentMethod, Payment, Prisma } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { OrdersService } from '../orders/orders.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MockPsp } from '../providers/mock-psp';
@@ -37,7 +37,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly orders: OrdersService,
-    private readonly notifications: NotificationStub,
+    private readonly notifications: NotificationsService,
     @Inject(PAYMENT_PROVIDER) private readonly psp: PaymentProvider,
   ) {}
 
@@ -57,6 +57,14 @@ export class PaymentsService {
     if (order.status !== 'PAYMENT_PENDING') {
       throw new ConflictException(
         `Order must be PAYMENT_PENDING (got ${order.status})`,
+      );
+    }
+    if (
+      order.fulfilmentMethod === FulfilmentMethod.DELIVERY &&
+      order.deliveryFeeKobo <= 0
+    ) {
+      throw new ConflictException(
+        'Delivery quote required before payment — GET /orders/:id/delivery-quote',
       );
     }
 

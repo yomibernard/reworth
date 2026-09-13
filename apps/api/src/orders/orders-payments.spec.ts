@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ConfigService } from '@nestjs/config';
-import { NotificationStub } from '../chat/notification.stub';
 import { MockPsp } from '../providers/mock-psp';
 import {
   computeOrderTotalKobo,
@@ -10,6 +9,14 @@ import { OrderStateMachine } from './order-state.machine';
 import { OrdersService } from './orders.service';
 import { PaymentsService } from '../payments/payments.service';
 import { DisputesService } from '../disputes/disputes.service';
+import type { NotificationsService } from '../notifications/notifications.service';
+
+function mockNotifications(): NotificationsService {
+  return {
+    log: jest.fn(),
+    notify: jest.fn(async () => ({ created: [], skipped: [] })),
+  } as unknown as NotificationsService;
+}
 
 function baseOrder(overrides: Record<string, unknown> = {}) {
   return {
@@ -148,7 +155,7 @@ describe('escrow happy path + webhook replay', () => {
       return map[k];
     },
   } as unknown as ConfigService;
-  const notifications = new NotificationStub();
+  const notifications = mockNotifications();
   const psp = new MockPsp();
 
   function makePrisma(state: {
@@ -386,7 +393,7 @@ describe('disputes', () => {
   const config = {
     get: () => undefined,
   } as unknown as ConfigService;
-  const notifications = new NotificationStub();
+  const notifications = mockNotifications();
   const psp = new MockPsp();
 
   it('dispute → seller respond → admin full refund', async () => {

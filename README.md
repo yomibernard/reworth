@@ -47,6 +47,14 @@ Mobile: `pnpm --filter @reworth/mobile dev` (Expo).
 
 API alone: `pnpm --filter @reworth/api build && pnpm --filter @reworth/api start`
 
+### Phase 6 — delivery demo
+
+```bash
+cd apps/api && pnpm exec prisma migrate deploy && pnpm exec prisma db seed
+pnpm --filter @reworth/api demo:delivery
+# Walks a funded DELIVERY order ASSIGNED → … → DELIVERED
+```
+
 ## Stack (summary)
 
 Expo · Next.js 15 · NestJS · PostgreSQL/Prisma · Redis/BullMQ · MinIO · OpenSearch · Paystack · Termii/Twilio · OpenAI — see `AGENTS.md` and ADR-001.

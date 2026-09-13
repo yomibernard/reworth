@@ -7,7 +7,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { NotificationStub } from '../chat/notification.stub';
+import { NotificationCategory } from '../notifications/notification-categories';
+import { NotificationsService } from '../notifications/notifications.service';
 import { OrderStateMachine } from '../orders/order-state.machine';
 import { OrdersService } from '../orders/orders.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -29,7 +30,7 @@ export class DisputesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly orders: OrdersService,
-    private readonly notifications: NotificationStub,
+    private readonly notifications: NotificationsService,
     @Inject(PAYMENT_PROVIDER) private readonly psp: PaymentProvider,
   ) {}
 
@@ -109,6 +110,14 @@ export class DisputesService {
       disputeId: dispute.id,
       orderId,
       sellerId: order.sellerId,
+    });
+    await this.notifications.notify({
+      userId: order.sellerId,
+      category: NotificationCategory.DISPUTE_UPDATE,
+      title: 'Dispute opened',
+      body: 'A buyer opened a dispute on an order. Please respond within 72 hours.',
+      deepLink: `reworth://disputes/${dispute.id}`,
+      meta: { orderId, disputeId: dispute.id },
     });
 
     return dispute;
@@ -343,6 +352,22 @@ export class DisputesService {
       disputeId,
       resolution,
       orderId: order.id,
+    });
+    await this.notifications.notify({
+      userId: order.buyerId,
+      category: NotificationCategory.DISPUTE_UPDATE,
+      title: 'Dispute resolved',
+      body: `Your dispute was resolved: ${resolution}.`,
+      deepLink: `reworth://disputes/${disputeId}`,
+      meta: { orderId: order.id, disputeId, resolution },
+    });
+    await this.notifications.notify({
+      userId: order.sellerId,
+      category: NotificationCategory.DISPUTE_UPDATE,
+      title: 'Dispute resolved',
+      body: `A dispute on your order was resolved: ${resolution}.`,
+      deepLink: `reworth://disputes/${disputeId}`,
+      meta: { orderId: order.id, disputeId, resolution },
     });
 
     return updated;

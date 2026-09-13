@@ -6,6 +6,8 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -14,9 +16,17 @@ import {
   OrderStatus,
   Prisma,
 } from '@prisma/client';
-import { NotificationStub } from '../chat/notification.stub';
+import { DeliveryService } from '../delivery/delivery.service';
 import { ListingStateMachine } from '../listings/listing-state.machine';
+import { NotificationCategory } from '../notifications/notification-categories';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  computeDeliveryFeeKobo,
+  DELIVERY_PROVIDER,
+  type DeliveryProvider,
+} from '../providers/delivery.provider';
+import { haversineKm } from '../providers/search.provider';
 import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
@@ -27,6 +37,21 @@ import {
   computeProtectionFeeKobo,
 } from './order-fees';
 import { OrderStateMachine } from './order-state.machine';
+
+export type AddressDisclosureDto = {
+  id: string;
+  createdAt: Date;
+  addressSnapshot: string;
+};
+
+export type MeetPointSummaryDto = {
+  id: string;
+  community: string;
+  name: string;
+  landmark: string;
+  lat: number;
+  lng: number;
+};
 
 export type OrderDto = {
   id: string;
@@ -48,9 +73,21 @@ export type OrderDto = {
   completedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  meetPointId?: string | null;
+  meetPoint?: MeetPointSummaryDto | null;
+  addressDisclosure?: AddressDisclosureDto | null;
 };
 
-function toOrderDto(o: Order): OrderDto {
+function toOrderDto(
+  o: Order & {
+    meetPoint?: MeetPointSummaryDto | null;
+    addressDisclosure?: {
+      id: string;
+      createdAt: Date;
+      addressSnapshot: string;
+    } | null;
+  },
+): OrderDto {
   return {
     id: o.id,
     listingId: o.listingId,
@@ -71,6 +108,24 @@ function toOrderDto(o: Order): OrderDto {
     completedAt: o.completedAt,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
+    meetPointId: o.meetPointId ?? null,
+    meetPoint: o.meetPoint
+      ? {
+          id: o.meetPoint.id,
+          community: o.meetPoint.community,
+          name: o.meetPoint.name,
+          landmark: o.meetPoint.landmark,
+          lat: o.meetPoint.lat,
+          lng: o.meetPoint.lng,
+        }
+      : null,
+    addressDisclosure: o.addressDisclosure
+      ? {
+          id: o.addressDisclosure.id,
+          createdAt: o.addressDisclosure.createdAt,
+          addressSnapshot: o.addressDisclosure.addressSnapshot,
+        }
+      : null,
   };
 }
 
@@ -81,8 +136,14 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-    private readonly notifications: NotificationStub,
+    private readonly notifications: NotificationsService,
     @Inject(PAYMENT_PROVIDER) private readonly psp: PaymentProvider,
+    @Optional()
+    @Inject(DELIVERY_PROVIDER)
+    private readonly deliveryProvider?: DeliveryProvider,
+    @Optional()
+    @Inject(forwardRef(() => DeliveryService))
+    private readonly delivery?: DeliveryService,
   ) {}
 
   private feePct(): number {
@@ -163,7 +224,40 @@ export class OrdersService {
       this.feePct(),
       this.feeCap(),
     );
-    const deliveryFeeKobo = 0;
+
+    let deliveryFeeKobo = 0;
+    let distanceKm: number | undefined;
+    let meetPointId: string | null = null;
+
+    if (dto.fulfilmentMethod === FulfilmentMethod.MEET_POINT) {
+      if (!dto.meetPointId) {
+        throw new BadRequestException('meetPointId required for MEET_POINT');
+      }
+      const mp = await this.prisma.meetPoint.findFirst({
+        where: { id: dto.meetPointId, active: true },
+      });
+      if (!mp) throw new NotFoundException('Meet point not found');
+      meetPointId = mp.id;
+    }
+
+    if (dto.fulfilmentMethod === FulfilmentMethod.DELIVERY) {
+      if (
+        dto.toLat != null &&
+        dto.toLng != null &&
+        listing.geoLat != null &&
+        listing.geoLng != null
+      ) {
+        distanceKm = haversineKm(
+          listing.geoLat,
+          listing.geoLng,
+          dto.toLat,
+          dto.toLng,
+        );
+        deliveryFeeKobo = computeDeliveryFeeKobo(distanceKm);
+      }
+      // Quote may also be applied via GET /orders/:id/delivery-quote before pay
+    }
+
     const totalKobo = computeOrderTotalKobo({
       amountKobo,
       protectionFeeKobo,
@@ -183,10 +277,38 @@ export class OrdersService {
           deliveryFeeKobo,
           totalKobo,
           fulfilmentMethod: dto.fulfilmentMethod,
+          meetPointId,
           status: 'CREATED',
           buyerProtection: true,
         },
       });
+
+      if (
+        dto.fulfilmentMethod === FulfilmentMethod.DELIVERY &&
+        deliveryFeeKobo > 0
+      ) {
+        const shipment = await tx.deliveryShipment.create({
+          data: {
+            orderId: created.id,
+            provider: this.deliveryProvider?.name ?? 'mock-delivery',
+            quoteKobo: deliveryFeeKobo,
+            distanceKm: distanceKm ?? null,
+            status: 'QUOTED',
+          },
+        });
+        await tx.deliveryEvent.create({
+          data: {
+            shipmentId: shipment.id,
+            status: 'QUOTED',
+            payload: {
+              toLat: dto.toLat,
+              toLng: dto.toLng,
+              feeKobo: deliveryFeeKobo,
+              distanceKm,
+            },
+          },
+        });
+      }
 
       OrderStateMachine.assertTransition('CREATED', 'PAYMENT_PENDING');
       const pending = await tx.order.update({
@@ -243,7 +365,11 @@ export class OrdersService {
   ): Promise<OrderDto & { events: unknown[] }> {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      include: { events: { orderBy: { createdAt: 'asc' } } },
+      include: {
+        events: { orderBy: { createdAt: 'asc' } },
+        meetPoint: true,
+        addressDisclosure: true,
+      },
     });
     if (!order) throw new NotFoundException('Order not found');
     if (order.buyerId !== userId && order.sellerId !== userId) {
@@ -411,6 +537,27 @@ export class OrdersService {
       sellerId: order.sellerId,
       paymentReference,
     });
+
+    await this.notifications.notify({
+      userId: order.sellerId,
+      category: NotificationCategory.PAYMENT_RECEIVED,
+      title: 'Payment received',
+      body: 'Buyer payment is in escrow for your listing.',
+      deepLink: `reworth://orders/${orderId}`,
+      meta: { orderId, paymentReference },
+    });
+    await this.notifications.notify({
+      userId: order.buyerId,
+      category: NotificationCategory.PAYMENT_RECEIVED,
+      title: 'Payment confirmed',
+      body: 'Your payment is secured in ReWorth escrow.',
+      deepLink: `reworth://orders/${orderId}`,
+      meta: { orderId, paymentReference },
+    });
+
+    if (updated.fulfilmentMethod === FulfilmentMethod.DELIVERY) {
+      await this.delivery?.assignAfterFunding(orderId);
+    }
 
     return toOrderDto(updated);
   }
@@ -584,6 +731,14 @@ export class OrdersService {
       orderId,
       reason,
       sellerId: order.sellerId,
+    });
+    await this.notifications.notify({
+      userId: order.sellerId,
+      category: NotificationCategory.PAYMENT_RELEASED,
+      title: 'Payout released',
+      body: 'Escrow has been released to you.',
+      deepLink: `reworth://orders/${orderId}`,
+      meta: { orderId, reason },
     });
     return toOrderDto(updated);
   }

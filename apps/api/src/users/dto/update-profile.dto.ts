@@ -55,4 +55,18 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsBoolean()
   showFullName?: boolean;
+
+  /** Quiet hours start hour 0–23 WAT (inclusive). */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(23)
+  quietHoursStart?: number | null;
+
+  /** Quiet hours end hour 0–23 WAT (exclusive). */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(23)
+  quietHoursEnd?: number | null;
 }

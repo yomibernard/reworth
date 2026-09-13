@@ -40,6 +40,11 @@ type Props = {
   meId: string;
   openConversationId?: string | null;
   onConversationOpened?: () => void;
+  onCheckout?: (params: {
+    listingId: string;
+    offerId?: string;
+    orderIntentId?: string;
+  }) => void;
 };
 
 type ThreadItem =
@@ -50,6 +55,7 @@ export function ChatsPanel({
   meId,
   openConversationId,
   onConversationOpened,
+  onCheckout,
 }: Props) {
   const [items, setItems] = useState<ConversationListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +107,7 @@ export function ChatsPanel({
       <ChatThread
         conversationId={activeId}
         meId={meId}
+        onCheckout={onCheckout}
         onBack={() => {
           setActiveId(null);
           void load();
@@ -196,10 +203,16 @@ function ChatThread({
   conversationId,
   meId,
   onBack,
+  onCheckout,
 }: {
   conversationId: string;
   meId: string;
   onBack: () => void;
+  onCheckout?: (params: {
+    listingId: string;
+    offerId?: string;
+    orderIntentId?: string;
+  }) => void;
 }) {
   const [meta, setMeta] = useState<ConversationListItem | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -390,7 +403,21 @@ function ChatThread({
         setOffers((prev) =>
           prev.map((o) => (o.id === offer.id ? res.offer : o)),
         );
-        setToast("Offer accepted — listing reserved");
+        const intentId = res.orderIntent?.id;
+        if (meId === offer.buyerId) {
+          onCheckout?.({
+            listingId: offer.listingId,
+            ...(intentId
+              ? { orderIntentId: intentId }
+              : { offerId: offer.id }),
+          });
+          return;
+        }
+        setToast(
+          intentId
+            ? "Offer accepted — buyer can check out"
+            : "Offer accepted — listing reserved",
+        );
       } else if (action === "reject") {
         const updated = await rejectOffer(token, offer.id);
         setOffers((prev) =>
@@ -480,6 +507,7 @@ function ChatThread({
     const isSeller = meId === offer.sellerId;
     const isBuyer = meId === offer.buyerId;
     const pending = offer.status === "PENDING";
+    const accepted = offer.status === "ACCEPTED";
     return (
       <View style={styles.offerCard}>
         <Text style={styles.offerLabel}>Offer</Text>
@@ -532,6 +560,21 @@ function ChatThread({
                 />
               </>
             ) : null}
+          </View>
+        ) : null}
+        {accepted && isBuyer ? (
+          <View style={styles.offerActions}>
+            <MiniBtn
+              label="Checkout"
+              primary
+              disabled={busy}
+              onPress={() =>
+                onCheckout?.({
+                  listingId: offer.listingId,
+                  offerId: offer.id,
+                })
+              }
+            />
           </View>
         ) : null}
       </View>

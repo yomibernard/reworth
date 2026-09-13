@@ -35,6 +35,8 @@ export class UsersService {
           language: user.profile.language,
           currency: user.profile.currency,
           showFullName: user.profile.showFullName,
+          quietHoursStart: user.profile.quietHoursStart,
+          quietHoursEnd: user.profile.quietHoursEnd,
         }
       : null;
 
@@ -90,6 +92,12 @@ export class UsersService {
         ...(dto.currency !== undefined ? { currency: dto.currency } : {}),
         ...(dto.showFullName !== undefined
           ? { showFullName: dto.showFullName }
+          : {}),
+        ...(dto.quietHoursStart !== undefined
+          ? { quietHoursStart: dto.quietHoursStart }
+          : {}),
+        ...(dto.quietHoursEnd !== undefined
+          ? { quietHoursEnd: dto.quietHoursEnd }
           : {}),
       },
     });

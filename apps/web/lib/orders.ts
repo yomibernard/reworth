@@ -38,6 +38,21 @@ export type DisputeResolution =
   | "RELEASE_TO_SELLER"
   | "CANCEL";
 
+export type AddressDisclosureDto = {
+  id: string;
+  createdAt: string;
+  addressSnapshot: string;
+};
+
+export type MeetPointSummary = {
+  id: string;
+  community: string;
+  name: string;
+  landmark: string;
+  lat: number;
+  lng: number;
+};
+
 export type OrderDto = {
   id: string;
   listingId: string;
@@ -58,6 +73,9 @@ export type OrderDto = {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  meetPointId?: string | null;
+  meetPoint?: MeetPointSummary | null;
+  addressDisclosure?: AddressDisclosureDto | null;
 };
 
 export type OrderEvent = {
@@ -258,6 +276,9 @@ export function createOrder(
     offerId?: string;
     orderIntentId?: string;
     buyNow?: boolean;
+    meetPointId?: string;
+    toLat?: number;
+    toLng?: number;
   },
 ): Promise<OrderDto> {
   return apiFetch<OrderDto>("/orders", { method: "POST", token, body });

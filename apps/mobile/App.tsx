@@ -12,6 +12,12 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { ChatsPanel } from "./ChatScreens";
 import { ListingDetailModal } from "./ListingDetailModal";
+import {
+  CheckoutModal,
+  DisputeModal,
+  OrderDetailModal,
+  OrdersPanel,
+} from "./OrdersScreens";
 import { SellFlow } from "./SellFlow";
 import {
   DiscoveryHome,
@@ -63,10 +69,17 @@ export default function App() {
   const [debugHint, setDebugHint] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [homeSearchOpen, setHomeSearchOpen] = useState(false);
-  const [profileSubtab, setProfileSubtab] = useState<"account" | "saved">(
-    "account",
-  );
+  const [profileSubtab, setProfileSubtab] = useState<
+    "account" | "saved" | "orders"
+  >("account");
   const [openChatId, setOpenChatId] = useState<string | null>(null);
+  const [checkoutParams, setCheckoutParams] = useState<{
+    listingId: string;
+    offerId?: string;
+    orderIntentId?: string;
+  } | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [disputeId, setDisputeId] = useState<string | null>(null);
 
   const refreshMe = useCallback(async () => {
     const token = await getAccessToken();
@@ -432,9 +445,30 @@ export default function App() {
                   Saved
                 </Text>
               </Pressable>
+              <Pressable
+                onPress={() => setProfileSubtab("orders")}
+                style={[
+                  styles.subtab,
+                  profileSubtab === "orders" && styles.subtabActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.subtabText,
+                    profileSubtab === "orders" && styles.subtabTextActive,
+                  ]}
+                >
+                  Orders
+                </Text>
+              </Pressable>
             </View>
             {profileSubtab === "saved" ? (
               <FavouritesPanel onOpenListing={(id) => setDetailId(id)} />
+            ) : profileSubtab === "orders" ? (
+              <OrdersPanel
+                meId={me?.id ?? null}
+                onOpenOrder={(id) => setOrderId(id)}
+              />
             ) : (
               <ScrollView contentContainerStyle={styles.profilePad}>
                 <Text style={styles.brand} accessibilityRole="header">
@@ -505,6 +539,7 @@ export default function App() {
             meId={me?.id ?? ""}
             openConversationId={openChatId}
             onConversationOpened={() => setOpenChatId(null)}
+            onCheckout={(params) => setCheckoutParams(params)}
           />
         ) : (
           <>
@@ -562,6 +597,37 @@ export default function App() {
           setOpenChatId(conversationId);
           setActive("chats");
         }}
+        onBuyNow={(listingId) => {
+          setDetailId(null);
+          setCheckoutParams({ listingId });
+        }}
+      />
+
+      <CheckoutModal
+        params={checkoutParams}
+        onClose={() => setCheckoutParams(null)}
+        onPaid={(id) => {
+          setCheckoutParams(null);
+          setOrderId(id);
+          setActive("profile");
+          setProfileSubtab("orders");
+        }}
+      />
+
+      <OrderDetailModal
+        orderId={orderId}
+        meId={me?.id ?? null}
+        onClose={() => setOrderId(null)}
+        onOpenDispute={(id) => {
+          setOrderId(null);
+          setDisputeId(id);
+        }}
+      />
+
+      <DisputeModal
+        disputeId={disputeId}
+        meId={me?.id ?? null}
+        onClose={() => setDisputeId(null)}
       />
     </SafeAreaView>
   );

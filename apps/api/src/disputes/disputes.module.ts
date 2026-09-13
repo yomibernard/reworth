@@ -1,8 +1,8 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '../auth/auth.module';
-import { ChatModule } from '../chat/chat.module';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { OrdersModule } from '../orders/orders.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { DisputeSellerExpiryScheduler } from './dispute-seller-expiry.scheduler';
@@ -14,7 +14,7 @@ import { DisputesService } from './disputes.service';
     PrismaModule,
     AuthModule,
     ConfigModule,
-    ChatModule,
+    NotificationsModule,
     forwardRef(() => OrdersModule),
   ],
   controllers: [DisputesController],

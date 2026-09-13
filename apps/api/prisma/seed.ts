@@ -299,10 +299,91 @@ async function seedChatScanRules() {
   console.info(`[seed] Chat scan rules ready: ${CHAT_SCAN_RULES.length}`);
 }
 
+/** Lagos meet points — 3–5 per community (mall / café names). */
+const MEET_POINTS: {
+  community: string;
+  name: string;
+  landmark: string;
+  lat: number;
+  lng: number;
+}[] = [
+  // Lekki Phase 1
+  { community: 'Lekki Ph1', name: 'The Palms Shopping Mall', landmark: 'Near Circle Mall / Admiralty', lat: 6.4395, lng: 3.4553 },
+  { community: 'Lekki Ph1', name: 'Café Neo Admiralty', landmark: 'Admiralty Way', lat: 6.4482, lng: 3.4721 },
+  { community: 'Lekki Ph1', name: 'Spar Lekki', landmark: 'Lekki-Epe Expressway', lat: 6.4410, lng: 3.4680 },
+  { community: 'Lekki Ph1', name: 'Jazzhole Café', landmark: 'Off Admiralty Road', lat: 6.4501, lng: 3.4695 },
+  // Ikoyi
+  { community: 'Ikoyi', name: 'Parkview Estate Gate', landmark: 'Parkview', lat: 6.4508, lng: 3.4352 },
+  { community: 'Ikoyi', name: 'The Wheatbaker Lobby', landmark: 'Residence Road', lat: 6.4540, lng: 3.4301 },
+  { community: 'Ikoyi', name: 'Ikoyi Club Car Park', landmark: 'Ikoyi Club Road', lat: 6.4565, lng: 3.4278 },
+  { community: 'Ikoyi', name: 'Falomo Shopping Complex', landmark: 'Awolowo Road', lat: 6.4489, lng: 3.4210 },
+  // Victoria Island
+  { community: 'VI', name: 'Eko Hotel Lobby', landmark: 'Adetokunbo Ademola', lat: 6.4269, lng: 3.4305 },
+  { community: 'VI', name: 'The Civic Centre', landmark: 'Ozumba Mbadiwe', lat: 6.4335, lng: 3.4240 },
+  { community: 'VI', name: 'Mega Plaza VI', landmark: 'Idowu Martins', lat: 6.4288, lng: 3.4215 },
+  { community: 'VI', name: 'Cafe Neo Sanusi Fafunwa', landmark: 'Sanusi Fafunwa', lat: 6.4302, lng: 3.4228 },
+  { community: 'VI', name: 'Hard Rock Cafe VI', landmark: 'Landmark Beach', lat: 6.4255, lng: 3.4390 },
+  // Oniru
+  { community: 'Oniru', name: 'Novare Mall Oniru', landmark: 'Oniru Estate', lat: 6.4308, lng: 3.4502 },
+  { community: 'Oniru', name: 'The Place Restaurant', landmark: 'Akin Adesola area', lat: 6.4295, lng: 3.4480 },
+  { community: 'Oniru', name: 'Oniru Beach Gate', landmark: 'Beach Road', lat: 6.4270, lng: 3.4525 },
+  { community: 'Oniru', name: 'Shoprite Oniru', landmark: 'Novare precinct', lat: 6.4312, lng: 3.4495 },
+  // VGC
+  { community: 'VGC', name: 'VGC Club House', landmark: 'Main Boulevard', lat: 6.4250, lng: 3.5350 },
+  { community: 'VGC', name: 'Circle Mall VGC', landmark: 'Near Chevron Drive extension', lat: 6.4280, lng: 3.5280 },
+  { community: 'VGC', name: 'Domino\'s VGC', landmark: 'Shopping strip', lat: 6.4265, lng: 3.5310 },
+  { community: 'VGC', name: 'VGC Gate 1 Meeting Point', landmark: 'Main Gate', lat: 6.4235, lng: 3.5220 },
+  // Chevron
+  { community: 'Chevron', name: 'Chevron Toll Gate Area', landmark: 'Chevron Drive', lat: 6.4480, lng: 3.4900 },
+  { community: 'Chevron', name: 'Shoprite Chevron', landmark: 'Chevron Drive', lat: 6.4510, lng: 3.4950 },
+  { community: 'Chevron', name: 'Café One Chevron', landmark: 'Nearby plazas', lat: 6.4495, lng: 3.4925 },
+  { community: 'Chevron', name: 'Lekki Gardens Gate', landmark: 'Off Chevron', lat: 6.4530, lng: 3.4980 },
+  // Ajah
+  { community: 'Ajah', name: 'Shoprite Sangotedo', landmark: 'Abraham Adesanya', lat: 6.4680, lng: 3.5800 },
+  { community: 'Ajah', name: 'Ajah Bus Stop Plaza', landmark: 'Addo Road junction', lat: 6.4660, lng: 3.5650 },
+  { community: 'Ajah', name: 'The Palms Ajah / Novare', landmark: 'Sangotedo', lat: 6.4700, lng: 3.5750 },
+  { community: 'Ajah', name: 'Debonairs Ajah', landmark: 'Addo Road', lat: 6.4675, lng: 3.5700 },
+  { community: 'Ajah', name: 'Market Square Ajah', landmark: 'Near Thomas Estate', lat: 6.4655, lng: 3.5725 },
+];
+
+async function seedMeetPoints() {
+  for (const mp of MEET_POINTS) {
+    const existing = await prisma.meetPoint.findFirst({
+      where: { community: mp.community, name: mp.name },
+    });
+    if (existing) {
+      await prisma.meetPoint.update({
+        where: { id: existing.id },
+        data: {
+          landmark: mp.landmark,
+          lat: mp.lat,
+          lng: mp.lng,
+          active: true,
+        },
+      });
+      continue;
+    }
+    await prisma.meetPoint.create({
+      data: {
+        id: randomUUID(),
+        community: mp.community,
+        name: mp.name,
+        landmark: mp.landmark,
+        lat: mp.lat,
+        lng: mp.lng,
+        active: true,
+      },
+    });
+  }
+  // eslint-disable-next-line no-console
+  console.info(`[seed] Meet points ready: ${MEET_POINTS.length}`);
+}
+
 async function main() {
   await seedAdmin();
   await seedCategories();
   await seedChatScanRules();
+  await seedMeetPoints();
 }
 
 main()

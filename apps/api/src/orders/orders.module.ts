@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from '../auth/auth.module';
-import { ChatModule } from '../chat/chat.module';
+import { DeliveryModule } from '../delivery/delivery.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MockPsp } from '../providers/mock-psp';
 import { PAYMENT_PROVIDER } from '../providers/payment.provider';
@@ -26,7 +27,13 @@ export function createPaymentProvider(config: ConfigService) {
 }
 
 @Module({
-  imports: [PrismaModule, AuthModule, ConfigModule, ChatModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    ConfigModule,
+    NotificationsModule,
+    forwardRef(() => DeliveryModule),
+  ],
   controllers: [OrdersController],
   providers: [
     OrdersService,

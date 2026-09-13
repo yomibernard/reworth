@@ -1,4 +1,4 @@
-// ReWorth API — Phase 1–5: Auth, Listings, Discovery, Chat + Offers, Orders + Payments
+// ReWorth API — Phase 1–6: Auth … Orders + Payments + Logistics + Notifications
 
 generator client {
   provider = "prisma-client-js"
@@ -177,6 +177,27 @@ enum DisputeResolution {
   CANCEL
 }
 
+enum DeliveryShipmentStatus {
+  QUOTED
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+}
+
+enum NotificationChannel {
+  IN_APP
+  PUSH
+  EMAIL
+}
+
+enum SupportTicketStatus {
+  OPEN
+  CLOSED
+}
+
 model User {
   id              String     @id @default(uuid()) @db.Uuid
   phone           String?    @unique
@@ -222,6 +243,11 @@ model User {
   orderEvents          OrderEvent[]         @relation("OrderEventActor")
   disputesOpened       Dispute[]            @relation("DisputeOpener")
   disputeEvidence      DisputeEvidence[]
+  notifications        Notification[]
+  notificationPrefs    NotificationPreference[]
+  devicePushTokens     DevicePushToken[]
+  supportTickets       SupportTicket[]
+  addressDisclosures   AddressDisclosure[]  @relation("AddressDiscloser")
 
   @@map("users")
 }
@@ -238,6 +264,10 @@ model Profile {
   language           String  @default("en-NG")
   currency           String  @default("NGN")
   showFullName       Boolean @default(false)
+  /// Quiet hours start (inclusive), hour 0–23 in Africa/Lagos (WAT).
+  quietHoursStart    Int?
+  /// Quiet hours end (exclusive), hour 0–23 WAT. Window may wrap midnight.
+  quietHoursEnd      Int?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -716,13 +746,19 @@ model Order {
   payments    Payment[]
   payouts     Payout[]
   refunds     Refund[]
-  disputes    Dispute[]
-  orderIntent OrderIntent?
+  disputes           Dispute[]
+  orderIntent        OrderIntent?
+  meetPointId        String?            @db.Uuid
+  meetPoint          MeetPoint?         @relation(fields: [meetPointId], references: [id], onDelete: SetNull)
+  deliveryShipment   DeliveryShipment?
+  addressDisclosure  AddressDisclosure?
+  supportTickets     SupportTicket[]
 
   @@index([buyerId, createdAt])
   @@index([sellerId, createdAt])
   @@index([listingId])
   @@index([status, autoReleaseAt])
+  @@index([meetPointId])
   @@map("orders")
 }
 
@@ -880,4 +916,135 @@ model ChatScanRule {
 
   @@index([enabled])
   @@map("chat_scan_rules")
+}
+
+model MeetPoint {
+  id        String   @id @default(uuid()) @db.Uuid
+  community String
+  name      String
+  landmark  String
+  lat       Float
+  lng       Float
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  orders Order[]
+
+  @@index([community, active])
+  @@map("meet_points")
+}
+
+model DeliveryShipment {
+  id            String                 @id @default(uuid()) @db.Uuid
+  orderId       String                 @unique @db.Uuid
+  provider      String
+  providerRef   String?
+  quoteKobo     Int
+  distanceKm    Float?
+  status        DeliveryShipmentStatus @default(QUOTED)
+  etaFrom       DateTime?
+  etaTo         DateTime?
+  failureReason String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  order  Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  events DeliveryEvent[]
+
+  @@index([providerRef])
+  @@index([status])
+  @@map("delivery_shipments")
+}
+
+model DeliveryEvent {
+  id         String                 @id @default(uuid()) @db.Uuid
+  shipmentId String                 @db.Uuid
+  status     DeliveryShipmentStatus
+  payload    Json?
+  createdAt  DateTime               @default(now())
+
+  shipment DeliveryShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId, createdAt])
+  @@map("delivery_events")
+}
+
+/// One-way seller address disclosure for a funded order — never revoke.
+model AddressDisclosure {
+  id              String   @id @default(uuid()) @db.Uuid
+  orderId         String   @unique @db.Uuid
+  disclosedById   String   @db.Uuid
+  addressSnapshot String
+  createdAt       DateTime @default(now())
+
+  order       Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  disclosedBy User  @relation("AddressDiscloser", fields: [disclosedById], references: [id], onDelete: Cascade)
+
+  @@index([disclosedById])
+  @@map("address_disclosures")
+}
+
+model Notification {
+  id       String              @id @default(uuid()) @db.Uuid
+  userId   String              @db.Uuid
+  /// PRD §29 category string enum (e.g. PAYMENT_RECEIVED).
+  category String
+  channel  NotificationChannel
+  title    String
+  body     String
+  deepLink String?
+  readAt   DateTime?
+  createdAt DateTime           @default(now())
+  meta     Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@index([category])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id       String              @id @default(uuid()) @db.Uuid
+  userId   String              @db.Uuid
+  category String
+  channel  NotificationChannel
+  enabled  Boolean             @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category, channel])
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+model DevicePushToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  token     String
+  platform  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@index([userId])
+  @@map("device_push_tokens")
+}
+
+model SupportTicket {
+  id        String              @id @default(uuid()) @db.Uuid
+  orderId   String?             @db.Uuid
+  userId    String              @db.Uuid
+  subject   String
+  status    SupportTicketStatus @default(OPEN)
+  createdAt DateTime            @default(now())
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([orderId])
+  @@map("support_tickets")
 }
