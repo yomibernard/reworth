@@ -13,15 +13,15 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **2.1 — Swap & Give-Away** |
-| Prompt | Post-launch 2.1 |
-| Target tag | `v1.0-swap` |
-| Status | **Complete (pending PR merge)** |
-| Next | Prompt 2.2 — Moving Sales + Estates (`v1.1`) |
+| Phase | **2.2 — Moving Sales + Estate Communities** |
+| Prompt | Post-launch 2.2 |
+| Target tag | `v1.1` |
+| Status | **Not started** |
+| Last completed | **2.1 — Swap & Give-Away** (`v1.0-swap`, PR #11) |
 
 ## MVP
 
-Complete through `v0.9.0-rc` (PR #10). Post-launch series open.
+Complete through `v0.9.0-rc` (PR #10). Post-launch: `v1.0-swap` shipped.
 
 ## Known gaps
 
