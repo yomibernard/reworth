@@ -23,6 +23,11 @@ import {
   unfavouriteListing,
 } from "./lib/discovery";
 import { getListing } from "./lib/listings";
+import {
+  createGiveawayClaim,
+  createSwapProposal,
+  myLiveListings,
+} from "./lib/swap";
 import { formatResponseShort } from "./lib/trust";
 import {
   formatNgnFromKobo,
@@ -55,6 +60,12 @@ export function ListingDetailModal({
   const [offerOpen, setOfferOpen] = useState(false);
   const [offerNaira, setOfferNaira] = useState("");
   const [offerBusy, setOfferBusy] = useState(false);
+  const [swapOpen, setSwapOpen] = useState(false);
+  const [myListings, setMyListings] = useState<PublicListing[]>([]);
+  const [swapSelected, setSwapSelected] = useState<string | null>(null);
+  const [swapCashNaira, setSwapCashNaira] = useState("0");
+  const [swapBusy, setSwapBusy] = useState(false);
+  const [claimBusy, setClaimBusy] = useState(false);
 
   useEffect(() => {
     if (!listingId) {
@@ -156,6 +167,76 @@ export function ListingDetailModal({
       setToast(err instanceof ApiError ? err.message : "Offer failed");
     } finally {
       setOfferBusy(false);
+    }
+  }
+
+  async function openSwapSheet() {
+    const token = await getAccessToken();
+    if (!token) {
+      setToast("Sign in to propose a swap");
+      return;
+    }
+    setSwapBusy(true);
+    try {
+      const res = await myLiveListings(token);
+      const items = res.items.filter((l) => l.id !== listingId);
+      setMyListings(items);
+      setSwapSelected(items[0]?.id ?? null);
+      setSwapCashNaira("0");
+      setSwapOpen(true);
+      if (!items.length) {
+        setToast("List an item first, then propose a swap");
+      }
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "Could not load listings");
+    } finally {
+      setSwapBusy(false);
+    }
+  }
+
+  async function submitSwap() {
+    if (!listingId || !swapSelected) {
+      setToast("Pick one of your live listings");
+      return;
+    }
+    const token = await getAccessToken();
+    if (!token) {
+      setToast("Sign in to propose a swap");
+      return;
+    }
+    setSwapBusy(true);
+    try {
+      const cashComponentKobo = Math.round(Number(swapCashNaira || 0) * 100);
+      await createSwapProposal(token, listingId, {
+        offeredListingId: swapSelected,
+        cashComponentKobo: Number.isFinite(cashComponentKobo)
+          ? cashComponentKobo
+          : 0,
+      });
+      setSwapOpen(false);
+      setToast("Swap proposal sent");
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "Proposal failed");
+    } finally {
+      setSwapBusy(false);
+    }
+  }
+
+  async function claimGiveaway() {
+    if (!listingId) return;
+    const token = await getAccessToken();
+    if (!token) {
+      setToast("Sign in to claim");
+      return;
+    }
+    setClaimBusy(true);
+    try {
+      await createGiveawayClaim(token, listingId);
+      setToast("Claim sent — seller will review");
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "Claim failed");
+    } finally {
+      setClaimBusy(false);
     }
   }
 
@@ -274,29 +355,43 @@ export function ListingDetailModal({
 
             {isSwap ? (
               <Text style={[styles.copy, styles.centerText]}>
-                Interested in swapping? Chat with the seller
+                Propose a swap with one of your live listings
               </Text>
             ) : null}
 
             <View style={styles.actions}>
-              {!isSwap ? (
+              {isSwap ? (
+                <Action
+                  label={swapBusy ? "Loading…" : "Swap"}
+                  primary
+                  onPress={() => {
+                    if (!swapBusy) void openSwapSheet();
+                  }}
+                />
+              ) : isGiveAway ? (
+                <Action
+                  label={claimBusy ? "Claiming…" : "Claim this item"}
+                  primary
+                  onPress={() => {
+                    if (!claimBusy) void claimGiveaway();
+                  }}
+                />
+              ) : (
                 <>
                   <Action
                     label="Make offer"
                     onPress={() => setOfferOpen(true)}
                   />
-                  {!isGiveAway ? (
-                    <Action
-                      label="Buy now"
-                      primary
-                      onPress={() => {
-                        if (listingId) onBuyNow?.(listingId);
-                        else setToast("Coming soon");
-                      }}
-                    />
-                  ) : null}
+                  <Action
+                    label="Buy now"
+                    primary
+                    onPress={() => {
+                      if (listingId) onBuyNow?.(listingId);
+                      else setToast("Coming soon");
+                    }}
+                  />
                 </>
-              ) : null}
+              )}
               <Action
                 label={chatBusy ? "Opening…" : "Chat"}
                 onPress={() => {
@@ -347,6 +442,60 @@ export function ListingDetailModal({
                 </Text>
               </Pressable>
               <Pressable onPress={() => setOfferOpen(false)}>
+                <Text style={styles.cancel}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={swapOpen} animationType="slide" transparent>
+          <View style={styles.sheetBackdrop}>
+            <View style={styles.sheet}>
+              <Text style={styles.sheetTitle}>Propose a swap</Text>
+              {myListings.length === 0 ? (
+                <Text style={styles.muted}>
+                  You need a live listing to swap. Create one first.
+                </Text>
+              ) : (
+                <>
+                  <Text style={styles.label}>Your offer</Text>
+                  {myListings.map((l) => (
+                    <Pressable
+                      key={l.id}
+                      style={[
+                        styles.pickRow,
+                        swapSelected === l.id && styles.pickRowActive,
+                      ]}
+                      onPress={() => setSwapSelected(l.id)}
+                    >
+                      <Text style={styles.pickTitle} numberOfLines={1}>
+                        {l.title || "Untitled"}
+                      </Text>
+                      <Text style={styles.muted}>
+                        {formatNgnFromKobo(l.priceKobo)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                  <Text style={styles.label}>Cash top-up (₦)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={swapCashNaira}
+                    onChangeText={setSwapCashNaira}
+                    keyboardType="numeric"
+                    placeholder="0"
+                  />
+                  <Pressable
+                    style={[styles.primaryBtn, swapBusy && styles.disabled]}
+                    disabled={swapBusy}
+                    onPress={() => void submitSwap()}
+                  >
+                    <Text style={styles.primaryBtnText}>
+                      {swapBusy ? "Sending…" : "Send swap proposal"}
+                    </Text>
+                  </Pressable>
+                </>
+              )}
+              <Pressable onPress={() => setSwapOpen(false)}>
                 <Text style={styles.cancel}>Cancel</Text>
               </Pressable>
             </View>
@@ -522,4 +671,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   disabled: { opacity: 0.55 },
+  pickRow: {
+    borderWidth: 1,
+    borderColor: "#E5E2DC",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    backgroundColor: "#FFFFFF",
+  },
+  pickRowActive: {
+    borderColor: "#0E9F6E",
+    backgroundColor: "#ECFDF5",
+  },
+  pickTitle: { fontSize: 15, fontWeight: "600", color: "#111315" },
 });

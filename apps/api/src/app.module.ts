@@ -25,6 +25,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { RiskModule } from './risk/risk.module';
 import { SearchModule } from './search/search.module';
+import { SwapModule } from './swap/swap.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -77,6 +78,7 @@ import { UsersModule } from './users/users.module';
     FavouritesModule,
     ChatModule,
     OffersModule,
+    SwapModule,
     NotificationsModule,
     DeliveryModule,
     OrdersModule,

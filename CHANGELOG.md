@@ -1,23 +1,23 @@
 # Changelog
 
+## v1.0-swap — 2026-09-13
+
+### Added
+- Swap proposals (item + optional cash) with accept/reject/counter/withdraw; 72h expiry
+- Give-away claims with L2+ gate, single-winner approve, claim expiry
+- Order `transactionType` + dual-leg fulfilment; ADR-003 failure/reversal
+- Web PDP Swap / Claim CTAs, proposal modal, seller claims review
+- Mobile Swap sheet + Claim CTA
+- Tests: pure swap (no payment calls), swap+cash, counters, giveaway race
+
 ## v0.9.0-rc — 2026-09-13
 
 Release candidate for ReWorth MVP (Lagos recommerce).
 
 ### Added
-- Phase 10 UAT checklist (`docs/UAT.md`), demo script (`docs/DEMO.md`), launch checklist (`docs/LAUNCH.md`), incident runbook (`docs/RUNBOOK.md`)
-- Staging seed `pnpm seed:staging` (~300 users, ~2000 listings, demo Ori/Ayo/Risk)
-- Playwright golden-path e2e + Maestro mobile stubs
-- MVP §50 status table (`docs/MVP_STATUS.md`); Phase 2/3 backlog (`docs/BACKLOG_PHASE2.md`)
-
-### Included from prior phases
-- Auth, listings, discovery, chat/offers, escrow orders, logistics, notifications, trust, admin portal, risk/moderation, security/privacy docs
+- Phase 10 UAT, demo, launch, runbook docs
+- Staging seed + Playwright/Maestro golden paths
+- MVP §50 status table; Phase 2/3 backlog
 
 ### Known gaps
-- Expo/FCM/APNs push mock-only  
-- Admin TOTP policy optional  
-- Staging k6 p95 certification pending  
-- httpOnly cookie session transport deferred  
-- External pen-test, NDPR counsel, store submissions pending  
-
-See `docs/MVP_STATUS.md` and `docs/LAUNCH.md`.
+- Expo push mock-only; staging k6 certification; pen-test / NDPR / store sign-offs

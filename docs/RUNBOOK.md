@@ -88,11 +88,11 @@ Detection → mitigation → rollback → comms. Placeholders only — wire real
 - **Rollback:** Prior limits  
 - **Comms:** Soft.
 
-### 15. Data subject deletion backlog
-- **Detect:** Open delete-requests &gt; SLA  
-- **Mitigate:** Run privacy purge job; prioritize; counsel if legal hold  
+### 16. Swap / give-away leg failure
+- **Detect:** Order DISPUTED with SWAP_LEG_FAILURE / SupportTicket; one leg FAILED|RETURNED  
+- **Mitigate:** Follow ADR-003 — hold cash escrow; Ops confirms returns; full refund via dispute resolution; listings LIVE or REMOVED  
 - **Rollback:** N/A  
-- **Comms:** Acknowledge DSAR within policy window.
+- **Comms:** Both parties — “Your swap is paused while we help resolve the hand-over.”
 
 ---
 

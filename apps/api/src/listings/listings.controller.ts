@@ -42,8 +42,12 @@ export class ListingsController {
   }
 
   @Get('listings')
-  browse(@Query() query: BrowseListingsQueryDto) {
-    return this.listings.browse(query);
+  @UseGuards(OptionalJwtAuthGuard)
+  browse(
+    @Query() query: BrowseListingsQueryDto,
+    @CurrentUser() user: AuthUser | null,
+  ) {
+    return this.listings.browse(query, user?.id);
   }
 
   @Get('listings/:id')

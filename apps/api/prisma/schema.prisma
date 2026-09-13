@@ -1,4 +1,4 @@
-// ReWorth API — Phase 1–9: Auth … Trust + Admin + Risk / Moderation / Privacy
+// ReWorth API — Phase 1–10 MVP + Phase 2.1 Swap / Give-Away
 
 generator client {
   provider = "prisma-client-js"
@@ -101,7 +101,43 @@ enum MessageType {
   IMAGE
   LISTING_CARD
   OFFER_CARD
+  SWAP_PROPOSAL_CARD
+  GIVEAWAY_CLAIM
   SYSTEM
+}
+
+enum SwapProposalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTERED
+  WITHDRAWN
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum GiveawayClaimStatus {
+  CLAIMED
+  APPROVED
+  REJECTED
+  COMPLETED
+  EXPIRED
+}
+
+enum TransactionType {
+  CASH
+  SWAP
+  SWAP_CASH
+  GIVEAWAY
+}
+
+enum SwapLegStatus {
+  PENDING
+  HANDED_OVER
+  RECEIVED
+  FAILED
+  RETURNED
 }
 
 enum OfferStatus {
@@ -306,6 +342,9 @@ model User {
   moderationAppeals    ModerationAppeal[]
   moderationAppealsReviewed ModerationAppeal[] @relation("AppealReviewer")
   consentRecords       ConsentRecord[]
+  swapProposals        SwapProposal[]       @relation("SwapProposer")
+  giveawayClaims       GiveawayClaim[]      @relation("GiveawayClaimant")
+  ordersAsCashRecipient Order[]             @relation("OrderCashRecipient")
 
   @@map("users")
 }
@@ -527,6 +566,11 @@ model Listing {
   moderationDecisions  ModerationDecision[]
   moderationAppeals    ModerationAppeal[]
   riskAssessments      RiskAssessment[]
+  swapProposalsAsTarget SwapProposal[] @relation("SwapTargetListing")
+  swapProposalsOffered  SwapProposal[] @relation("SwapOfferedListing")
+  giveawayClaims        GiveawayClaim[]
+  ordersAsSwapA         Order[]        @relation("OrderSwapListingA")
+  ordersAsSwapB         Order[]        @relation("OrderSwapListingB")
 
   @@index([sellerId])
   @@index([status])
@@ -683,6 +727,7 @@ model Conversation {
   mutes             UserMute[]
   reports           Report[]
   chatResponseSample ChatResponseSample?
+  swapProposals     SwapProposal[]
 
   @@unique([listingId, buyerId, sellerId])
   @@index([buyerId, lastMessageAt])
@@ -805,6 +850,14 @@ model Order {
   autoReleaseAt     DateTime?
   fundedAt          DateTime?
   completedAt       DateTime?
+  transactionType   TransactionType  @default(CASH)
+  swapProposalId    String?          @unique @db.Uuid
+  giveawayClaimId   String?          @unique @db.Uuid
+  swapListingAId    String?          @db.Uuid
+  swapListingBId    String?          @db.Uuid
+  legAStatus        SwapLegStatus?
+  legBStatus        SwapLegStatus?
+  cashRecipientId   String?          @db.Uuid
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
@@ -812,6 +865,11 @@ model Order {
   buyer       User            @relation("OrderBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
   seller      User            @relation("OrderSeller", fields: [sellerId], references: [id], onDelete: Cascade)
   offer       Offer?          @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  swapProposal  SwapProposal? @relation(fields: [swapProposalId], references: [id], onDelete: SetNull)
+  giveawayClaim GiveawayClaim? @relation(fields: [giveawayClaimId], references: [id], onDelete: SetNull)
+  swapListingA  Listing?      @relation("OrderSwapListingA", fields: [swapListingAId], references: [id], onDelete: SetNull)
+  swapListingB  Listing?      @relation("OrderSwapListingB", fields: [swapListingBId], references: [id], onDelete: SetNull)
+  cashRecipient User?         @relation("OrderCashRecipient", fields: [cashRecipientId], references: [id], onDelete: SetNull)
   events      OrderEvent[]
   payments    Payment[]
   payouts     Payout[]
@@ -830,7 +888,59 @@ model Order {
   @@index([listingId])
   @@index([status, autoReleaseAt])
   @@index([meetPointId])
+  @@index([transactionType])
   @@map("orders")
+}
+
+model SwapProposal {
+  id                 String             @id @default(uuid()) @db.Uuid
+  listingId          String             @db.Uuid
+  proposerId         String             @db.Uuid
+  offeredListingId   String             @db.Uuid
+  /// Positive = proposer pays seller; 0 = pure swap.
+  cashComponentKobo  Int                @default(0)
+  note               String?
+  status             SwapProposalStatus @default(PENDING)
+  parentProposalId   String?            @db.Uuid
+  conversationId     String?            @db.Uuid
+  expiresAt          DateTime
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  listing        Listing       @relation("SwapTargetListing", fields: [listingId], references: [id], onDelete: Cascade)
+  offeredListing Listing       @relation("SwapOfferedListing", fields: [offeredListingId], references: [id], onDelete: Cascade)
+  proposer       User          @relation("SwapProposer", fields: [proposerId], references: [id], onDelete: Cascade)
+  parentProposal SwapProposal? @relation("SwapProposalChain", fields: [parentProposalId], references: [id], onDelete: SetNull)
+  counters       SwapProposal[] @relation("SwapProposalChain")
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  order          Order?
+
+  @@index([listingId, status])
+  @@index([proposerId, listingId, status])
+  @@index([offeredListingId])
+  @@index([expiresAt])
+  @@map("swap_proposals")
+}
+
+model GiveawayClaim {
+  id         String              @id @default(uuid()) @db.Uuid
+  listingId  String              @db.Uuid
+  claimantId String              @db.Uuid
+  status     GiveawayClaimStatus @default(CLAIMED)
+  note       String?
+  expiresAt  DateTime
+  createdAt  DateTime            @default(now())
+  reviewedAt DateTime?
+
+  listing  Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  claimant User    @relation("GiveawayClaimant", fields: [claimantId], references: [id], onDelete: Cascade)
+  order    Order?
+
+  @@unique([listingId, claimantId])
+  @@index([listingId, status])
+  @@index([claimantId])
+  @@index([expiresAt])
+  @@map("giveaway_claims")
 }
 
 model OrderEvent {

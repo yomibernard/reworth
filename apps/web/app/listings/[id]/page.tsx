@@ -13,6 +13,7 @@ import {
   Toast,
 } from "@reworth/ui-web";
 import { MakeOfferModal } from "../../../components/chat/MakeOfferModal";
+import { SwapProposalModal } from "../../../components/swap/SwapProposalModal";
 import { ApiError } from "../../../lib/api";
 import { getAccessToken } from "../../../lib/auth";
 import {
@@ -31,6 +32,7 @@ import {
   listingImageUrl,
   reportListing,
 } from "../../../lib/listings";
+import { createGiveawayClaim } from "../../../lib/swap";
 import { formatResponseShort } from "../../../lib/trust";
 import type { PublicListing } from "../../../lib/types";
 
@@ -56,6 +58,8 @@ export default function ListingPdpPage() {
   const [chatBusy, setChatBusy] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
   const [offerBusy, setOfferBusy] = useState(false);
+  const [swapOpen, setSwapOpen] = useState(false);
+  const [claimBusy, setClaimBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -473,14 +477,67 @@ export default function ListingPdpPage() {
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--rw-border)] bg-[var(--rw-bg-elevated)]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl flex-wrap gap-2 px-4 py-3 sm:px-8">
           {isSwap ? (
-            <Button
-              variant="primary"
-              className="flex-1"
-              disabled={chatBusy}
-              onClick={() => void startChat()}
-            >
-              {chatBusy ? "Opening…" : "Chat"}
-            </Button>
+            <>
+              <Button
+                variant="primary"
+                className="flex-1"
+                onClick={() => {
+                  if (!requireAuth()) return;
+                  setSwapOpen(true);
+                }}
+              >
+                Swap
+              </Button>
+              <Button
+                variant="ghost"
+                className="flex-1"
+                disabled={chatBusy}
+                onClick={() => void startChat()}
+              >
+                {chatBusy ? "Opening…" : "Chat"}
+              </Button>
+            </>
+          ) : isGiveAway ? (
+            <>
+              <Button
+                variant="primary"
+                className="flex-1"
+                disabled={claimBusy}
+                onClick={async () => {
+                  if (!id) return;
+                  const token = requireAuth();
+                  if (!token) return;
+                  setClaimBusy(true);
+                  try {
+                    await createGiveawayClaim(token, id);
+                    setToast({
+                      message: "Claim sent — seller will review",
+                      tone: "success",
+                    });
+                  } catch (err) {
+                    setToast({
+                      message:
+                        err instanceof ApiError
+                          ? err.message
+                          : "Could not claim",
+                      tone: "error",
+                    });
+                  } finally {
+                    setClaimBusy(false);
+                  }
+                }}
+              >
+                {claimBusy ? "Claiming…" : "Claim this item"}
+              </Button>
+              <Button
+                variant="ghost"
+                className="flex-1"
+                disabled={chatBusy}
+                onClick={() => void startChat()}
+              >
+                Chat
+              </Button>
+            </>
           ) : (
             <>
               <Button
@@ -493,15 +550,13 @@ export default function ListingPdpPage() {
               >
                 Make offer
               </Button>
-              {!isGiveAway ? (
-                <Button
-                  variant="primary"
-                  className="flex-1"
-                  onClick={() => buyNow()}
-                >
-                  Buy now
-                </Button>
-              ) : null}
+              <Button
+                variant="primary"
+                className="flex-1"
+                onClick={() => buyNow()}
+              >
+                Buy now
+              </Button>
               <Button
                 variant="ghost"
                 className="flex-1"
@@ -538,6 +593,17 @@ export default function ListingPdpPage() {
         onClose={() => setOfferOpen(false)}
         submitting={offerBusy}
         onSubmit={submitOffer}
+      />
+
+      <SwapProposalModal
+        open={swapOpen}
+        onClose={() => setSwapOpen(false)}
+        token={getAccessToken() ?? ""}
+        targetListingId={id ?? ""}
+        onSubmitted={() =>
+          setToast({ message: "Swap proposal sent", tone: "success" })
+        }
+        onNeedListing={() => router.push("/sell")}
       />
 
       <Modal

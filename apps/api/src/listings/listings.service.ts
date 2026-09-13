@@ -139,13 +139,17 @@ export class ListingsService {
     return toPublicListing(listing);
   }
 
-  async browse(query: BrowseListingsQueryDto) {
+  async browse(query: BrowseListingsQueryDto, viewerId?: string | null) {
     const status = (query.status as ListingStatus) || 'LIVE';
     const where: Prisma.ListingWhereInput = {
       status: status === 'LIVE' ? { in: PUBLIC_STATUSES } : status,
     };
     if (query.community) where.community = query.community;
     if (query.categoryId) where.categoryId = query.categoryId;
+    if (query.mine === '1' && viewerId) {
+      where.sellerId = viewerId;
+      where.status = status;
+    }
 
     const rows = await this.prisma.listing.findMany({
       where,

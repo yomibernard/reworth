@@ -11,6 +11,7 @@ import {
   type AuthUser,
 } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { FailLegDto } from '../swap/dto/swap.dto';
 import { CreateOrderDto } from './dto/orders.dto';
 import { OrdersService } from './orders.service';
 
@@ -47,5 +48,33 @@ export class OrdersController {
   @Post(':id/cancel')
   cancel(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.orders.cancel(id, user.id);
+  }
+
+  @Post(':id/legs/:leg/handed-over')
+  legHandedOver(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('leg') leg: string,
+  ) {
+    return this.orders.markLegHandedOver(id, leg, user.id);
+  }
+
+  @Post(':id/legs/:leg/confirm-receipt')
+  legConfirmReceipt(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('leg') leg: string,
+  ) {
+    return this.orders.confirmLegReceipt(id, leg, user.id);
+  }
+
+  @Post(':id/legs/:leg/fail')
+  legFail(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('leg') leg: string,
+    @Body() dto: FailLegDto,
+  ) {
+    return this.orders.failLeg(id, leg, user.id, dto.reason);
   }
 }

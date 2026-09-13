@@ -262,4 +262,9 @@ export class BrowseListingsQueryDto {
   @Min(1)
   @Max(50)
   limit?: number;
+
+  /** When "1", return only the authenticated seller's listings (swap picker). */
+  @IsOptional()
+  @IsString()
+  mine?: string;
 }

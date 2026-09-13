@@ -2,8 +2,9 @@ import { ConflictException } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  CREATED: ['PAYMENT_PENDING', 'CANCELLED'],
-  PAYMENT_PENDING: ['FUNDED', 'CANCELLED'],
+  // CREATED → COMPLETED / DISPUTE_HOLD: pure swap & give-away (no payment)
+  CREATED: ['PAYMENT_PENDING', 'CANCELLED', 'COMPLETED', 'DISPUTE_HOLD'],
+  PAYMENT_PENDING: ['FUNDED', 'CANCELLED', 'DISPUTE_HOLD'],
   FUNDED: ['HANDED_OVER', 'DISPUTE_HOLD', 'COMPLETED', 'CANCELLED'],
   HANDED_OVER: ['RECEIVED', 'DISPUTE_HOLD', 'COMPLETED'],
   RECEIVED: ['COMPLETED', 'DISPUTE_HOLD'],

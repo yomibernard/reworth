@@ -15,6 +15,8 @@ import {
   Order,
   OrderStatus,
   Prisma,
+  SwapLegStatus,
+  TransactionType,
 } from '@prisma/client';
 import { DeliveryService } from '../delivery/delivery.service';
 import { ListingStateMachine } from '../listings/listing-state.machine';
@@ -77,6 +79,14 @@ export type OrderDto = {
   meetPointId?: string | null;
   meetPoint?: MeetPointSummaryDto | null;
   addressDisclosure?: AddressDisclosureDto | null;
+  transactionType?: TransactionType;
+  swapProposalId?: string | null;
+  giveawayClaimId?: string | null;
+  swapListingAId?: string | null;
+  swapListingBId?: string | null;
+  legAStatus?: SwapLegStatus | null;
+  legBStatus?: SwapLegStatus | null;
+  cashRecipientId?: string | null;
 };
 
 function toOrderDto(
@@ -127,6 +137,14 @@ function toOrderDto(
           addressSnapshot: o.addressDisclosure.addressSnapshot,
         }
       : null,
+    transactionType: o.transactionType,
+    swapProposalId: o.swapProposalId,
+    giveawayClaimId: o.giveawayClaimId,
+    swapListingAId: o.swapListingAId,
+    swapListingBId: o.swapListingBId,
+    legAStatus: o.legAStatus,
+    legBStatus: o.legBStatus,
+    cashRecipientId: o.cashRecipientId,
   };
 }
 
@@ -561,6 +579,14 @@ export class OrdersService {
       await this.delivery?.assignAfterFunding(orderId);
     }
 
+    // Swap+cash: if both legs already RECEIVED, release + complete now
+    if (
+      updated.transactionType === TransactionType.SWAP_CASH &&
+      this.legsFullyReceived(updated)
+    ) {
+      return this.completeSwapOrGiveaway(orderId, null);
+    }
+
     return toOrderDto(updated);
   }
 
@@ -666,7 +692,8 @@ export class OrdersService {
       order.status !== 'RECEIVED' &&
       order.status !== 'HANDED_OVER' &&
       order.status !== 'FUNDED' &&
-      order.status !== 'DISPUTE_HOLD'
+      order.status !== 'DISPUTE_HOLD' &&
+      order.status !== 'CREATED'
     ) {
       // From RECEIVED path we already set RECEIVED; allow COMPLETED from RECEIVED
       if (!OrderStateMachine.canTransition(order.status, 'COMPLETED')) {
@@ -674,7 +701,11 @@ export class OrdersService {
       }
     }
 
-    if (order.status === 'RECEIVED' || order.status === 'DISPUTE_HOLD') {
+    if (
+      order.status === 'RECEIVED' ||
+      order.status === 'DISPUTE_HOLD' ||
+      order.status === 'CREATED'
+    ) {
       OrderStateMachine.assertTransition(order.status, 'COMPLETED');
     } else if (
       order.status === 'HANDED_OVER' ||
@@ -688,6 +719,10 @@ export class OrdersService {
     const coverageEndsAt =
       order.coverageEndsAt ??
       new Date(Date.now() + this.coverageDays() * 24 * 60 * 60 * 1000);
+
+    const listingIds = new Set<string>([order.listingId]);
+    if (order.swapListingAId) listingIds.add(order.swapListingAId);
+    if (order.swapListingBId) listingIds.add(order.swapListingBId);
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.order.update({
@@ -707,22 +742,41 @@ export class OrdersService {
         },
       });
 
-      const listing = await tx.listing.findUnique({
-        where: { id: order.listingId },
-      });
-      if (listing && listing.status !== 'SOLD') {
-        ListingStateMachine.assertTransition(listing.status, 'SOLD');
-        await tx.listing.update({
-          where: { id: listing.id },
-          data: { status: 'SOLD' },
+      for (const listingId of listingIds) {
+        const listing = await tx.listing.findUnique({
+          where: { id: listingId },
         });
-        await tx.listingEvent.create({
-          data: {
-            listingId: listing.id,
-            type: 'STATUS_CHANGED',
-            actorUserId,
-            payload: { from: listing.status, to: 'SOLD', reason: 'order_completed' },
-          },
+        if (listing && listing.status !== 'SOLD') {
+          ListingStateMachine.assertTransition(listing.status, 'SOLD');
+          await tx.listing.update({
+            where: { id: listing.id },
+            data: { status: 'SOLD' },
+          });
+          await tx.listingEvent.create({
+            data: {
+              listingId: listing.id,
+              type: 'STATUS_CHANGED',
+              actorUserId,
+              payload: {
+                from: listing.status,
+                to: 'SOLD',
+                reason: 'order_completed',
+              },
+            },
+          });
+        }
+      }
+
+      if (order.swapProposalId) {
+        await tx.swapProposal.updateMany({
+          where: { id: order.swapProposalId, status: 'ACCEPTED' },
+          data: { status: 'COMPLETED' },
+        });
+      }
+      if (order.giveawayClaimId) {
+        await tx.giveawayClaim.updateMany({
+          where: { id: order.giveawayClaimId, status: 'APPROVED' },
+          data: { status: 'COMPLETED' },
         });
       }
 
@@ -734,14 +788,25 @@ export class OrdersService {
       reason,
       sellerId: order.sellerId,
     });
-    await this.notifications.notify({
-      userId: order.sellerId,
-      category: NotificationCategory.PAYMENT_RELEASED,
-      title: 'Payout released',
-      body: 'Escrow has been released to you.',
-      deepLink: `reworth://orders/${orderId}`,
-      meta: { orderId, reason },
-    });
+    if (order.amountKobo > 0) {
+      await this.notifications.notify({
+        userId: order.sellerId,
+        category: NotificationCategory.PAYMENT_RELEASED,
+        title: 'Payout released',
+        body: 'Escrow has been released to you.',
+        deepLink: `reworth://orders/${orderId}`,
+        meta: { orderId, reason },
+      });
+    } else {
+      await this.notifications.notify({
+        userId: order.sellerId,
+        category: NotificationCategory.ITEM_SOLD,
+        title: 'Order completed',
+        body: 'Your swap / give-away order is complete.',
+        deepLink: `reworth://orders/${orderId}`,
+        meta: { orderId, reason },
+      });
+    }
 
     void Promise.all([
       this.trust?.recompute(order.buyerId, 'order_completed'),
@@ -753,6 +818,290 @@ export class OrdersService {
     );
 
     return toOrderDto(updated);
+  }
+
+  private isNonCashTransaction(order: Order): boolean {
+    return (
+      order.transactionType === TransactionType.SWAP ||
+      order.transactionType === TransactionType.GIVEAWAY ||
+      (order.transactionType === TransactionType.SWAP_CASH &&
+        order.amountKobo === 0)
+    );
+  }
+
+  private legsFullyReceived(order: Order): boolean {
+    if (order.transactionType === TransactionType.GIVEAWAY) {
+      return order.legAStatus === 'RECEIVED';
+    }
+    if (
+      order.transactionType === TransactionType.SWAP ||
+      order.transactionType === TransactionType.SWAP_CASH
+    ) {
+      return order.legAStatus === 'RECEIVED' && order.legBStatus === 'RECEIVED';
+    }
+    return false;
+  }
+
+  private parseLeg(leg: string): 'A' | 'B' {
+    const upper = leg.toUpperCase();
+    if (upper !== 'A' && upper !== 'B') {
+      throw new BadRequestException('leg must be A or B');
+    }
+    return upper;
+  }
+
+  /**
+   * Dual-leg hand-over for swap / give-away orders.
+   * Leg A = target listing (seller → buyer). Leg B = offered (buyer → seller).
+   */
+  async markLegHandedOver(
+    orderId: string,
+    legParam: string,
+    userId: string,
+  ): Promise<OrderDto> {
+    const leg = this.parseLeg(legParam);
+    const order = await this.requireOrder(orderId);
+    if (order.buyerId !== userId && order.sellerId !== userId) {
+      throw new ForbiddenException('Not a participant');
+    }
+    if (
+      order.transactionType !== TransactionType.SWAP &&
+      order.transactionType !== TransactionType.SWAP_CASH &&
+      order.transactionType !== TransactionType.GIVEAWAY
+    ) {
+      throw new BadRequestException('Order is not a swap/give-away');
+    }
+    if (leg === 'B' && order.transactionType === TransactionType.GIVEAWAY) {
+      throw new BadRequestException('Give-away orders only have leg A');
+    }
+
+    const expectedActor = leg === 'A' ? order.sellerId : order.buyerId;
+    if (userId !== expectedActor) {
+      throw new ForbiddenException(
+        leg === 'A'
+          ? 'Only the seller can hand over leg A'
+          : 'Only the buyer can hand over leg B',
+      );
+    }
+
+    const statusField = leg === 'A' ? 'legAStatus' : 'legBStatus';
+    const current = order[statusField];
+    if (current === 'HANDED_OVER' || current === 'RECEIVED') {
+      return toOrderDto(order); // idempotent
+    }
+    if (current !== 'PENDING') {
+      throw new ConflictException(`Leg ${leg} is ${current}`);
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.order.update({
+        where: { id: orderId },
+        data: { [statusField]: 'HANDED_OVER' },
+      });
+      await tx.orderEvent.create({
+        data: {
+          orderId,
+          type: `LEG_${leg}_HANDED_OVER`,
+          actorUserId: userId,
+        },
+      });
+      return row;
+    });
+
+    this.notifications.log('order.leg_handed_over', {
+      orderId,
+      leg,
+      userId,
+    });
+    return toOrderDto(updated);
+  }
+
+  async confirmLegReceipt(
+    orderId: string,
+    legParam: string,
+    userId: string,
+  ): Promise<OrderDto> {
+    const leg = this.parseLeg(legParam);
+    const order = await this.requireOrder(orderId);
+    if (order.buyerId !== userId && order.sellerId !== userId) {
+      throw new ForbiddenException('Not a participant');
+    }
+    if (
+      order.transactionType !== TransactionType.SWAP &&
+      order.transactionType !== TransactionType.SWAP_CASH &&
+      order.transactionType !== TransactionType.GIVEAWAY
+    ) {
+      throw new BadRequestException('Order is not a swap/give-away');
+    }
+    if (leg === 'B' && order.transactionType === TransactionType.GIVEAWAY) {
+      throw new BadRequestException('Give-away orders only have leg A');
+    }
+
+    // Receiver confirms: leg A → buyer; leg B → seller
+    const expectedActor = leg === 'A' ? order.buyerId : order.sellerId;
+    if (userId !== expectedActor) {
+      throw new ForbiddenException(
+        leg === 'A'
+          ? 'Only the buyer can confirm receipt of leg A'
+          : 'Only the seller can confirm receipt of leg B',
+      );
+    }
+
+    const statusField = leg === 'A' ? 'legAStatus' : 'legBStatus';
+    const current = order[statusField];
+    if (current === 'RECEIVED') {
+      return toOrderDto(order); // idempotent
+    }
+    if (current !== 'HANDED_OVER') {
+      throw new ConflictException(
+        `Leg ${leg} must be HANDED_OVER before confirm (got ${current})`,
+      );
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.order.update({
+        where: { id: orderId },
+        data: { [statusField]: 'RECEIVED' },
+      });
+      await tx.orderEvent.create({
+        data: {
+          orderId,
+          type: `LEG_${leg}_RECEIVED`,
+          actorUserId: userId,
+        },
+      });
+      return row;
+    });
+
+    this.notifications.log('order.leg_received', { orderId, leg, userId });
+
+    if (this.legsFullyReceived(updated)) {
+      return this.completeSwapOrGiveaway(orderId, userId);
+    }
+    return toOrderDto(updated);
+  }
+
+  async failLeg(
+    orderId: string,
+    legParam: string,
+    userId: string,
+    reason?: string,
+  ): Promise<OrderDto> {
+    const leg = this.parseLeg(legParam);
+    const order = await this.requireOrder(orderId);
+    if (order.buyerId !== userId && order.sellerId !== userId) {
+      throw new ForbiddenException('Not a participant');
+    }
+    if (
+      order.transactionType !== TransactionType.SWAP &&
+      order.transactionType !== TransactionType.SWAP_CASH &&
+      order.transactionType !== TransactionType.GIVEAWAY
+    ) {
+      throw new BadRequestException('Order is not a swap/give-away');
+    }
+    if (order.status === 'COMPLETED' || order.status === 'DISPUTE_HOLD') {
+      throw new ConflictException(`Order is ${order.status}`);
+    }
+
+    OrderStateMachine.assertTransition(order.status, 'DISPUTE_HOLD');
+
+    const statusField = leg === 'A' ? 'legAStatus' : 'legBStatus';
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          [statusField]: 'FAILED',
+          status: 'DISPUTE_HOLD',
+        },
+      });
+      await tx.orderEvent.create({
+        data: {
+          orderId,
+          type: `LEG_${leg}_FAILED`,
+          actorUserId: userId,
+          payload: { reason: reason ?? null },
+        },
+      });
+      await tx.supportTicket.create({
+        data: {
+          orderId,
+          userId,
+          subject: `SWAP_LEG_FAILURE leg ${leg}`,
+          status: 'OPEN',
+        },
+      });
+      await tx.riskEvent.create({
+        data: {
+          userId,
+          listingId: order.listingId,
+          kind: 'SWAP_LEG_FAILURE',
+          detail: {
+            orderId,
+            leg,
+            reason: reason ?? null,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return row;
+    });
+
+    await this.notifications.notify({
+      userId: order.buyerId,
+      category: NotificationCategory.DISPUTE_UPDATE,
+      title: 'Swap fulfilment issue',
+      body: `Leg ${leg} was marked failed. Support will follow up.`,
+      deepLink: `reworth://orders/${orderId}`,
+      meta: { orderId, leg, reason },
+    });
+    await this.notifications.notify({
+      userId: order.sellerId,
+      category: NotificationCategory.DISPUTE_UPDATE,
+      title: 'Swap fulfilment issue',
+      body: `Leg ${leg} was marked failed. Support will follow up.`,
+      deepLink: `reworth://orders/${orderId}`,
+      meta: { orderId, leg, reason },
+    });
+
+    return toOrderDto(updated);
+  }
+
+  /**
+   * Complete swap/give-away when required legs are RECEIVED.
+   * Pure swap / give-away: skip payment release.
+   * SWAP_CASH with funded escrow: release then complete.
+   */
+  async completeSwapOrGiveaway(
+    orderId: string,
+    actorUserId: string | null,
+  ): Promise<OrderDto> {
+    const order = await this.requireOrder(orderId);
+    if (!this.legsFullyReceived(order)) {
+      throw new ConflictException('Not all required legs are RECEIVED');
+    }
+    if (order.status === 'COMPLETED') return toOrderDto(order);
+
+    if (this.isNonCashTransaction(order) || order.amountKobo === 0) {
+      // Pure swap / give-away — no PaymentsService calls
+      return this.finalizeCompleted(orderId, actorUserId, 'swap_legs_complete');
+    }
+
+    // SWAP_CASH: release escrow if funded; otherwise wait for payment
+    const payment = await this.prisma.payment.findFirst({
+      where: { orderId, status: { in: ['SUCCESS', 'RELEASED'] } },
+    });
+    if (payment && payment.status !== 'RELEASED') {
+      return this.releaseEscrow(orderId, actorUserId, 'swap_legs_complete');
+    }
+    if (payment?.status === 'RELEASED') {
+      return this.finalizeCompleted(orderId, actorUserId, 'swap_legs_complete');
+    }
+
+    // Legs done but cash not funded yet — leave PAYMENT_PENDING; complete after fund
+    this.notifications.log('order.swap_legs_awaiting_payment', {
+      orderId,
+      status: order.status,
+    });
+    return toOrderDto(order);
   }
 
   async autoReleaseDue(now = new Date()): Promise<number> {

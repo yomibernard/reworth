@@ -16,6 +16,40 @@ export enum SellingMode {
   GiveAway = "GIVE_AWAY",
 }
 
+export enum TransactionType {
+  Cash = "CASH",
+  Swap = "SWAP",
+  SwapCash = "SWAP_CASH",
+  GiveAway = "GIVEAWAY",
+}
+
+export enum SwapProposalStatus {
+  Pending = "PENDING",
+  Accepted = "ACCEPTED",
+  Rejected = "REJECTED",
+  Countered = "COUNTERED",
+  Withdrawn = "WITHDRAWN",
+  Completed = "COMPLETED",
+  Cancelled = "CANCELLED",
+  Expired = "EXPIRED",
+}
+
+export enum GiveawayClaimStatus {
+  Claimed = "CLAIMED",
+  Approved = "APPROVED",
+  Rejected = "REJECTED",
+  Completed = "COMPLETED",
+  Expired = "EXPIRED",
+}
+
+export enum SwapLegStatus {
+  Pending = "PENDING",
+  HandedOver = "HANDED_OVER",
+  Received = "RECEIVED",
+  Failed = "FAILED",
+  Returned = "RETURNED",
+}
+
 export enum ItemCondition {
   New = "NEW",
   LikeNew = "LIKE_NEW",
