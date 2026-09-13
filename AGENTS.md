@@ -13,19 +13,19 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **2.2 — Moving Sales + Estate Communities** |
-| Prompt | Post-launch 2.2 |
-| Target tag | `v1.1-moving-communities` |
-| Status | **Complete (pending PR merge)** |
-| Next | Prompt 2.3 — Intelligence (`v1.2`) |
+| Phase | **2.3 — Intelligence** |
+| Prompt | Post-launch 2.3 |
+| Target tag | `v1.2` |
+| Status | **Not started** |
+| Last completed | **2.2 — Moving Sales + Estate Communities** (`v1.1-moving-communities`, PR #12) |
 
 ## MVP / post-launch
 
-MVP through `v0.9.0-rc`. Shipped: `v1.0-swap`. This branch: Moving Sales + Estate Communities.
+MVP through `v0.9.0-rc`. Shipped: `v1.0-swap`, `v1.1-moving-communities`.
 
 ## Known gaps
 
 - Expo push mock; staging k6 certification; pen-test / NDPR / store sign-offs
 - Richer chat-thread swap actions; deeper mobile community UX
 
-See `docs/PHASE_STATUS.md`, `docs/ADRS/003-swap-leg-failure-reversal.md`, `docs/RBAC.md`.
+See `docs/PHASE_STATUS.md`, `docs/RBAC.md`.

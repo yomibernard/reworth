@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 2.2 (Moving Sales + Estate Communities)** — tag `v1.1-moving-communities` pending merge.
+**Current phase: 2.3 (Intelligence)** — next tag `v1.2`.
 
 Do **not** implement features from later post-launch prompts in the same PR.
 
@@ -15,7 +15,7 @@ Do **not** implement features from later post-launch prompts in the same PR.
 
 ## Post-launch
 
-`v1.0-swap` (done) · `v1.1-moving-communities` · `v1.2` Intelligence · `v1.3` Verticals · `v2.0` AI · `v2.1` B2B
+`v1.0-swap` · `v1.1-moving-communities` (done) · `v1.2` Intelligence · `v1.3` Verticals · `v2.0` AI · `v2.1` B2B
 
 ## Resume
 
