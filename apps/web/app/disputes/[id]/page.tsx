@@ -189,6 +189,36 @@ export default function DisputeDetailPage() {
           </p>
         ) : null}
 
+        {(() => {
+          const insp = dispute.inspection ?? dispute.linkedInspection;
+          if (!insp) return null;
+          return (
+            <section
+              className="mt-6 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] p-4"
+              aria-labelledby="dispute-inspection"
+            >
+              <h2 id="dispute-inspection" className="text-sm font-semibold">
+                Linked inspection
+              </h2>
+              <p className="mt-2 text-sm text-[var(--rw-ink-muted)]">
+                Status: {insp.status ?? "—"}
+                {insp.conditionScore != null
+                  ? ` · Score ${insp.conditionScore}`
+                  : ""}
+              </p>
+              {insp.completedAt ? (
+                <time
+                  className="mt-1 block text-xs text-[var(--rw-ink-muted)]"
+                  dateTime={insp.completedAt}
+                >
+                  Completed{" "}
+                  {new Date(insp.completedAt).toLocaleDateString("en-NG")}
+                </time>
+              ) : null}
+            </section>
+          );
+        })()}
+
         {dispute.sellerResponse ? (
           <section className="mt-6 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] p-4">
             <h2 className="text-sm font-semibold">Seller response</h2>

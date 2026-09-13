@@ -110,6 +110,14 @@ export type DisputeEvidence = {
   createdAt: string;
 };
 
+export type DisputeLinkedInspection = {
+  id: string;
+  status?: string;
+  completedAt?: string | null;
+  conditionScore?: number | null;
+  listingId?: string;
+};
+
 export type DisputeDto = {
   id: string;
   orderId: string;
@@ -125,6 +133,9 @@ export type DisputeDto = {
   createdAt: string;
   evidence?: DisputeEvidence[];
   order?: OrderDto;
+  /** Phase 2.4 — linked vehicle inspection when present. */
+  inspection?: DisputeLinkedInspection | null;
+  linkedInspection?: DisputeLinkedInspection | null;
 };
 
 /** Client-side preview matching API order-fees (2.5%, cap ₦5,000). */
@@ -164,6 +175,8 @@ export function orderStatusLabel(status: string): string {
       return "Awaiting payment";
     case "FUNDED":
       return "Paid — protected";
+    case "IN_AUTHENTICATION":
+      return "In authentication";
     case "HANDED_OVER":
       return "Handed over";
     case "RECEIVED":

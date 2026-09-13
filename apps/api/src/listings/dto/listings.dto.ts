@@ -220,6 +220,11 @@ export class UpdateListingDto {
   @IsOptional()
   @IsObject()
   vehicle?: Record<string, unknown>;
+
+  /** Luxury: seller can set false → OPTED_OUT / Unauthenticated. */
+  @IsOptional()
+  @IsBoolean()
+  authRequired?: boolean;
 }
 
 export class AssistListingDto {

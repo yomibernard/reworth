@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3-verticals — 2026-09-13
+
+### Added
+- Vehicle inspection: InspectionProvider + mock, fee/PSP, report webhook, Inspected ✓ / dated badge, dispute link
+- Luxury authentication: `IN_AUTHENTICATION` order status, Authentic ✓ / Unauthenticated, auth-fail refund idempotent
+- Pro sellers: apply/approve, subscription grace/suspend, CSV bulk (max 50), storefront `/u/[handle]`
+- Referrals: codes, attribution, FREE_BOOST reward, self/device anti-abuse, admin ledger
+- Web/admin/mobile surfaces; ADR-005; tests for inspection/auth/pro/referral (9)
+
 ## v1.2-intelligence — 2026-09-13
 
 ### Added

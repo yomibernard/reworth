@@ -30,6 +30,9 @@ import { SwapModule } from './swap/swap.module';
 import { MovingSalesModule } from './moving-sales/moving-sales.module';
 import { CommunitiesModule } from './communities/communities.module';
 import { UsersModule } from './users/users.module';
+import { VerticalsModule } from './verticals/verticals.module';
+import { ProModule } from './pro/pro.module';
+import { ReferralsModule } from './referrals/referrals.module';
 
 @Module({
   imports: [
@@ -91,6 +94,9 @@ import { UsersModule } from './users/users.module';
     PaymentsModule,
     DisputesModule,
     ReviewsModule,
+    VerticalsModule,
+    ProModule,
+    ReferralsModule,
   ],
   providers: [
     {

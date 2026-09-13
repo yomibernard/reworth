@@ -321,6 +321,46 @@ export function ListingDetailModal({
             <Text style={styles.meta}>
               {listing.condition} · {listing.community || "Lagos"}
             </Text>
+            {(() => {
+              const badge = listing.inspectedBadge;
+              const inspected =
+                badge === true ||
+                (badge &&
+                  typeof badge === "object" &&
+                  Boolean(badge.inspected));
+              const auth =
+                listing.authenticationStatus === "PASSED"
+                  ? "Authentic ✓"
+                  : listing.authRequired ||
+                      (listing.authenticationStatus &&
+                        listing.authenticationStatus !== "NOT_REQUIRED")
+                    ? "Unauthenticated"
+                    : null;
+              if (!inspected && !auth && !listing.certificateId) return null;
+              return (
+                <View style={styles.badgeRow}>
+                  {inspected ? (
+                    <Text style={styles.verticalBadge}>Inspected ✓</Text>
+                  ) : null}
+                  {auth ? (
+                    <Text
+                      style={
+                        auth === "Authentic ✓"
+                          ? styles.verticalBadge
+                          : styles.verticalBadgeMuted
+                      }
+                    >
+                      {auth}
+                    </Text>
+                  ) : null}
+                  {listing.certificateId ? (
+                    <Text style={styles.verticalBadgeMuted}>
+                      Cert {listing.certificateId}
+                    </Text>
+                  ) : null}
+                </View>
+              );
+            })()}
             {listing.movingSale ? (
               <Text style={styles.chip}>
                 Moving sale: {listing.movingSale.title}
@@ -630,6 +670,35 @@ const styles = StyleSheet.create({
     color: "#111315",
   },
   meta: { marginTop: 8, fontSize: 14, color: "#5C636A" },
+  badgeRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  verticalBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#D1FAE5",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#047857",
+  },
+  verticalBadgeMuted: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "#E5E2DC",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#5C636A",
+  },
   chip: {
     marginTop: 8,
     alignSelf: "flex-start",

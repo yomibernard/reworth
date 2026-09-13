@@ -5,7 +5,9 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  Optional,
   UnauthorizedException,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -19,6 +21,7 @@ import {
 import { SMS_PROVIDER, type SmsProvider } from '../providers/sms.provider';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { ReferralsService } from '../referrals/referrals.service';
 import {
   generateOtpCode,
   hashPassword,
@@ -51,6 +54,9 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly audit: AuditService,
     @Inject(SMS_PROVIDER) private readonly sms: SmsProvider,
+    @Optional()
+    @Inject(forwardRef(() => ReferralsService))
+    private readonly referrals?: ReferralsService,
   ) {}
 
   private get otpPepper(): string {
@@ -213,6 +219,19 @@ export class AuthService {
       entityId: user.id,
       ip: ip ?? null,
     });
+
+    if (this.referrals) {
+      await this.referrals.ensureCode(user.id).catch(() => undefined);
+      if (dto.referralCode) {
+        await this.referrals
+          .attribute(user.id, {
+            code: dto.referralCode,
+            deviceFingerprintHash: dto.deviceFingerprintHash,
+          })
+          .catch(() => undefined);
+      }
+    }
+
     return { ...tokens, userId: user.id };
   }
 

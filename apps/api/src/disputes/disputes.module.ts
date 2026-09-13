@@ -6,6 +6,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrdersModule } from '../orders/orders.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { VerticalsModule } from '../verticals/verticals.module';
 import { DisputeSellerExpiryScheduler } from './dispute-seller-expiry.scheduler';
 import { DisputesController } from './disputes.controller';
 import { DisputesService } from './disputes.service';
@@ -17,6 +18,7 @@ import { DisputesService } from './disputes.service';
     ConfigModule,
     NotificationsModule,
     forwardRef(() => OrdersModule),
+    forwardRef(() => VerticalsModule),
   ],
   controllers: [DisputesController],
   providers: [

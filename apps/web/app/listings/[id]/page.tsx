@@ -36,6 +36,17 @@ import {
 } from "../../../lib/listings";
 import { createGiveawayClaim } from "../../../lib/swap";
 import { formatResponseShort } from "../../../lib/trust";
+import {
+  formatInspectedDate,
+  getInspectionReport,
+  getListingInspectionReport,
+  isLuxuryListing,
+  isVehicleListing,
+  luxuryAuthLabel,
+  requestInspection,
+  resolveInspectedBadge,
+  type InspectionReport,
+} from "../../../lib/verticals";
 import type {
   MeResponse,
   PriceIntelligence,
@@ -70,6 +81,11 @@ export default function ListingPdpPage() {
   const [meId, setMeId] = useState<string | null>(null);
   const [similar, setSimilar] = useState<PublicListing[]>([]);
   const [priceIntel, setPriceIntel] = useState<PriceIntelligence | null>(null);
+  const [reportViewerOpen, setReportViewerOpen] = useState(false);
+  const [inspectionReport, setInspectionReport] =
+    useState<InspectionReport | null>(null);
+  const [inspectionBusy, setInspectionBusy] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -262,6 +278,57 @@ export default function ListingPdpPage() {
     }
   }
 
+  async function openInspectionReport() {
+    if (!listing) return;
+    const badge = resolveInspectedBadge(listing);
+    setReportViewerOpen(true);
+    setReportLoading(true);
+    setInspectionReport(null);
+    try {
+      const token = getAccessToken();
+      if (badge.inspectionId) {
+        const report = await getInspectionReport(badge.inspectionId, token);
+        setInspectionReport(report);
+      } else {
+        const report = await getListingInspectionReport(listing.id, token);
+        setInspectionReport(report);
+      }
+    } catch (err) {
+      setToast({
+        message:
+          err instanceof ApiError
+            ? err.message
+            : "Inspection report unavailable",
+        tone: "error",
+      });
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
+  async function onRequestInspection() {
+    if (!id) return;
+    const token = requireAuth();
+    if (!token) return;
+    setInspectionBusy(true);
+    try {
+      await requestInspection(id, token);
+      setToast({
+        message: "Inspection requested — pay & schedule next",
+        tone: "success",
+      });
+      await load();
+    } catch (err) {
+      setToast({
+        message:
+          err instanceof ApiError ? err.message : "Could not request inspection",
+        tone: "error",
+      });
+    } finally {
+      setInspectionBusy(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="min-h-[100dvh] bg-[var(--rw-bg)] px-4 py-8 sm:px-8">
@@ -302,6 +369,11 @@ export default function ListingPdpPage() {
   if (listing.fulfilmentPickup) fulfilment.push("Pickup");
   if (listing.fulfilmentMeet) fulfilment.push("Meet point");
   if (listing.fulfilmentDelivery) fulfilment.push("Delivery (quote at checkout)");
+
+  const inspected = resolveInspectedBadge(listing);
+  const authLabel = luxuryAuthLabel(listing);
+  const vehicleListing = isVehicleListing(listing);
+  const luxuryListing = isLuxuryListing(listing);
 
   return (
     <main className="relative min-h-[100dvh] bg-[var(--rw-bg)] text-[var(--rw-ink)]">
@@ -398,6 +470,65 @@ export default function ListingPdpPage() {
           <h1 className="mt-3 text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
             {listing.title || "Untitled listing"}
           </h1>
+          {(inspected.inspected || authLabel || listing.certificateId) && (
+            <ul
+              className="mt-3 flex flex-wrap gap-2"
+              aria-label="Trust badges"
+            >
+              {inspected.inspected ? (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => void openInspectionReport()}
+                    className="inline-flex items-center rounded-[var(--rw-radius)] bg-[var(--rw-success-muted)] px-3 py-1.5 text-sm font-semibold text-[var(--rw-success)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+                  >
+                    Inspected ✓
+                    {inspected.completedAt
+                      ? ` · ${formatInspectedDate(inspected.completedAt)}`
+                      : ""}
+                  </button>
+                </li>
+              ) : null}
+              {authLabel ? (
+                <li>
+                  <span
+                    className={[
+                      "inline-flex items-center rounded-[var(--rw-radius)] px-3 py-1.5 text-sm font-semibold",
+                      authLabel === "Authentic ✓"
+                        ? "bg-[var(--rw-success-muted)] text-[var(--rw-success)]"
+                        : "border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] text-[var(--rw-ink-muted)]",
+                    ].join(" ")}
+                  >
+                    {authLabel}
+                  </span>
+                </li>
+              ) : null}
+              {listing.certificateId ? (
+                <li>
+                  <span className="inline-flex items-center rounded-[var(--rw-radius)] border border-[var(--rw-border)] px-3 py-1.5 font-mono text-xs text-[var(--rw-ink-muted)]">
+                    Cert {listing.certificateId}
+                  </span>
+                </li>
+              ) : null}
+            </ul>
+          )}
+          {vehicleListing && !inspected.inspected ? (
+            <p className="mt-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={inspectionBusy}
+                onClick={() => void onRequestInspection()}
+              >
+                {inspectionBusy ? "Requesting…" : "Request inspection"}
+              </Button>
+            </p>
+          ) : null}
+          {luxuryListing && listing.authRequired ? (
+            <p className="mt-2 text-xs text-[var(--rw-ink-muted)]">
+              Luxury authentication required before sale completes.
+            </p>
+          ) : null}
           <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-sm text-[var(--rw-ink-muted)]">
             <span>
               {CONDITION_LABELS[listing.condition] ?? listing.condition}
@@ -729,6 +860,73 @@ export default function ListingPdpPage() {
             {reporting ? "Sending…" : "Submit report"}
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        open={reportViewerOpen}
+        onClose={() => setReportViewerOpen(false)}
+        title="Inspection report"
+      >
+        {reportLoading ? (
+          <div className="space-y-3" aria-busy="true">
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ) : inspectionReport ? (
+          <div className="flex flex-col gap-3 text-sm">
+            <p>
+              <span className="text-[var(--rw-ink-muted)]">Status · </span>
+              <span className="font-medium">{inspectionReport.status}</span>
+            </p>
+            {inspectionReport.conditionScore != null ? (
+              <p>
+                <span className="text-[var(--rw-ink-muted)]">
+                  Condition score ·{" "}
+                </span>
+                <span className="font-medium">
+                  {inspectionReport.conditionScore}
+                </span>
+              </p>
+            ) : null}
+            {inspectionReport.verifiedMileage != null ? (
+              <p>
+                <span className="text-[var(--rw-ink-muted)]">Mileage · </span>
+                <span className="font-medium">
+                  {inspectionReport.verifiedMileage.toLocaleString("en-NG")} km
+                </span>
+              </p>
+            ) : null}
+            {inspectionReport.registrationOk != null ? (
+              <p>
+                Registration{" "}
+                {inspectionReport.registrationOk ? "verified ✓" : "issue noted"}
+              </p>
+            ) : null}
+            {inspectionReport.accidentNotes ? (
+              <p className="text-[var(--rw-ink-muted)]">
+                {inspectionReport.accidentNotes}
+              </p>
+            ) : null}
+            {inspectionReport.tyreBatteryNotes ? (
+              <p className="text-[var(--rw-ink-muted)]">
+                {inspectionReport.tyreBatteryNotes}
+              </p>
+            ) : null}
+            {inspectionReport.completedAt ? (
+              <time
+                className="text-xs text-[var(--rw-ink-muted)]"
+                dateTime={inspectionReport.completedAt}
+              >
+                Completed{" "}
+                {formatInspectedDate(inspectionReport.completedAt)}
+              </time>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--rw-ink-muted)]">
+            Report not available.
+          </p>
+        )}
       </Modal>
 
       {toast ? (

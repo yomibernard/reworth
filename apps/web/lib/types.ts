@@ -98,6 +98,22 @@ export type PublicListingMovingSale = {
   status: string;
 };
 
+/** Phase 2.4 — luxury authentication status on public listings. */
+export type AuthenticationStatusValue =
+  | "NOT_REQUIRED"
+  | "REQUIRED"
+  | "PENDING"
+  | "PASSED"
+  | "FAILED"
+  | "OPTED_OUT"
+  | string;
+
+export type InspectedBadge = {
+  inspected: boolean;
+  completedAt?: string | null;
+  inspectionId?: string | null;
+};
+
 export type PublicListing = {
   id: string;
   title: string;
@@ -129,6 +145,15 @@ export type PublicListing = {
   createdAt: string;
   publishedAt: string | null;
   vehicle?: Record<string, unknown> | null;
+  /** Phase 2.4 — vehicle inspection public badge (object or boolean). */
+  inspectedBadge?: InspectedBadge | boolean | null;
+  inspectedAt?: string | null;
+  inspectionId?: string | null;
+  /** Phase 2.4 — luxury: require authentication before sale. */
+  authRequired?: boolean;
+  authenticationStatus?: AuthenticationStatusValue | null;
+  certificateId?: string | null;
+  authenticatedAt?: string | null;
 };
 
 export type CategoryNode = {
@@ -260,6 +285,10 @@ export type CreateListingBody = {
   fulfilmentPickup?: boolean;
   fulfilmentMeet?: boolean;
   fulfilmentDelivery?: boolean;
+  /** Phase 2.4 — vehicle attributes (VIN stripped server-side on public DTO). */
+  vehicle?: Record<string, unknown> | null;
+  /** Phase 2.4 — luxury authentication gate. */
+  authRequired?: boolean;
 };
 
 export type UpdateListingBody = CreateListingBody;

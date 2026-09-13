@@ -195,6 +195,7 @@ enum OrderStatus {
   CREATED
   PAYMENT_PENDING
   FUNDED
+  IN_AUTHENTICATION
   HANDED_OVER
   RECEIVED
   COMPLETED
@@ -202,6 +203,57 @@ enum OrderStatus {
   DISPUTE_HOLD
   REFUND_REQUESTED
   REFUND_ISSUED
+}
+
+enum InspectionStatus {
+  REQUESTED
+  PAYMENT_PENDING
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum AuthenticationStatus {
+  NOT_REQUIRED
+  REQUIRED
+  PENDING
+  PASSED
+  FAILED
+  OPTED_OUT
+}
+
+enum LuxuryAuthJobStatus {
+  PENDING
+  IN_PROGRESS
+  PASSED
+  FAILED
+  CANCELLED
+}
+
+enum ProAccountStatus {
+  APPLIED
+  APPROVED
+  ACTIVE
+  GRACE
+  SUSPENDED
+  REJECTED
+}
+
+enum BulkUploadStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ReferralRewardStatus {
+  PENDING
+  GRANTED
+  BLOCKED
+  FLAGGED
 }
 
 enum FulfilmentMethod {
@@ -378,6 +430,15 @@ model User {
   communityMemberships CommunityMembership[]
   communityInvitesCreated CommunityInvite[] @relation("CommunityInviteCreator")
   communityManagers    CommunityManager[]
+  vehicleInspectionsRequested VehicleInspection[] @relation("InspectionRequester")
+  luxuryAuthJobsAsBuyer LuxuryAuthJob[] @relation("LuxuryAuthBuyer")
+  luxuryAuthJobsAsSeller LuxuryAuthJob[] @relation("LuxuryAuthSeller")
+  proAccount           ProAccount?
+  bulkUploadJobs       BulkUploadJob[]
+  referralCodeOwned    ReferralCode?
+  referralsMade        ReferralAttribution[] @relation("ReferralReferrer")
+  referralAsReferred   ReferralAttribution?  @relation("ReferralReferred")
+  referralRewards      ReferralReward[]
 
   @@map("users")
 }
@@ -386,6 +447,8 @@ model Profile {
   id                 String  @id @default(uuid()) @db.Uuid
   userId             String  @unique @db.Uuid
   displayName        String
+  /// Public storefront handle (pro sellers); unique when set.
+  handle             String? @unique
   fullName           String?
   avatarUrl          String?
   bio                String?
@@ -584,6 +647,11 @@ model Listing {
   views              Int           @default(0)
   vehicle            Json?
   riskFlags          String[]      @default([])
+  /// Luxury: require authentication before sale (default true for luxury category).
+  authRequired       Boolean       @default(false)
+  authenticationStatus AuthenticationStatus @default(NOT_REQUIRED)
+  certificateId      String?
+  authenticatedAt    DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
@@ -611,6 +679,8 @@ model Listing {
   giveawayClaims        GiveawayClaim[]
   ordersAsSwapA         Order[]        @relation("OrderSwapListingA")
   ordersAsSwapB         Order[]        @relation("OrderSwapListingB")
+  vehicleInspections    VehicleInspection[]
+  luxuryAuthJobs        LuxuryAuthJob[]
 
   @@index([sellerId])
   @@index([status])
@@ -621,6 +691,7 @@ model Listing {
   @@index([city])
   @@index([publishedAt])
   @@index([expiresAt])
+  @@index([authenticationStatus])
   @@map("listings")
 }
 
@@ -1033,6 +1104,7 @@ model Order {
   addressDisclosure  AddressDisclosure?
   supportTickets     SupportTicket[]
   reviews            Review[]
+  luxuryAuthJob      LuxuryAuthJob?
 
   @@index([buyerId, createdAt])
   @@index([sellerId, createdAt])
@@ -1801,4 +1873,175 @@ model ConsentRecord {
   @@unique([userId, channel])
   @@index([userId])
   @@map("consent_records")
+}
+
+/// Vehicle inspection partner report (PRD §27).
+model VehicleInspection {
+  id              String           @id @default(uuid()) @db.Uuid
+  listingId       String           @db.Uuid
+  requesterId     String           @db.Uuid
+  status          InspectionStatus @default(REQUESTED)
+  feeKobo         Int
+  paymentRef      String?
+  scheduledAt     DateTime?
+  slotLabel       String?
+  partnerRef      String?
+  conditionScore  Int?
+  verifiedMileage Int?
+  accidentNotes   String?
+  tyreBatteryNotes String?
+  registrationOk  Boolean?
+  reportPhotos    Json             @default("[]")
+  reportChecklist Json             @default("{}")
+  completedAt     DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  requester User    @relation("InspectionRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, status])
+  @@index([requesterId])
+  @@index([expiresAt])
+  @@map("vehicle_inspections")
+}
+
+/// Luxury authentication job (ship-to-auth / meet-and-auth).
+model LuxuryAuthJob {
+  id            String              @id @default(uuid()) @db.Uuid
+  listingId     String              @db.Uuid
+  orderId       String              @unique @db.Uuid
+  buyerId       String              @db.Uuid
+  sellerId      String              @db.Uuid
+  status        LuxuryAuthJobStatus @default(PENDING)
+  feeKobo       Int
+  mode          String              @default("SHIP_TO_AUTH")
+  partnerRef    String?
+  certificateId String?
+  evidenceJson  Json                @default("{}")
+  failReason    String?
+  completedAt   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  buyer   User    @relation("LuxuryAuthBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller  User    @relation("LuxuryAuthSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, status])
+  @@index([status])
+  @@map("luxury_auth_jobs")
+}
+
+model ProAccount {
+  id                 String           @id @default(uuid()) @db.Uuid
+  userId             String           @unique @db.Uuid
+  status             ProAccountStatus @default(APPLIED)
+  tier               String           @default("STANDARD")
+  businessName       String
+  businessDetails    Json             @default("{}")
+  sampleListingIds   String[]         @default([])
+  applicationNotes   String?
+  reviewedById       String?          @db.Uuid
+  reviewedAt         DateTime?
+  subscriptionRef    String?
+  subscriptionStatus String           @default("none")
+  mrrKobo            Int              @default(0)
+  currentPeriodEnd   DateTime?
+  graceUntil         DateTime?
+  warningCount       Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bulkUploadJobs BulkUploadJob[]
+
+  @@index([status])
+  @@map("pro_accounts")
+}
+
+model BulkUploadJob {
+  id           String           @id @default(uuid()) @db.Uuid
+  userId       String           @db.Uuid
+  proAccountId String           @db.Uuid
+  status       BulkUploadStatus @default(PENDING)
+  rowCount     Int              @default(0)
+  successCount Int              @default(0)
+  errorCount   Int              @default(0)
+  errorsJson   Json             @default("[]")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proAccount ProAccount @relation(fields: [proAccountId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("bulk_upload_jobs")
+}
+
+model ReferralCode {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid
+  code      String   @unique
+  createdAt DateTime @default(now())
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attributions ReferralAttribution[]
+
+  @@map("referral_codes")
+}
+
+model ReferralAttribution {
+  id              String   @id @default(uuid()) @db.Uuid
+  referralCodeId  String   @db.Uuid
+  referrerId      String   @db.Uuid
+  referredUserId  String   @unique @db.Uuid
+  deviceFingerprintHash String?
+  registeredAt    DateTime @default(now())
+  phoneVerifiedAt DateTime?
+  firstTxnAt      DateTime?
+  riskFlagged     Boolean  @default(false)
+  riskReason      String?
+
+  referralCode ReferralCode     @relation(fields: [referralCodeId], references: [id], onDelete: Cascade)
+  referrer     User             @relation("ReferralReferrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referred     User             @relation("ReferralReferred", fields: [referredUserId], references: [id], onDelete: Cascade)
+  rewards      ReferralReward[]
+
+  @@index([referrerId])
+  @@index([deviceFingerprintHash])
+  @@map("referral_attributions")
+}
+
+model ReferralReward {
+  id            String               @id @default(uuid()) @db.Uuid
+  attributionId String               @db.Uuid
+  userId        String               @db.Uuid
+  status        ReferralRewardStatus @default(PENDING)
+  rewardType    String               @default("FREE_BOOST")
+  meta          Json                 @default("{}")
+  grantedAt     DateTime?
+  createdAt     DateTime             @default(now())
+
+  attribution ReferralAttribution @relation(fields: [attributionId], references: [id], onDelete: Cascade)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([attributionId])
+  @@map("referral_rewards")
+}
+
+model ReferralProgrammeConfig {
+  id                    String   @id @default(uuid()) @db.Uuid
+  key                   String   @unique @default("default")
+  rewardType            String   @default("FREE_BOOST")
+  maxRewardsPerReferrerPerDay Int @default(10)
+  active                Boolean  @default(true)
+  updatedAt             DateTime @updatedAt
+  createdAt             DateTime @default(now())
+
+  @@map("referral_programme_config")
 }
