@@ -138,6 +138,12 @@ export default function HomePage() {
           <Link href="/my" className="hidden text-sm font-medium text-[var(--rw-ink-muted)] hover:text-[var(--rw-ink)] sm:inline">
             Saved
           </Link>
+          <Link
+            href="/ask"
+            className="hidden text-sm font-medium text-[var(--rw-ink-muted)] hover:text-[var(--rw-ink)] md:inline"
+          >
+            Ask
+          </Link>
           <Link href="/sell">
             <Button variant="sell" size="sm" aria-label="Start selling">
               SELL
@@ -154,6 +160,35 @@ export default function HomePage() {
           <p className="mt-2 max-w-xl text-[var(--rw-ink-muted)]">
             Lagos, your unused things are worth something.
           </p>
+          <nav
+            aria-label="AI & platform tools"
+            className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium"
+          >
+            <Link
+              href="/ask"
+              className="text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Ask ReWorth
+            </Link>
+            <Link
+              href="/room-scan"
+              className="text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Room scan
+            </Link>
+            <Link
+              href="/worth"
+              className="text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              What&apos;s it worth
+            </Link>
+            <Link
+              href="/consign"
+              className="text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Consign
+            </Link>
+          </nav>
         </section>
 
         <section

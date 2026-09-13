@@ -7,6 +7,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { MockPsp } from '../providers/mock-psp';
 import { PAYMENT_PROVIDER } from '../providers/payment.provider';
 import { PaystackAdapter } from '../providers/paystack.adapter';
+import { PlatformServicesModule } from '../platform-services/platform-services.module';
 import { ReferralsModule } from '../referrals/referrals.module';
 import { ReviewsModule } from '../reviews/reviews.module';
 import { VerticalsModule } from '../verticals/verticals.module';
@@ -38,6 +39,7 @@ export function createPaymentProvider(config: ConfigService) {
     ReviewsModule,
     forwardRef(() => DeliveryModule),
     forwardRef(() => VerticalsModule),
+    forwardRef(() => PlatformServicesModule),
     ReferralsModule,
   ],
   controllers: [OrdersController],

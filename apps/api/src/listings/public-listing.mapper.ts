@@ -75,6 +75,8 @@ export type PublicListingDto = {
   authRequired?: boolean;
   authenticationStatus?: string | null;
   proSellerBadge?: string | null;
+  instantBuyEligible?: boolean;
+  instantBuyBadge?: 'Instant Buy' | null;
 };
 
 type ListingWithRelations = {
@@ -103,6 +105,7 @@ type ListingWithRelations = {
   addressPrivate?: string | null;
   authRequired?: boolean;
   authenticationStatus?: string | null;
+  instantBuyEligible?: boolean;
   category?: { id: string; slug: string; name: string } | null;
   estateCommunity?: {
     id: string;
@@ -295,6 +298,8 @@ export function toPublicListing(
       ['ACTIVE', 'GRACE'].includes(listing.seller.proAccount.status)
         ? 'Pro Seller'
         : null,
+    instantBuyEligible: listing.instantBuyEligible ?? false,
+    instantBuyBadge: listing.instantBuyEligible ? 'Instant Buy' : null,
   };
 
   // Hard privacy guarantee — strip any accidental private keys

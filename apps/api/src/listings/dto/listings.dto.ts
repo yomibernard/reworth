@@ -117,6 +117,10 @@ export class CreateListingDto {
   @IsOptional()
   @IsObject()
   vehicle?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsBoolean()
+  instantBuyEligible?: boolean;
 }
 
 export class UpdateListingDto {
@@ -225,6 +229,10 @@ export class UpdateListingDto {
   @IsOptional()
   @IsBoolean()
   authRequired?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  instantBuyEligible?: boolean;
 }
 
 export class AssistListingDto {

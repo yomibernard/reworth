@@ -189,3 +189,58 @@ export enum ReferralRewardStatus {
   Blocked = "BLOCKED",
   Flagged = "FLAGGED",
 }
+
+export enum AssistantMessageRole {
+  User = "USER",
+  Assistant = "ASSISTANT",
+  System = "SYSTEM",
+  Tool = "TOOL",
+}
+
+export enum RoomScanStatus {
+  Uploaded = "UPLOADED",
+  Detecting = "DETECTING",
+  Ready = "READY",
+  DraftsCreated = "DRAFTS_CREATED",
+  Failed = "FAILED",
+  Cancelled = "CANCELLED",
+}
+
+export enum InstantBuyFulfilmentStatus {
+  PendingPickup = "PENDING_PICKUP",
+  PickedUp = "PICKED_UP",
+  InTransit = "IN_TRANSIT",
+  Delivered = "DELIVERED",
+  Confirmed = "CONFIRMED",
+  SlaBreached = "SLA_BREACHED",
+  Refunded = "REFUNDED",
+  Cancelled = "CANCELLED",
+}
+
+export enum ConsignmentStatus {
+  Intake = "INTAKE",
+  Listed = "LISTED",
+  Sold = "SOLD",
+  Returned = "RETURNED",
+  Expired = "EXPIRED",
+  Cancelled = "CANCELLED",
+}
+
+export enum ManagedPickupStatus {
+  Booked = "BOOKED",
+  Assigned = "ASSIGNED",
+  Completed = "COMPLETED",
+  Cancelled = "CANCELLED",
+  NoShow = "NO_SHOW",
+}
+
+export enum AssistantToolName {
+  Search = "search",
+  Bundle = "bundle",
+  Valuation = "valuation",
+  ListingHelp = "listing_help",
+  OrderHelp = "order_help",
+  MarketplaceQa = "marketplace_qa",
+  CreateListing = "create_listing",
+  MakeOffer = "make_offer",
+}

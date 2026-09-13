@@ -91,6 +91,8 @@ export type PublicListing = {
   authRequired?: boolean;
   authenticationStatus?: string | null;
   certificateId?: string | null;
+  /** Phase 3.1 — Instant Buy eligible. */
+  instantBuyEligible?: boolean;
 };
 
 export type PriceIntelligence = {

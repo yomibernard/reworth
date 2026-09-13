@@ -154,6 +154,8 @@ export type PublicListing = {
   authenticationStatus?: AuthenticationStatusValue | null;
   certificateId?: string | null;
   authenticatedAt?: string | null;
+  /** Phase 3.1 — Instant Buy (platform-fulfilled BIN). */
+  instantBuyEligible?: boolean;
 };
 
 export type CategoryNode = {
@@ -400,4 +402,283 @@ export type MeFavouritesResponse = {
   items: FavouriteItem[];
   sellers: FollowedSeller[];
   searches: SavedSearch[];
+};
+
+/* ─── Phase 3.1 — AI & Platform Services ─────────────────────────────── */
+
+export type AssistantMessageRole =
+  | "USER"
+  | "ASSISTANT"
+  | "SYSTEM"
+  | "TOOL";
+
+export type AssistantSession = {
+  id: string;
+  userId: string;
+  city: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AssistantToolSearchResult = {
+  type: "search";
+  listings: PublicListing[];
+  query?: string;
+};
+
+export type AssistantToolBundleResult = {
+  type: "bundle";
+  brief: string;
+  budgetKobo: number;
+  totalKobo: number;
+  listings: PublicListing[];
+  shareToken?: string | null;
+  /** Present when saving the bundle requires explicit confirm. */
+  actionId?: string;
+  confirmToken?: string;
+};
+
+export type AssistantToolValuationResult = {
+  type: "valuation";
+  result: ValuationCard;
+  listingId?: string | null;
+};
+
+export type AssistantToolMutationPending = {
+  type: "mutation_pending";
+  actionId: string;
+  confirmToken: string;
+  toolName: string;
+  summary: string;
+};
+
+export type AssistantToolResult =
+  | AssistantToolSearchResult
+  | AssistantToolBundleResult
+  | AssistantToolValuationResult
+  | AssistantToolMutationPending
+  | { type: string; [key: string]: unknown };
+
+export type AssistantMessage = {
+  id: string;
+  sessionId: string;
+  role: AssistantMessageRole | string;
+  content: string;
+  toolName?: string | null;
+  toolPayload?: AssistantToolResult | AssistantToolResult[] | Record<string, unknown> | null;
+  createdAt: string;
+};
+
+export type AssistantSessionDetail = AssistantSession & {
+  messages: AssistantMessage[];
+};
+
+export type AssistantSendMessageResponse = {
+  userMessage: AssistantMessage;
+  assistantMessage: AssistantMessage;
+  toolResults?: AssistantToolResult[];
+};
+
+export type AssistantConfirmResponse = {
+  ok: boolean;
+  actionId: string;
+  result?: unknown;
+  message?: string;
+};
+
+export type SavedBundle = {
+  id: string;
+  userId?: string;
+  city: string;
+  brief: string;
+  budgetKobo: number;
+  listingIds: string[];
+  totalKobo: number;
+  shareToken: string;
+  createdAt: string;
+  /** Full PublicListing or lightweight share preview rows from BundleService. */
+  listings?: Array<
+    | PublicListing
+    | {
+        id: string;
+        title: string;
+        priceKobo: number;
+        city?: string;
+        status?: string;
+      }
+  >;
+};
+
+export type RoomScanStatusValue =
+  | "UPLOADED"
+  | "DETECTING"
+  | "READY"
+  | "DRAFTS_CREATED"
+  | "FAILED"
+  | "CANCELLED"
+  | string;
+
+export type RoomScanItem = {
+  id: string;
+  roomScanId: string;
+  label: string;
+  brandHint?: string | null;
+  categoryHint?: string | null;
+  cropKey?: string | null;
+  bbox?: unknown;
+  selected: boolean;
+  condition: string;
+  sortOrder: number;
+};
+
+export type RoomScanDraft = {
+  id: string;
+  roomScanId: string;
+  listingId: string;
+  itemLabel: string;
+  listing?: PublicListing | null;
+};
+
+export type RoomScan = {
+  id: string;
+  userId: string;
+  city: string;
+  status: RoomScanStatusValue;
+  photoKeys: string[];
+  detections?: unknown;
+  draftBatchId?: string | null;
+  errorMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items?: RoomScanItem[];
+  drafts?: RoomScanDraft[];
+};
+
+export type RoomScanDraftBatchAction =
+  | "publish"
+  | "edit"
+  | "discard";
+
+export type ValuationCard = {
+  currency?: string;
+  estimatedLowKobo: number;
+  estimatedHighKobo: number;
+  recommendedKobo: number;
+  quickSaleKobo?: number;
+  maxValueKobo?: number;
+  confidenceLabel?: string;
+  sampleCount?: number;
+  city?: string;
+  label?: string;
+  categoryHint?: string | null;
+  brandHint?: string | null;
+  basis?: string;
+};
+
+export type ValuationResponse = {
+  id?: string;
+  source: string;
+  city: string;
+  photoKey?: string | null;
+  listingId?: string | null;
+  result: ValuationCard;
+  createdAt?: string;
+};
+
+export type InstantBuyFulfilmentStatusValue =
+  | "PENDING_PICKUP"
+  | "PICKED_UP"
+  | "IN_TRANSIT"
+  | "DELIVERED"
+  | "CONFIRMED"
+  | "SLA_BREACHED"
+  | "REFUNDED"
+  | "CANCELLED"
+  | string;
+
+export type InstantBuyFulfilment = {
+  id: string;
+  orderId: string;
+  listingId: string;
+  status: InstantBuyFulfilmentStatusValue;
+  slaDeadlineAt: string;
+  pickedUpAt?: string | null;
+  deliveredAt?: string | null;
+  confirmedAt?: string | null;
+  refundedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ConsignmentStatusValue =
+  | "INTAKE"
+  | "LISTED"
+  | "SOLD"
+  | "RETURNED"
+  | "EXPIRED"
+  | "CANCELLED"
+  | string;
+
+export type Consignment = {
+  id: string;
+  consignorId: string;
+  listingId?: string | null;
+  status: ConsignmentStatusValue;
+  city: string;
+  title: string;
+  floorPriceKobo: number;
+  askingPriceKobo: number;
+  feeBps: number;
+  soldPriceKobo?: number | null;
+  feeKobo?: number | null;
+  netPayoutKobo?: number | null;
+  listedAt?: string | null;
+  soldAt?: string | null;
+  returnBy?: string | null;
+  returnedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  listing?: PublicListing | null;
+};
+
+export type ConsignmentEarnings = {
+  currency: string;
+  listedCount: number;
+  soldCount: number;
+  pendingPayoutKobo: number;
+  paidOutKobo: number;
+  totalFeesKobo: number;
+  items: Consignment[];
+};
+
+export type ManagedPickupStatusValue =
+  | "BOOKED"
+  | "ASSIGNED"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "NO_SHOW"
+  | string;
+
+export type ManagedPickupSlot = {
+  slotStartAt: string;
+  slotEndAt: string;
+  label?: string;
+  available?: boolean;
+};
+
+export type ManagedPickup = {
+  id: string;
+  userId: string;
+  city: string;
+  status: ManagedPickupStatusValue;
+  slotStartAt: string;
+  slotEndAt: string;
+  addressLine: string;
+  photoAddon: boolean;
+  photoKeys: string[];
+  partnerRef?: string | null;
+  roomScanId?: string | null;
+  createdAt: string;
+  updatedAt: string;
 };

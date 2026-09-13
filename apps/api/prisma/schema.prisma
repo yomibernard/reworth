@@ -256,6 +256,50 @@ enum ReferralRewardStatus {
   FLAGGED
 }
 
+enum AssistantMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum RoomScanStatus {
+  UPLOADED
+  DETECTING
+  READY
+  DRAFTS_CREATED
+  FAILED
+  CANCELLED
+}
+
+enum InstantBuyFulfilmentStatus {
+  PENDING_PICKUP
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  CONFIRMED
+  SLA_BREACHED
+  REFUNDED
+  CANCELLED
+}
+
+enum ConsignmentStatus {
+  INTAKE
+  LISTED
+  SOLD
+  RETURNED
+  EXPIRED
+  CANCELLED
+}
+
+enum ManagedPickupStatus {
+  BOOKED
+  ASSIGNED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
 enum FulfilmentMethod {
   PICKUP
   MEET_POINT
@@ -439,6 +483,12 @@ model User {
   referralsMade        ReferralAttribution[] @relation("ReferralReferrer")
   referralAsReferred   ReferralAttribution?  @relation("ReferralReferred")
   referralRewards      ReferralReward[]
+  assistantSessions    AssistantSession[]
+  roomScans            RoomScan[]
+  savedBundles         SavedBundle[]
+  valuations           ValuationLog[]
+  consignments         Consignment[]
+  managedPickups       ManagedPickup[]
 
   @@map("users")
 }
@@ -652,6 +702,8 @@ model Listing {
   authenticationStatus AuthenticationStatus @default(NOT_REQUIRED)
   certificateId      String?
   authenticatedAt    DateTime?
+  /// Instant Buy eligible (phones/electronics curated).
+  instantBuyEligible Boolean       @default(false)
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
@@ -681,6 +733,8 @@ model Listing {
   ordersAsSwapB         Order[]        @relation("OrderSwapListingB")
   vehicleInspections    VehicleInspection[]
   luxuryAuthJobs        LuxuryAuthJob[]
+  instantBuyFulfilment  InstantBuyFulfilment?
+  consignment           Consignment?
 
   @@index([sellerId])
   @@index([status])
@@ -692,6 +746,7 @@ model Listing {
   @@index([publishedAt])
   @@index([expiresAt])
   @@index([authenticationStatus])
+  @@index([instantBuyEligible])
   @@map("listings")
 }
 
@@ -1105,6 +1160,7 @@ model Order {
   supportTickets     SupportTicket[]
   reviews            Review[]
   luxuryAuthJob      LuxuryAuthJob?
+  instantBuyFulfilment InstantBuyFulfilment?
 
   @@index([buyerId, createdAt])
   @@index([sellerId, createdAt])
@@ -2044,4 +2100,211 @@ model ReferralProgrammeConfig {
   createdAt             DateTime @default(now())
 
   @@map("referral_programme_config")
+}
+
+model AssistantSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  city      String   @default("Lagos")
+  title     String   @default("Ask ReWorth")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AssistantMessage[]
+  actions  AssistantActionLog[]
+
+  @@index([userId, updatedAt])
+  @@map("assistant_sessions")
+}
+
+model AssistantMessage {
+  id        String               @id @default(uuid()) @db.Uuid
+  sessionId String               @db.Uuid
+  role      AssistantMessageRole
+  content   String
+  toolName  String?
+  toolPayload Json?
+  createdAt DateTime             @default(now())
+
+  session AssistantSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@map("assistant_messages")
+}
+
+model AssistantActionLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionId    String   @db.Uuid
+  userId       String   @db.Uuid
+  toolName     String
+  input        Json
+  output       Json?
+  confirmed    Boolean  @default(false)
+  latencyMs    Int?
+  costMicros   Int?
+  degraded     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  session AssistantSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([toolName])
+  @@map("assistant_action_logs")
+}
+
+model SavedBundle {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  city          String   @default("Lagos")
+  brief         String
+  budgetKobo    Int
+  listingIds    String[]
+  totalKobo     Int
+  shareToken    String   @unique @default(uuid())
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("saved_bundles")
+}
+
+model RoomScan {
+  id           String         @id @default(uuid()) @db.Uuid
+  userId       String         @db.Uuid
+  city         String         @default("Lagos")
+  status       RoomScanStatus @default(UPLOADED)
+  photoKeys    String[]       @default([])
+  detections   Json           @default("[]")
+  draftBatchId String?
+  errorMessage String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  RoomScanItem[]
+  drafts RoomScanDraft[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("room_scans")
+}
+
+model RoomScanItem {
+  id          String  @id @default(uuid()) @db.Uuid
+  roomScanId  String  @db.Uuid
+  label       String
+  brandHint   String?
+  categoryHint String?
+  cropKey     String?
+  bbox        Json?
+  selected    Boolean @default(true)
+  condition   String  @default("GOOD")
+  sortOrder   Int     @default(0)
+
+  roomScan RoomScan @relation(fields: [roomScanId], references: [id], onDelete: Cascade)
+
+  @@index([roomScanId])
+  @@map("room_scan_items")
+}
+
+model RoomScanDraft {
+  id         String @id @default(uuid()) @db.Uuid
+  roomScanId String @db.Uuid
+  listingId  String @db.Uuid
+  itemLabel  String
+
+  roomScan RoomScan @relation(fields: [roomScanId], references: [id], onDelete: Cascade)
+
+  @@unique([roomScanId, listingId])
+  @@index([roomScanId])
+  @@map("room_scan_drafts")
+}
+
+model ValuationLog {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String?  @db.Uuid
+  city             String   @default("Lagos")
+  source           String
+  photoKey         String?
+  listingId        String?  @db.Uuid
+  result           Json
+  createdAt        DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("valuation_logs")
+}
+
+model InstantBuyFulfilment {
+  id              String                     @id @default(uuid()) @db.Uuid
+  orderId         String                     @unique @db.Uuid
+  listingId       String                     @unique @db.Uuid
+  status          InstantBuyFulfilmentStatus @default(PENDING_PICKUP)
+  slaDeadlineAt   DateTime
+  pickedUpAt      DateTime?
+  deliveredAt     DateTime?
+  confirmedAt     DateTime?
+  refundedAt      DateTime?
+  refundIdempotencyKey String?               @unique
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([status, slaDeadlineAt])
+  @@map("instant_buy_fulfilments")
+}
+
+model Consignment {
+  id              String            @id @default(uuid()) @db.Uuid
+  consignorId     String            @db.Uuid
+  listingId       String?           @unique @db.Uuid
+  status          ConsignmentStatus @default(INTAKE)
+  city            String            @default("Lagos")
+  title           String
+  floorPriceKobo  Int
+  askingPriceKobo Int
+  feeBps          Int               @default(1500)
+  soldPriceKobo   Int?
+  feeKobo         Int?
+  netPayoutKobo   Int?
+  listedAt        DateTime?
+  soldAt          DateTime?
+  returnBy        DateTime?
+  returnedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  consignor User     @relation(fields: [consignorId], references: [id], onDelete: Cascade)
+  listing   Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([consignorId, status])
+  @@index([status, returnBy])
+  @@map("consignments")
+}
+
+model ManagedPickup {
+  id            String              @id @default(uuid()) @db.Uuid
+  userId        String              @db.Uuid
+  city          String              @default("Lagos")
+  status        ManagedPickupStatus @default(BOOKED)
+  slotStartAt   DateTime
+  slotEndAt     DateTime
+  addressLine   String
+  photoAddon    Boolean             @default(false)
+  photoKeys     String[]            @default([])
+  partnerRef    String?
+  roomScanId    String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([slotStartAt])
+  @@map("managed_pickups")
 }
