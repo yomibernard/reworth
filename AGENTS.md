@@ -19,7 +19,7 @@
 | Phase | **10 — UAT / RC** |
 | Prompt | Prompt 11 |
 | Target tag | `v0.9.0-rc` |
-| Status | **Complete (pending PR merge)** |
+| Status | **Merged** (PR #10) |
 | Next | Post-launch (entry gate: stable RC) |
 
 ## 14-role team

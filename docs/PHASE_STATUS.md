@@ -5,8 +5,8 @@
 | Current phase | **10 — UAT, Seed & Launch Readiness** |
 | Prompt | Prompt 11 |
 | Target tag | `v0.9.0-rc` |
-| Branch | `phase-10-rc` |
-| Status | **Complete (pending PR merge)** |
+| Branch | `main` (merged PR #10) |
+| Status | **Complete — merged** |
 | Last updated | 2026-09-13 |
 
 ## What exists (Phase 10)

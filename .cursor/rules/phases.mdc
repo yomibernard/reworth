@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 10 (UAT / RC)** — tag `v0.9.0-rc` pending merge.
+**Current phase: 10 (UAT / RC)** — MVP complete (`v0.9.0-rc`, PR #10). Post-launch entry gate open.
 
 Do **not** implement features from later phases in the same PR.
 
