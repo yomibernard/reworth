@@ -1,6 +1,5 @@
 /**
- * Phase 1 interim admin session — localStorage.
- * Prefer httpOnly cookies before production.
+ * Phase 8 admin session — localStorage (prefer httpOnly cookies before prod).
  */
 
 const ACCESS_KEY = "rw_admin_access";
@@ -72,6 +71,50 @@ export function rolesFromAccessToken(token: string): string[] {
   }
 }
 
-export function canSeeFinance(roles: string[]): boolean {
-  return roles.includes("FINANCE") || roles.includes("SUPER_ADMIN");
+export function hasAnyRole(roles: string[], allowed: readonly string[]): boolean {
+  if (roles.includes("SUPER_ADMIN")) return true;
+  return allowed.some((r) => roles.includes(r));
 }
+
+export function canSeeFinance(roles: string[]): boolean {
+  return hasAnyRole(roles, ["FINANCE"]);
+}
+
+export const NAV_ROLES = {
+  dashboard: [
+    "SUPER_ADMIN",
+    "OPERATIONS",
+    "FINANCE",
+    "CUSTOMER_SUPPORT",
+    "RISK_FRAUD",
+    "MARKETING",
+    "CONTENT_MODERATOR",
+  ],
+  users: ["SUPER_ADMIN", "OPERATIONS", "CUSTOMER_SUPPORT", "RISK_FRAUD"],
+  listings: ["SUPER_ADMIN", "OPERATIONS", "CONTENT_MODERATOR"],
+  orders: ["SUPER_ADMIN", "OPERATIONS", "FINANCE", "CUSTOMER_SUPPORT"],
+  disputes: ["SUPER_ADMIN", "OPERATIONS", "FINANCE", "CUSTOMER_SUPPORT"],
+  verifications: [
+    "SUPER_ADMIN",
+    "OPERATIONS",
+    "RISK_FRAUD",
+    "CUSTOMER_SUPPORT",
+  ],
+  reports: [
+    "SUPER_ADMIN",
+    "OPERATIONS",
+    "CONTENT_MODERATOR",
+    "RISK_FRAUD",
+  ],
+  fraud: ["SUPER_ADMIN", "OPERATIONS", "RISK_FRAUD"],
+  support: ["SUPER_ADMIN", "OPERATIONS", "CUSTOMER_SUPPORT"],
+  catalog: [
+    "SUPER_ADMIN",
+    "OPERATIONS",
+    "CONTENT_MODERATOR",
+    "MARKETING",
+  ],
+  promotions: ["SUPER_ADMIN", "OPERATIONS", "MARKETING"],
+  analytics: ["SUPER_ADMIN", "OPERATIONS", "FINANCE", "MARKETING"],
+  audit: ["SUPER_ADMIN", "OPERATIONS", "RISK_FRAUD"],
+} as const;

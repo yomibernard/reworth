@@ -485,6 +485,25 @@ export class AuthService {
     };
   }
 
+  /** Public wrapper for admin session issuance after TOTP. */
+  async issueSession(
+    userId: string,
+    device?: DeviceDto,
+  ): Promise<TokenPair> {
+    return this.issueTokenPair(userId, device);
+  }
+
+  async revokeAllRefreshTokens(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  async signAccessToken(userId: string): Promise<string> {
+    return this.signAccess(userId);
+  }
+
   private async signAccess(userId: string): Promise<string> {
     const roles = await this.prisma.userRole.findMany({
       where: { userId },

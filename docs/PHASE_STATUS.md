@@ -2,33 +2,30 @@
 
 | Field | Value |
 | --- | --- |
-| Current phase | **7 — Trust: Reviews + Trust Score** |
-| Prompt | Prompt 8 |
-| Target tag | `v0.7-trust` |
-| Branch | `phase-7-trust` |
-| Status | **Complete (pending PR merge)** |
+| Current phase | **8 — Admin Operations Portal** |
+| Prompt | Prompt 9 |
+| Target tag | `v0.8-admin` |
+| Branch | `phase-8-admin` (or current) |
+| Status | **Complete (pending PR merge / tag)** |
 | Last updated | 2026-09-13 |
 
-## What exists (Phase 7)
+## What exists (Phase 8)
 
 ### API
-- Review (mutual publish), ReviewReport, TrustScore + history, ChatResponseSample
-- Trust recompute on order COMPLETED + daily cron
-- Public profile DTO; admin trust-score preview
-- Listing seller card: ratingLabel, trustBadge, responseMinutes
-- **98 unit tests** green
+- Schema: AdminTotp, Promotion, HeroBanner, Community, SupportTicketNote, WhitelistEntry, UserWarning; SupportTicket assignee + IN_PROGRESS; RiskEvent review fields
+- Admin auth: `POST /admin/auth/login`, TOTP setup/verify (otplib); AdminOnlyGuard on `/admin/*`
+- Dashboard KPIs, users, listings, orders/refunds, disputes, verifications, reports, fraud, support, catalog CRUD, promotions, analytics (+ CSV), audit
+- Every mutation audit-logged; RBAC matrix in [`docs/RBAC.md`](RBAC.md)
 
-### Clients
-- Web `/users/[id]`, order review form, PDP seller trust card
-- Mobile profile modal + review on completed orders
-
-### Docs
-- [`docs/PHASE_7_PLAN.md`](PHASE_7_PLAN.md)
+### Admin UI (`apps/admin`)
+- Login + TOTP second step
+- Role-gated nav shell
+- Pages: `/`, `/users`, `/listings`, `/orders`, `/disputes`, `/verifications`, `/reports`, `/fraud`, `/support`, `/catalog`, `/promotions`, `/analytics`, `/audit`
 
 ## Resume point
-**Phase 7 complete.** Next: **Phase 8 — Admin Operations Portal** (`v0.8-admin`).
+**Phase 8 complete.** Next: **Phase 9 — Risk, Moderation & Security** (`v0.9-risk-security`).
 
 ```
-Continue: resume Phase 8 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
+Continue: resume Phase 9 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
 PRD.md, verify the last commit's tests still pass, then continue the plan.
 ```

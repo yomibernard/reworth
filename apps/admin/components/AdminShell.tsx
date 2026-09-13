@@ -4,27 +4,38 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@reworth/ui-web";
 import {
-  canSeeFinance,
   clearSession,
   getEmail,
   getRoles,
+  hasAnyRole,
+  NAV_ROLES,
 } from "../lib/auth";
 
-const NAV = [
-  { href: "/", label: "Dashboard", roles: null },
-  { href: "/#users", label: "Users", roles: null },
-  { href: "/#listings", label: "Listings", stub: true },
-  { href: "/#moderation", label: "Moderation", stub: true },
-  { href: "/#finance", label: "Finance", roles: ["FINANCE", "SUPER_ADMIN"] as const },
-  { href: "/#support", label: "Support", stub: true },
-] as const;
+const NAV: { href: string; label: string; roles: readonly string[] }[] = [
+  { href: "/", label: "Dashboard", roles: NAV_ROLES.dashboard },
+  { href: "/users", label: "Users", roles: NAV_ROLES.users },
+  { href: "/listings", label: "Listings", roles: NAV_ROLES.listings },
+  { href: "/orders", label: "Orders", roles: NAV_ROLES.orders },
+  { href: "/disputes", label: "Disputes", roles: NAV_ROLES.disputes },
+  {
+    href: "/verifications",
+    label: "Verifications",
+    roles: NAV_ROLES.verifications,
+  },
+  { href: "/reports", label: "Reports", roles: NAV_ROLES.reports },
+  { href: "/fraud", label: "Fraud", roles: NAV_ROLES.fraud },
+  { href: "/support", label: "Support", roles: NAV_ROLES.support },
+  { href: "/catalog", label: "Catalog", roles: NAV_ROLES.catalog },
+  { href: "/promotions", label: "Promotions", roles: NAV_ROLES.promotions },
+  { href: "/analytics", label: "Analytics", roles: NAV_ROLES.analytics },
+  { href: "/audit", label: "Audit", roles: NAV_ROLES.audit },
+];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const roles = getRoles();
   const email = getEmail();
-  const showFinance = canSeeFinance(roles);
 
   function signOut() {
     clearSession();
@@ -43,19 +54,24 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       >
         <p className="px-2 text-lg font-semibold tracking-tight">ReWorth</p>
         <p className="mb-8 px-2 text-xs text-[var(--rw-ink-muted)]">Ops</p>
-        <nav className="flex flex-1 flex-col gap-1">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
           {NAV.map((item) => {
-            if (item.label === "Finance" && !showFinance) return null;
+            if (!hasAnyRole(roles, item.roles)) return null;
+            const active =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(item.href);
             return (
               <Link
-                key={item.label}
+                key={item.href}
                 href={item.href}
-                className="rounded-[var(--rw-radius)] px-3 py-2 text-sm font-medium text-[var(--rw-ink-muted)] hover:bg-[var(--rw-accent-muted)] hover:text-[var(--rw-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+                className={`rounded-[var(--rw-radius)] px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)] ${
+                  active
+                    ? "bg-[var(--rw-accent-muted)] text-[var(--rw-ink)]"
+                    : "text-[var(--rw-ink-muted)] hover:bg-[var(--rw-accent-muted)] hover:text-[var(--rw-ink)]"
+                }`}
               >
                 {item.label}
-                {"stub" in item && item.stub ? (
-                  <span className="ml-1 text-xs opacity-60">soon</span>
-                ) : null}
               </Link>
             );
           })}
@@ -79,7 +95,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             Sign out
           </Button>
         </header>
-        <div className="flex-1 p-6 sm:p-8">{children}</div>
+        <div className="flex-1 overflow-auto p-6 sm:p-8">{children}</div>
       </div>
     </div>
   );

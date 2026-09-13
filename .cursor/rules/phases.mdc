@@ -5,7 +5,7 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Current phase: 7 (Reviews + Trust Score)** — Web + mobile Trust UI complete; tag `v0.7-trust` pending.
+**Current phase: 8 (Admin Operations Portal)** — API + admin UI complete; tag `v0.8-admin` pending.
 
 Do **not** implement features from later phases in the same PR.
 

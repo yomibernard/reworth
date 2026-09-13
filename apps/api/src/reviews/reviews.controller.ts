@@ -15,6 +15,7 @@ import {
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt-auth.guard';
+import { AdminOnlyGuard } from '../common/guards/admin-only.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import {
   CreateReviewDto,
@@ -100,7 +101,7 @@ export class ReviewsController {
 }
 
 @Controller('admin')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, AdminOnlyGuard)
 export class AdminTrustController {
   constructor(private readonly trust: TrustScoreService) {}
 

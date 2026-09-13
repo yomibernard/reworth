@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '../auth/auth.module';
+import { AdminOnlyGuard } from '../common/guards/admin-only.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrdersModule } from '../orders/orders.module';
@@ -18,7 +19,12 @@ import { DisputesService } from './disputes.service';
     forwardRef(() => OrdersModule),
   ],
   controllers: [DisputesController],
-  providers: [DisputesService, DisputeSellerExpiryScheduler, RolesGuard],
+  providers: [
+    DisputesService,
+    DisputeSellerExpiryScheduler,
+    RolesGuard,
+    AdminOnlyGuard,
+  ],
   exports: [DisputesService],
 })
 export class DisputesModule {}

@@ -10,9 +10,17 @@ import {
   setSession,
 } from "../../lib/auth";
 
-type LoginResponse = {
+type LoginOk = {
   accessToken: string;
   refreshToken: string;
+  userId: string;
+  roles?: string[];
+  totpRequired?: false;
+};
+
+type LoginTotp = {
+  totpRequired: true;
+  challengeToken: string;
   userId: string;
 };
 
@@ -21,6 +29,7 @@ export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [totp, setTotp] = useState("");
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -28,46 +37,72 @@ export default function AdminLoginPage() {
     if (isAuthed()) router.replace("/");
   }, [router]);
 
+  function persistSession(
+    accessToken: string,
+    refreshToken: string,
+    emailValue: string,
+    rolesHint?: string[],
+  ) {
+    const roles =
+      rolesHint?.length ? rolesHint : rolesFromAccessToken(accessToken);
+    setSession({
+      accessToken,
+      refreshToken,
+      roles,
+      email: emailValue.trim().toLowerCase(),
+    });
+    router.replace("/");
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (challengeToken) {
+      if (totp.trim().length < 6) {
+        setError("Enter your 6-digit authenticator code");
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await apiFetch<LoginOk>("/admin/auth/totp/verify", {
+          method: "POST",
+          body: { code: totp.trim(), challengeToken },
+        });
+        persistSession(res.accessToken, res.refreshToken, email, res.roles);
+      } catch (err) {
+        setError(
+          err instanceof ApiError ? err.message : "Verification failed.",
+        );
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     if (!email.trim() || password.length < 8) {
       setError("Enter email and password (min 8 characters)");
       return;
     }
 
-    // TOTP placeholder — not sent until Phase 1 2FA wiring
-    void totp;
-
     setLoading(true);
     try {
-      const res = await apiFetch<LoginResponse>("/auth/login", {
+      const res = await apiFetch<LoginOk | LoginTotp>("/admin/auth/login", {
         method: "POST",
         body: {
           email: email.trim(),
           password,
-          device: { name: "ReWorth Admin", platform: "WEB" },
         },
       });
 
-      let roles = rolesFromAccessToken(res.accessToken);
-      try {
-        const me = await apiFetch<{ roles: string[] }>("/me", {
-          token: res.accessToken,
-        });
-        if (me.roles?.length) roles = me.roles;
-      } catch {
-        /* JWT roles fallback */
+      if ("totpRequired" in res && res.totpRequired) {
+        setChallengeToken(res.challengeToken);
+        setError(null);
+        return;
       }
 
-      setSession({
-        accessToken: res.accessToken,
-        refreshToken: res.refreshToken,
-        roles,
-        email: email.trim().toLowerCase(),
-      });
-      router.replace("/");
+      const ok = res as LoginOk;
+      persistSession(ok.accessToken, ok.refreshToken, email, ok.roles);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Sign-in failed. Try again.",
@@ -99,38 +134,44 @@ export default function AdminLoginPage() {
           className="flex flex-col gap-5 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] p-6 shadow-sm"
           noValidate
         >
-          <Input
-            label="Email"
-            name="email"
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={loading}
-            required
-          />
-          <Input
-            label="Password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
-            required
-          />
-          <Input
-            label="Authenticator code"
-            name="totp"
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            placeholder="2FA coming"
-            value={totp}
-            onChange={(e) => setTotp(e.target.value)}
-            disabled={loading}
-            hint="Optional — TOTP enforcement lands with admin 2FA hardening."
-          />
+          {!challengeToken ? (
+            <>
+              <Input
+                label="Email"
+                name="email"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                required
+              />
+              <Input
+                label="Password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </>
+          ) : (
+            <Input
+              label="Authenticator code"
+              name="totp"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="6-digit code"
+              value={totp}
+              onChange={(e) => setTotp(e.target.value)}
+              disabled={loading}
+              hint="Enter the code from your authenticator app."
+              required
+            />
+          )}
 
           {error ? (
             <p className="text-sm text-[var(--rw-error)]" role="alert">
@@ -146,8 +187,25 @@ export default function AdminLoginPage() {
             disabled={loading}
             aria-busy={loading}
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {loading
+              ? "Please wait…"
+              : challengeToken
+                ? "Verify"
+                : "Sign in"}
           </Button>
+
+          {challengeToken ? (
+            <button
+              type="button"
+              className="text-sm text-[var(--rw-ink-muted)] underline"
+              onClick={() => {
+                setChallengeToken(null);
+                setTotp("");
+              }}
+            >
+              Back to email / password
+            </button>
+          ) : null}
         </form>
       </div>
     </main>

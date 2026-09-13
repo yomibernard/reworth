@@ -2,13 +2,17 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   NotFoundException,
   Param,
   Post,
+  Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { AdminRole } from '@prisma/client';
+import type { Response } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { AuditService } from '../audit/audit.service';
 import {
@@ -16,18 +20,22 @@ import {
   type AuthUser,
 } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { AdminOnlyGuard } from '../common/guards/admin-only.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { PrismaService } from '../prisma/prisma.service';
+import { AdminPortalService } from './admin-portal.service';
+import { USERS_READ } from './admin-roles';
 import { AssignRoleDto, CreateAdminUserDto } from './dto/admin-users.dto';
 
 @Controller('admin')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, AdminOnlyGuard)
 export class AdminUsersController {
   constructor(
     private readonly auth: AuthService,
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly portal: AdminPortalService,
   ) {}
 
   @Post('users')
@@ -60,6 +68,25 @@ export class AdminUsersController {
       roles: user.roles.map((r) => r.role),
       profile: user.profile,
     };
+  }
+
+  @Get('users/export.csv')
+  @Roles(...USERS_READ)
+  @Header('Content-Type', 'text/csv')
+  async exportUsers(@Res() res: Response) {
+    const csv = await this.portal.exportUsersCsv();
+    res.setHeader('Content-Disposition', 'attachment; filename="users.csv"');
+    res.send(csv);
+  }
+
+  @Get('users')
+  @Roles(...USERS_READ)
+  listUsers(
+    @Query('q') q?: string,
+    @Query('community') community?: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.portal.listUsers(q, community, cursor);
   }
 
   @Get('users/:id')

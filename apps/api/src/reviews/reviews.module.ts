@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { ChatModule } from '../chat/chat.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AdminOnlyGuard } from '../common/guards/admin-only.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import {
   AdminTrustController,
@@ -25,6 +26,7 @@ import { TrustScoreService } from './trust-score.service';
     TrustScoreService,
     TrustScoreCron,
     RolesGuard,
+    AdminOnlyGuard,
   ],
   exports: [ReviewsService, TrustScoreService],
 })

@@ -1,72 +1,102 @@
 "use client";
 
-import { canSeeFinance, getEmail, getRoles } from "../lib/auth";
+import {
+  PageHeader,
+  SimpleTable,
+  StatusLine,
+  useAdminQuery,
+} from "../components/AdminUi";
 
-const STUBS = [
-  {
-    id: "users",
-    title: "Users",
-    body: "Lookup and role assignment via /admin/users (Phase 1 API ready).",
-  },
-  {
-    id: "listings",
-    title: "Listings",
-    body: "Moderation queues arrive in Phase 8.",
-  },
-  {
-    id: "moderation",
-    title: "Moderation",
-    body: "Content & risk tooling — Phase 8–9.",
-  },
-  {
-    id: "support",
-    title: "Support",
-    body: "Customer support workflows — Phase 8.",
-  },
-];
+type Kpis = {
+  days: number;
+  mau: number;
+  newListings: number;
+  activeListings: number;
+  transactionsCompleted: number;
+  gmvKobo: number;
+  sellThroughRate: number;
+  medianTimeToSaleHours: number | null;
+  fraudRate: number;
+  openDisputes: number;
+  byCommunity: { community: string; listings: number; gmvKobo: number }[];
+};
+
+function naira(kobo: number) {
+  return `₦${(kobo / 100).toLocaleString("en-NG")}`;
+}
 
 export default function AdminHomePage() {
-  const roles = getRoles();
-  const email = getEmail();
-  const finance = canSeeFinance(roles);
+  const { data, error, loading } = useAdminQuery<Kpis>(
+    "/admin/dashboard/kpis?days=30",
+  );
+
+  const cards = data
+    ? [
+        { label: "MAU (activity)", value: String(data.mau) },
+        { label: "New listings", value: String(data.newListings) },
+        { label: "Active listings", value: String(data.activeListings) },
+        {
+          label: "Completed txns",
+          value: String(data.transactionsCompleted),
+        },
+        { label: "GMV", value: naira(data.gmvKobo) },
+        {
+          label: "Sell-through",
+          value: `${(data.sellThroughRate * 100).toFixed(1)}%`,
+        },
+        {
+          label: "Median time to sale",
+          value:
+            data.medianTimeToSaleHours == null
+              ? "—"
+              : `${data.medianTimeToSaleHours.toFixed(1)}h`,
+        },
+        {
+          label: "Fraud rate",
+          value: `${(data.fraudRate * 100).toFixed(2)}%`,
+        },
+        { label: "Open disputes", value: String(data.openDisputes) },
+      ]
+    : [];
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <header className="mb-10">
-        <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="mt-2 text-[var(--rw-ink-muted)]">
-          Signed in as {email ?? "admin"}
-          {roles.length ? ` · ${roles.join(", ")}` : ""}
-        </p>
-      </header>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        {STUBS.map((card) => (
-          <section
-            key={card.id}
-            id={card.id}
-            className="rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] p-5"
-          >
-            <h2 className="text-lg font-semibold">{card.title}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--rw-ink-muted)]">
-              {card.body}
-            </p>
-          </section>
-        ))}
-
-        {finance ? (
-          <section
-            id="finance"
-            className="rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] p-5 sm:col-span-2"
-          >
-            <h2 className="text-lg font-semibold">Finance</h2>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--rw-ink-muted)]">
-              Summary endpoint available at GET /admin/finance/summary. Full
-              finance console ships in later phases.
-            </p>
-          </section>
-        ) : null}
-      </div>
+    <div className="mx-auto max-w-6xl">
+      <PageHeader
+        title="Dashboard"
+        description="Last 30 days marketplace health (PRD §36)."
+      />
+      <StatusLine loading={loading} error={error} />
+      {data ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {cards.map((c) => (
+              <div
+                key={c.label}
+                className="rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-4 py-4"
+              >
+                <p className="text-xs uppercase tracking-wide text-[var(--rw-ink-muted)]">
+                  {c.label}
+                </p>
+                <p className="mt-2 text-2xl font-semibold tabular-nums">
+                  {c.value}
+                </p>
+              </div>
+            ))}
+          </div>
+          <h2 className="mb-3 mt-10 text-lg font-semibold">By community</h2>
+          <SimpleTable
+            columns={[
+              { key: "community", label: "Community" },
+              { key: "listings", label: "Listings" },
+              { key: "gmvKobo", label: "GMV (kobo)" },
+            ]}
+            rows={data.byCommunity.map((r) => ({
+              id: r.community,
+              ...r,
+            }))}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

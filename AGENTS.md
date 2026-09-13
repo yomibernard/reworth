@@ -16,11 +16,11 @@
 
 | Field | Value |
 | --- | --- |
-| Phase | **7 — Trust (Reviews + Trust Score)** |
-| Prompt | Prompt 8 |
-| Target tag | `v0.7-trust` |
+| Phase | **8 — Admin Operations Portal** |
+| Prompt | Prompt 9 |
+| Target tag | `v0.8-admin` |
 | Status | **Complete (pending PR merge)** |
-| Next | Phase 8 — Admin (`v0.8-admin`) |
+| Next | Phase 9 — Risk / Security (`v0.9-risk-security`) |
 
 ## 14-role team
 
@@ -123,12 +123,12 @@ Per **PRD §59**: functional · UX · responsive · security · analytics · err
 
 ## Known gaps
 
-**Phase 7 Trust UI complete** (API + web/mobile profile, PDP seller card, order review). Tag `v0.7-trust` pending.
+**Phase 8 Admin portal complete** (API + ops UI). Tag `v0.8-admin` pending.
 
 Still not built:
 
 - Expo/FCM push (mock only); deeper notification-center polish
-- Admin portal depth (Phase 8); TOTP enforcement; listing moderation queue UI
+- TOTP enforcement for all admins (setup available; policy optional)
 - Risk/moderation hardening (Phase 9); UAT (Phase 10)
 - All PRD §51–53 / post-launch features
 - Production credentials, pen test, store submissions; httpOnly token cookies

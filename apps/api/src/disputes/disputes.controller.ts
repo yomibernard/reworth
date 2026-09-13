@@ -12,6 +12,7 @@ import {
   type AuthUser,
 } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { AdminOnlyGuard } from '../common/guards/admin-only.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import {
@@ -63,7 +64,7 @@ export class DisputesController {
   }
 
   @Post('admin/disputes/:id/resolution')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, AdminOnlyGuard)
   @Roles(
     AdminRole.FINANCE,
     AdminRole.SUPER_ADMIN,
