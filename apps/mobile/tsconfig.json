@@ -8,5 +8,5 @@
     "lib": ["ES2022"],
     "types": ["react"]
   },
-  "include": ["App.tsx", "src/**/*"]
+  "include": ["App.tsx", "lib/**/*", "env.d.ts", "src/**/*"]
 }

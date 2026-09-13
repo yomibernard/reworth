@@ -1,22 +1,22 @@
----
+﻿---
 description: ReWorth phase plan and git tags — execute one phase at a time
 alwaysApply: true
 ---
 
 # ReWorth — phase rules
 
-**Current phase: 0 (Foundations)** — target tag `v0.0-scaffold`.
+**Current phase: 2.1 (Swap & Give-Away)** — tag `v1.0-swap` pending merge.
 
-Do **not** implement features from later phases in the same PR.
+Do **not** implement features from later post-launch prompts in the same PR.
 
 ## MVP tags
 
-`v0.0-scaffold` → `v0.1-auth` → `v0.2-listings` → `v0.3-discovery` → `v0.4-chat-offers` → `v0.5-orders-payments` → `v0.6-logistics-notifications` → `v0.7-trust` → `v0.8-admin` → `v0.9-risk-security` → `v0.9.0-rc`
+`v0.0-scaffold` → … → `v0.9.0-rc`
 
-## Post-launch (entry gate required)
+## Post-launch
 
-`v1.0` Swap · `v1.1` Moving/Estates · `v1.2` Intelligence · `v1.3` Verticals · `v2.0` AI services · `v2.1` B2B/expansion
+`v1.0-swap` · `v1.1` Moving/Estates · `v1.2` Intelligence · `v1.3` Verticals · `v2.0` AI · `v2.1` B2B
 
 ## Resume
 
-See `docs/PHASE_STATUS.md`. Prompt package: `CURSOR-PROMPT.md` + `CURSOR-PROMPT-PHASE2-3.md`.
+See `docs/PHASE_STATUS.md`. Prompt package: `CURSOR-PROMPT-PHASE2-3.md`.

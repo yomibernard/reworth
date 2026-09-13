@@ -1,17 +1,69 @@
-# Security (stub)
+# Security — ReWorth (PRD §44)
 
-Full controls land by Phase 9 (`v0.9-risk-security`) per PRD §44.
+> Living control map for Phase 9 (`v0.9-risk-security`). Not a substitute for an external penetration test.
 
-## Mandatory themes (track as we build)
+## Control matrix
 
-- TLS in transit; encryption at rest
-- Argon2id password hashing; OTP rate limits; JWT rotation + reuse detection
-- RBAC (admin 7 roles); audit logging
-- Secure uploads (MIME sniff, size caps, malware-scan adapter)
-- Injection / XSS / CSRF protections
-- Secrets only via env / secret manager — never commit
-- Pen-test checklist before public launch
+| Control (PRD §44) | Status | Where / notes |
+| --- | --- | --- |
+| TLS in transit | Mitigated | Terminated at reverse proxy / platform; local HTTP for compose |
+| Encryption at rest | Deferred | Postgres/MinIO volume encryption = infra responsibility at launch |
+| Argon2id passwords | Implemented | `apps/api/src/auth/crypto.util.ts` |
+| OTP rate limits | Implemented | `auth.service.ts` 3/15m, 5/day + `@Throttle` auth bucket |
+| JWT access + refresh rotation | Implemented | `auth.service.ts`; reuse detection revokes family |
+| Admin TOTP 2FA | Implemented | Setup available; org policy may enforce later |
+| RBAC (7 admin roles) | Implemented | `docs/RBAC.md`, `admin-roles.ts`, `AdminOnlyGuard` |
+| Audit logging | Implemented | `AuditService` on admin + sensitive user actions |
+| Secure uploads | Implemented | MIME sniff (`file-type`), 10MB cap, malware scan adapter (mock) |
+| Global + per-route rate limits | Implemented | Throttler 120/min default; auth 20, search 60, upload 30 |
+| CSP + security headers | Implemented | `helmet` in `apps/api/src/main.ts`; Next headers below |
+| Input validation | Implemented | `ValidationPipe` whitelist + forbid; Zod helpers `zod-boundary.ts` |
+| Secrets hygiene | Implemented | `.env.example` placeholders only; CI must not print secrets |
+| Dependency audit gate | Implemented | `pnpm audit --prod` in CI (moderate+) |
+| User token ≠ admin API | Implemented | `AdminOnlyGuard` + tests |
+| Device session visibility | Implemented | `GET/DELETE /me/devices`, logout-all |
+| Risk / fraud signals | Implemented | Risk engine + `RiskEvent` / `RiskAssessment` |
+| Content moderation | Implemented | Keywords + mock image mod + appeals |
 
-## Phase 0 note
+## OWASP Top 10 self-review
 
-Scaffold only — no auth surface yet. Threat model expands each phase; Security Engineer signs the phase report.
+| # | Risk | ReWorth posture |
+| --- | --- | --- |
+| A01 Broken access control | JWT guards, ownership checks, admin RBAC, IDOR-sensitive listing/order paths reviewed |
+| A02 Cryptographic failures | Argon2id; JWT secrets via env; no raw NIN/BVN stored |
+| A03 Injection | Prisma parameterized queries; ValidationPipe; no raw SQL in app code |
+| A04 Insecure design | Escrow-shaped payments (ADR-002); risk scoring on publish |
+| A05 Security misconfiguration | Helmet headers; CORS allowlist; powered-by hidden |
+| A06 Vulnerable components | `pnpm audit` CI gate |
+| A07 Auth failures | OTP limits, refresh reuse detection, suspended users rejected |
+| A08 Data integrity | Paystack webhook HMAC; audit logs for admin mutations |
+| A09 Logging failures | Pino request logs; audit trail; avoid logging secrets/PII gov IDs |
+| A10 SSRF | Presigned uploads to MinIO; no user-controlled server-side fetch of arbitrary URLs |
+
+## Pen-test checklist (external)
+
+- [ ] Auth: OTP brute-force, refresh reuse, JWT alg confusion
+- [ ] IDOR: listings, chats, orders, disputes, `/me/export`
+- [ ] Admin: role bypass, TOTP skip, CSRF on cookie (if cookies added)
+- [ ] Upload: polyglot files, oversized, SVG XSS, malware EICAR
+- [ ] Rate limit bypass via IP spoofing / distributed clients
+- [ ] Payment webhook forgery / replay
+- [ ] Chat PII leak + off-platform solicitation evasion
+- [ ] Risk/moderation bypass (price/title obfuscation)
+- [ ] Privacy: export completeness, delete residual PII
+- [ ] Infra: TLS, secrets in CI logs, open Redis/MinIO ports
+
+## Secrets audit
+
+| Location | Rule |
+| --- | --- |
+| Git | No `.env`, keys, or tokens — `.env.example` only |
+| Runtime | Env-per-environment (local / staging / prod) |
+| CI | Dummy `DATABASE_URL` for Prisma generate only |
+
+## Known deferred
+
+- Enforce TOTP for every admin login (policy)
+- httpOnly cookie session transport for web
+- Real malware + NSFW vendor adapters (mocks in place)
+- Production WAF / bot management

@@ -1,5 +1,4 @@
-// Prisma schema for ReWorth API
-// Phase 1 will add User, Listing, and related models.
+// ReWorth API — Phase 1–10 MVP + Phase 2.1 Swap / Give-Away
 
 generator client {
   provider = "prisma-client-js"
@@ -8,4 +7,1524 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum VerificationLevel {
+  L1_PHONE
+  L2_EMAIL
+  L3_IDENTITY
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum IdentityMethod {
+  NIN
+  BVN
+  GOV_ID
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+  UNKNOWN
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  OPERATIONS
+  CUSTOMER_SUPPORT
+  RISK_FRAUD
+  FINANCE
+  MARKETING
+  CONTENT_MODERATOR
+}
+
+enum ListingStatus {
+  DRAFT
+  UNDER_REVIEW
+  LIVE
+  RESERVED
+  SOLD
+  EXPIRED
+  REMOVED
+  REJECTED
+}
+
+enum SellingMode {
+  SELL
+  SWAP
+  SWAP_CASH
+  GIVE_AWAY
+}
+
+enum ItemCondition {
+  NEW
+  LIKE_NEW
+  VERY_GOOD
+  GOOD
+  FAIR
+  FOR_PARTS
+}
+
+enum ListingEventType {
+  VIEWED
+  SAVED
+  PRICE_CHANGED
+  STATUS_CHANGED
+}
+
+enum ListingImageStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  LISTING_CARD
+  OFFER_CARD
+  SWAP_PROPOSAL_CARD
+  GIVEAWAY_CLAIM
+  SYSTEM
+}
+
+enum SwapProposalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTERED
+  WITHDRAWN
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum GiveawayClaimStatus {
+  CLAIMED
+  APPROVED
+  REJECTED
+  COMPLETED
+  EXPIRED
+}
+
+enum TransactionType {
+  CASH
+  SWAP
+  SWAP_CASH
+  GIVEAWAY
+}
+
+enum SwapLegStatus {
+  PENDING
+  HANDED_OVER
+  RECEIVED
+  FAILED
+  RETURNED
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTERED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum OrderIntentStatus {
+  PENDING
+  CONVERTED
+  CANCELLED
+  EXPIRED
+}
+
+enum ChatScanKind {
+  OFF_PLATFORM_PAYMENT
+  EXTERNAL_LINK
+  ADVANCE_PAYMENT
+  SCAM_PHRASE
+}
+
+enum OrderStatus {
+  CREATED
+  PAYMENT_PENDING
+  FUNDED
+  HANDED_OVER
+  RECEIVED
+  COMPLETED
+  CANCELLED
+  DISPUTE_HOLD
+  REFUND_REQUESTED
+  REFUND_ISSUED
+}
+
+enum FulfilmentMethod {
+  PICKUP
+  MEET_POINT
+  DELIVERY
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  RELEASED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum DisputeStatus {
+  OPENED
+  AWAITING_SELLER
+  AWAITING_ADMIN
+  RESOLVED
+}
+
+enum DisputeReason {
+  NEVER_RECEIVED
+  MATERIALLY_DIFFERENT
+  COUNTERFEIT
+  UNDISCLOSED_DAMAGE
+  INCORRECT_PRODUCT
+}
+
+enum DisputeResolution {
+  FULL_REFUND
+  PARTIAL_REFUND
+  RELEASE_TO_SELLER
+  CANCEL
+}
+
+enum DeliveryShipmentStatus {
+  QUOTED
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+}
+
+enum NotificationChannel {
+  IN_APP
+  PUSH
+  EMAIL
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ModerationOutcome {
+  PASS
+  UNDER_REVIEW
+  REJECTED
+}
+
+enum AppealStatus {
+  OPEN
+  APPROVED
+  DENIED
+}
+
+enum ConsentChannel {
+  SMS
+  MARKETING
+  EMAIL
+}
+
+enum PromotionKind {
+  FEATURED
+  BOOST
+}
+
+enum ReviewStatus {
+  PENDING_MUTUAL
+  PUBLISHED
+  HIDDEN
+}
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  phone           String?    @unique
+  phoneVerifiedAt DateTime?
+  email           String?    @unique
+  emailVerifiedAt DateTime?
+  passwordHash    String?
+  status          UserStatus @default(ACTIVE)
+  riskLevel       RiskLevel  @default(LOW)
+  riskScore       Int        @default(0)
+  enhancedVerificationRequired Boolean @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  profile              Profile?
+  addresses            Address[]
+  verifications        Verification[]
+  devices              Device[]
+  refreshTokens        RefreshToken[]
+  roles                UserRole[]
+  auditLogs            AuditLog[]           @relation("AuditActor")
+  listings             Listing[]
+  listingEvents        ListingEvent[]       @relation("ListingEventActor")
+  riskEvents           RiskEvent[]
+  reports              Report[]             @relation("ReportReporter")
+  reportsAgainst       Report[]             @relation("ReportReportedUser")
+  favourites           Favourite[]
+  savedSearches        SavedSearch[]
+  following            SellerFollow[]       @relation("SellerFollowers")
+  followers            SellerFollow[]       @relation("SellerFollowing")
+  conversationsAsBuyer Conversation[]       @relation("ConversationBuyer")
+  conversationsAsSeller Conversation[]      @relation("ConversationSeller")
+  messagesSent         Message[]            @relation("MessageSender")
+  offersAsBuyer        Offer[]              @relation("OfferBuyer")
+  offersAsSeller       Offer[]              @relation("OfferSeller")
+  offerEvents          OfferEvent[]         @relation("OfferEventActor")
+  orderIntentsAsBuyer  OrderIntent[]        @relation("OrderIntentBuyer")
+  orderIntentsAsSeller OrderIntent[]        @relation("OrderIntentSeller")
+  blocksCreated        UserBlock[]          @relation("UserBlocker")
+  blocksReceived       UserBlock[]          @relation("UserBlocked")
+  mutesCreated         UserMute[]           @relation("UserMuter")
+  mutesReceived        UserMute[]           @relation("UserMuted")
+  ordersAsBuyer        Order[]              @relation("OrderBuyer")
+  ordersAsSeller       Order[]              @relation("OrderSeller")
+  orderEvents          OrderEvent[]         @relation("OrderEventActor")
+  disputesOpened       Dispute[]            @relation("DisputeOpener")
+  disputeEvidence      DisputeEvidence[]
+  notifications        Notification[]
+  notificationPrefs    NotificationPreference[]
+  devicePushTokens     DevicePushToken[]
+  supportTickets       SupportTicket[]
+  addressDisclosures   AddressDisclosure[]  @relation("AddressDiscloser")
+  reviewsGiven         Review[]             @relation("ReviewReviewer")
+  reviewsReceived      Review[]             @relation("ReviewReviewee")
+  reviewReports        ReviewReport[]       @relation("ReviewReporter")
+  trustScore           TrustScore?
+  trustScoreHistory    TrustScoreHistory[]
+  chatResponseSamples  ChatResponseSample[] @relation("ChatResponseSeller")
+  adminTotp            AdminTotp?
+  promotionsCreated    Promotion[]          @relation("PromotionCreator")
+  supportTicketsAssigned SupportTicket[]    @relation("SupportAssignee")
+  supportTicketNotes   SupportTicketNote[]  @relation("SupportNoteAuthor")
+  whitelistEntries     WhitelistEntry[]     @relation("WhitelistUser")
+  whitelistCreated     WhitelistEntry[]     @relation("WhitelistCreator")
+  warningsReceived     UserWarning[]        @relation("WarnedUser")
+  warningsCreated      UserWarning[]        @relation("WarningCreator")
+  riskEventsReviewed   RiskEvent[]          @relation("RiskReviewer")
+  riskAssessments      RiskAssessment[]
+  moderationAppeals    ModerationAppeal[]
+  moderationAppealsReviewed ModerationAppeal[] @relation("AppealReviewer")
+  consentRecords       ConsentRecord[]
+  swapProposals        SwapProposal[]       @relation("SwapProposer")
+  giveawayClaims       GiveawayClaim[]      @relation("GiveawayClaimant")
+  ordersAsCashRecipient Order[]             @relation("OrderCashRecipient")
+
+  @@map("users")
+}
+
+model Profile {
+  id                 String  @id @default(uuid()) @db.Uuid
+  userId             String  @unique @db.Uuid
+  displayName        String
+  fullName           String?
+  avatarUrl          String?
+  bio                String?
+  birthYear          Int?
+  preferredCommunity String  @default("")
+  language           String  @default("en-NG")
+  currency           String  @default("NGN")
+  showFullName       Boolean @default(false)
+  /// Quiet hours start (inclusive), hour 0–23 in Africa/Lagos (WAT).
+  quietHoursStart    Int?
+  /// Quiet hours end (exclusive), hour 0–23 WAT. Window may wrap midnight.
+  quietHoursEnd      Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Address {
+  id        String  @id @default(uuid()) @db.Uuid
+  userId    String  @db.Uuid
+  label     String
+  line1     String
+  line2     String?
+  city      String
+  community String
+  country   String  @default("NG")
+  geoLat    Float?
+  geoLng    Float?
+  isDefault Boolean @default(false)
+  /// Always treat as private PII — never expose in public APIs.
+  private   Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+model Verification {
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String             @db.Uuid
+  level           VerificationLevel
+  status          VerificationStatus @default(PENDING)
+  method          IdentityMethod?
+  providerRef     String?
+  /// Hash only — never store raw NIN/BVN/gov ID.
+  identifierHash  String?
+  rejectionReason String?
+  verifiedAt      DateTime?
+  createdAt       DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, level])
+  @@map("verifications")
+}
+
+model Device {
+  id          String         @id @default(uuid()) @db.Uuid
+  userId      String         @db.Uuid
+  name        String
+  platform    DevicePlatform @default(UNKNOWN)
+  /// Optional client-supplied fingerprint for DEVICE_FINGERPRINT risk rule.
+  fingerprint String?
+  lastSeenAt  DateTime       @default(now())
+  createdAt   DateTime       @default(now())
+  revokedAt   DateTime?
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@index([fingerprint])
+  @@map("devices")
+}
+
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  deviceId     String?   @db.Uuid
+  familyId     String    @db.Uuid
+  tokenHash    String
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?   @db.Uuid
+  createdAt    DateTime  @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+model OtpChallenge {
+  id         String    @id @default(uuid()) @db.Uuid
+  phone      String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([phone, createdAt])
+  @@map("otp_challenges")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @db.Uuid
+  actorRole   String?
+  action      String
+  entityType  String
+  entityId    String?
+  beforeJson  Json?
+  afterJson   Json?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model UserRole {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  role      AdminRole
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([userId])
+  @@map("user_roles")
+}
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  name      String
+  parentId  String?  @db.Uuid
+  sortOrder Int      @default(0)
+  iconUrl   String?
+  createdAt DateTime @default(now())
+
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryTree")
+  listings    Listing[]  @relation("ListingCategory")
+  subListings Listing[]  @relation("ListingSubcategory")
+
+  @@index([parentId])
+  @@index([sortOrder])
+  @@map("categories")
+}
+
+model Listing {
+  id                 String        @id @default(uuid()) @db.Uuid
+  sellerId           String        @db.Uuid
+  title              String        @default("")
+  description        String        @default("")
+  categoryId         String?       @db.Uuid
+  subcategoryId      String?       @db.Uuid
+  brand              String?
+  model              String?
+  condition          ItemCondition @default(GOOD)
+  ageText            String?
+  originalPriceKobo  Int?
+  priceKobo          Int           @default(0)
+  negotiable         Boolean       @default(true)
+  sellingMode        SellingMode   @default(SELL)
+  status             ListingStatus @default(DRAFT)
+  community          String        @default("")
+  geoLat             Float?
+  geoLng             Float?
+  /// Private meetup / pickup address — NEVER expose in public DTOs.
+  addressPrivate     String?
+  fulfilmentPickup   Boolean       @default(true)
+  fulfilmentMeet     Boolean       @default(true)
+  fulfilmentDelivery Boolean       @default(false)
+  aiUsed             Boolean       @default(false)
+  aiEditedFields     String[]      @default([])
+  expiresAt          DateTime?
+  publishedAt        DateTime?
+  views              Int           @default(0)
+  vehicle            Json?
+  riskFlags          String[]      @default([])
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  seller       User           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  category     Category?      @relation("ListingCategory", fields: [categoryId], references: [id], onDelete: SetNull)
+  subcategory  Category?      @relation("ListingSubcategory", fields: [subcategoryId], references: [id], onDelete: SetNull)
+  images       ListingImage[]
+  events       ListingEvent[]
+  riskEvents   RiskEvent[]
+  reports      Report[]
+  favourites   Favourite[]
+  conversations Conversation[]
+  offers       Offer[]
+  orderIntents OrderIntent[]
+  orders       Order[]
+  listingCards Message[]      @relation("MessageListingCard")
+  promotions           Promotion[]
+  moderationDecisions  ModerationDecision[]
+  moderationAppeals    ModerationAppeal[]
+  riskAssessments      RiskAssessment[]
+  swapProposalsAsTarget SwapProposal[] @relation("SwapTargetListing")
+  swapProposalsOffered  SwapProposal[] @relation("SwapOfferedListing")
+  giveawayClaims        GiveawayClaim[]
+  ordersAsSwapA         Order[]        @relation("OrderSwapListingA")
+  ordersAsSwapB         Order[]        @relation("OrderSwapListingB")
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([categoryId])
+  @@index([community])
+  @@index([publishedAt])
+  @@index([expiresAt])
+  @@map("listings")
+}
+
+model ListingImage {
+  id           String             @id @default(uuid()) @db.Uuid
+  listingId    String             @db.Uuid
+  sortOrder    Int                @default(0)
+  originalKey  String
+  variants     Json               @default("{}")
+  width        Int?
+  height       Int?
+  mime         String?
+  sizeBytes    Int?
+  dHash        String?
+  exifStripped Boolean            @default(false)
+  status       ListingImageStatus @default(PENDING)
+  createdAt    DateTime           @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, sortOrder])
+  @@index([dHash])
+  @@index([originalKey])
+  @@map("listing_images")
+}
+
+model ListingEvent {
+  id          String           @id @default(uuid()) @db.Uuid
+  listingId   String           @db.Uuid
+  type        ListingEventType
+  actorUserId String?          @db.Uuid
+  payload     Json?
+  createdAt   DateTime         @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  actor   User?   @relation("ListingEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([listingId, createdAt])
+  @@index([type])
+  @@map("listing_events")
+}
+
+model RiskEvent {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String?   @db.Uuid
+  listingId    String?   @db.Uuid
+  kind         String
+  score        Int?
+  detail       Json?
+  reviewedAt   DateTime?
+  reviewedById String?   @db.Uuid
+  createdAt    DateTime  @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  listing    Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  reviewedBy User?    @relation("RiskReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([listingId])
+  @@index([userId])
+  @@index([kind])
+  @@index([reviewedAt])
+  @@map("risk_events")
+}
+
+model Report {
+  id             String       @id @default(uuid()) @db.Uuid
+  listingId      String?      @db.Uuid
+  reportedUserId String?      @db.Uuid
+  reporterId     String       @db.Uuid
+  reason         String
+  detail         String?
+  conversationId String?      @db.Uuid
+  status         ReportStatus @default(OPEN)
+  createdAt      DateTime     @default(now())
+
+  listing      Listing?      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reportedUser User?         @relation("ReportReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  reporter     User          @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([listingId])
+  @@index([reportedUserId])
+  @@index([reporterId])
+  @@index([status])
+  @@map("reports")
+}
+
+model Favourite {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  listingId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@index([userId])
+  @@index([listingId])
+  @@map("favourites")
+}
+
+model SellerFollow {
+  id         String   @id @default(uuid()) @db.Uuid
+  followerId String   @db.Uuid
+  sellerId   String   @db.Uuid
+  createdAt  DateTime @default(now())
+
+  follower User @relation("SellerFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  seller   User @relation("SellerFollowing", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, sellerId])
+  @@index([followerId])
+  @@index([sellerId])
+  @@map("seller_follows")
+}
+
+model SavedSearch {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @db.Uuid
+  name            String
+  filters         Json
+  newMatchesCount Int       @default(0)
+  lastCheckedAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("saved_searches")
+}
+
+model Conversation {
+  id            String   @id @default(uuid()) @db.Uuid
+  listingId     String   @db.Uuid
+  buyerId       String   @db.Uuid
+  sellerId      String   @db.Uuid
+  lastMessageAt DateTime?
+  createdAt     DateTime @default(now())
+
+  listing  Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer    User      @relation("ConversationBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller   User      @relation("ConversationSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  messages Message[]
+  offers   Offer[]
+  mutes             UserMute[]
+  reports           Report[]
+  chatResponseSample ChatResponseSample?
+  swapProposals     SwapProposal[]
+
+  @@unique([listingId, buyerId, sellerId])
+  @@index([buyerId, lastMessageAt])
+  @@index([sellerId, lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String      @id @default(uuid()) @db.Uuid
+  conversationId String      @db.Uuid
+  senderId       String      @db.Uuid
+  type           MessageType
+  /// Scrubbed body — phone/email patterns redacted before persist.
+  body           String?
+  imageKey       String?
+  offerId        String?     @db.Uuid
+  listingCardId  String?     @db.Uuid
+  /// Client-generated id for idempotent resync.
+  clientMsgId    String?
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  scamWarning    Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  offer        Offer?       @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  listingCard  Listing?     @relation("MessageListingCard", fields: [listingCardId], references: [id], onDelete: SetNull)
+
+  @@unique([conversationId, clientMsgId])
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model Offer {
+  id             String      @id @default(uuid()) @db.Uuid
+  listingId      String      @db.Uuid
+  conversationId String?     @db.Uuid
+  buyerId        String      @db.Uuid
+  sellerId       String      @db.Uuid
+  amountKobo     Int
+  note           String?
+  status         OfferStatus @default(PENDING)
+  parentOfferId  String?     @db.Uuid
+  expiresAt      DateTime
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  listing      Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  buyer        User          @relation("OfferBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller       User          @relation("OfferSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  parentOffer  Offer?        @relation("OfferChain", fields: [parentOfferId], references: [id], onDelete: SetNull)
+  counters     Offer[]       @relation("OfferChain")
+  events       OfferEvent[]
+  messages     Message[]
+  orderIntents OrderIntent[]
+  orders       Order[]
+
+  @@index([listingId, status])
+  @@index([buyerId, listingId, status])
+  @@index([expiresAt])
+  @@map("offers")
+}
+
+model OfferEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  offerId     String   @db.Uuid
+  type        String
+  actorUserId String?  @db.Uuid
+  payload     Json?
+  createdAt   DateTime @default(now())
+
+  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  actor User? @relation("OfferEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([offerId, createdAt])
+  @@map("offer_events")
+}
+
+model OrderIntent {
+  id            String            @id @default(uuid()) @db.Uuid
+  listingId     String            @db.Uuid
+  buyerId       String            @db.Uuid
+  sellerId      String            @db.Uuid
+  offerId       String?           @db.Uuid
+  amountKobo    Int
+  status        OrderIntentStatus @default(PENDING)
+  reservedUntil DateTime
+  orderId       String?           @unique @db.Uuid
+  createdAt     DateTime          @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer   User    @relation("OrderIntentBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller  User    @relation("OrderIntentSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  offer   Offer?  @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([listingId, status])
+  @@index([buyerId])
+  @@map("order_intents")
+}
+
+model Order {
+  id                String           @id @default(uuid()) @db.Uuid
+  listingId         String           @db.Uuid
+  buyerId           String           @db.Uuid
+  sellerId          String           @db.Uuid
+  offerId           String?          @db.Uuid
+  orderIntentId     String?          @unique @db.Uuid
+  amountKobo        Int
+  protectionFeeKobo Int
+  deliveryFeeKobo   Int              @default(0)
+  totalKobo         Int
+  fulfilmentMethod  FulfilmentMethod
+  status            OrderStatus      @default(CREATED)
+  buyerProtection   Boolean          @default(true)
+  coverageEndsAt    DateTime?
+  autoReleaseAt     DateTime?
+  fundedAt          DateTime?
+  completedAt       DateTime?
+  transactionType   TransactionType  @default(CASH)
+  swapProposalId    String?          @unique @db.Uuid
+  giveawayClaimId   String?          @unique @db.Uuid
+  swapListingAId    String?          @db.Uuid
+  swapListingBId    String?          @db.Uuid
+  legAStatus        SwapLegStatus?
+  legBStatus        SwapLegStatus?
+  cashRecipientId   String?          @db.Uuid
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  listing     Listing         @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer       User            @relation("OrderBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller      User            @relation("OrderSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  offer       Offer?          @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  swapProposal  SwapProposal? @relation(fields: [swapProposalId], references: [id], onDelete: SetNull)
+  giveawayClaim GiveawayClaim? @relation(fields: [giveawayClaimId], references: [id], onDelete: SetNull)
+  swapListingA  Listing?      @relation("OrderSwapListingA", fields: [swapListingAId], references: [id], onDelete: SetNull)
+  swapListingB  Listing?      @relation("OrderSwapListingB", fields: [swapListingBId], references: [id], onDelete: SetNull)
+  cashRecipient User?         @relation("OrderCashRecipient", fields: [cashRecipientId], references: [id], onDelete: SetNull)
+  events      OrderEvent[]
+  payments    Payment[]
+  payouts     Payout[]
+  refunds     Refund[]
+  disputes           Dispute[]
+  orderIntent        OrderIntent?
+  meetPointId        String?            @db.Uuid
+  meetPoint          MeetPoint?         @relation(fields: [meetPointId], references: [id], onDelete: SetNull)
+  deliveryShipment   DeliveryShipment?
+  addressDisclosure  AddressDisclosure?
+  supportTickets     SupportTicket[]
+  reviews            Review[]
+
+  @@index([buyerId, createdAt])
+  @@index([sellerId, createdAt])
+  @@index([listingId])
+  @@index([status, autoReleaseAt])
+  @@index([meetPointId])
+  @@index([transactionType])
+  @@map("orders")
+}
+
+model SwapProposal {
+  id                 String             @id @default(uuid()) @db.Uuid
+  listingId          String             @db.Uuid
+  proposerId         String             @db.Uuid
+  offeredListingId   String             @db.Uuid
+  /// Positive = proposer pays seller; 0 = pure swap.
+  cashComponentKobo  Int                @default(0)
+  note               String?
+  status             SwapProposalStatus @default(PENDING)
+  parentProposalId   String?            @db.Uuid
+  conversationId     String?            @db.Uuid
+  expiresAt          DateTime
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  listing        Listing       @relation("SwapTargetListing", fields: [listingId], references: [id], onDelete: Cascade)
+  offeredListing Listing       @relation("SwapOfferedListing", fields: [offeredListingId], references: [id], onDelete: Cascade)
+  proposer       User          @relation("SwapProposer", fields: [proposerId], references: [id], onDelete: Cascade)
+  parentProposal SwapProposal? @relation("SwapProposalChain", fields: [parentProposalId], references: [id], onDelete: SetNull)
+  counters       SwapProposal[] @relation("SwapProposalChain")
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  order          Order?
+
+  @@index([listingId, status])
+  @@index([proposerId, listingId, status])
+  @@index([offeredListingId])
+  @@index([expiresAt])
+  @@map("swap_proposals")
+}
+
+model GiveawayClaim {
+  id         String              @id @default(uuid()) @db.Uuid
+  listingId  String              @db.Uuid
+  claimantId String              @db.Uuid
+  status     GiveawayClaimStatus @default(CLAIMED)
+  note       String?
+  expiresAt  DateTime
+  createdAt  DateTime            @default(now())
+  reviewedAt DateTime?
+
+  listing  Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  claimant User    @relation("GiveawayClaimant", fields: [claimantId], references: [id], onDelete: Cascade)
+  order    Order?
+
+  @@unique([listingId, claimantId])
+  @@index([listingId, status])
+  @@index([claimantId])
+  @@index([expiresAt])
+  @@map("giveaway_claims")
+}
+
+model OrderEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderId     String   @db.Uuid
+  type        String
+  actorUserId String?  @db.Uuid
+  payload     Json?
+  createdAt   DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor User? @relation("OrderEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
+}
+
+model Payment {
+  id               String        @id @default(uuid()) @db.Uuid
+  orderId          String        @db.Uuid
+  provider         String
+  reference        String        @unique
+  amountKobo       Int
+  status           PaymentStatus @default(PENDING)
+  idempotencyKey   String?       @unique
+  providerPayload  Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refunds Refund[]
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+model Payout {
+  id            String   @id @default(uuid()) @db.Uuid
+  orderId       String   @db.Uuid
+  grossKobo     Int
+  feesKobo      Int
+  netKobo       Int
+  pspReference  String?
+  createdAt     DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("payouts")
+}
+
+model Refund {
+  id             String        @id @default(uuid()) @db.Uuid
+  orderId        String        @db.Uuid
+  paymentId      String        @db.Uuid
+  amountKobo     Int
+  reason         String?
+  idempotencyKey String?       @unique
+  status         PaymentStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("refunds")
+}
+
+model Dispute {
+  id              String              @id @default(uuid()) @db.Uuid
+  orderId         String              @db.Uuid
+  openerId        String              @db.Uuid
+  reason          DisputeReason
+  status          DisputeStatus       @default(OPENED)
+  detail          String?
+  sellerResponse  String?
+  sellerRespondBy DateTime?
+  resolution      DisputeResolution?
+  resolutionNote  String?
+  resolvedAt      DateTime?
+  createdAt       DateTime            @default(now())
+
+  order    Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  opener   User              @relation("DisputeOpener", fields: [openerId], references: [id], onDelete: Cascade)
+  evidence DisputeEvidence[]
+
+  @@index([orderId])
+  @@index([status, sellerRespondBy])
+  @@map("disputes")
+}
+
+model DisputeEvidence {
+  id         String   @id @default(uuid()) @db.Uuid
+  disputeId  String   @db.Uuid
+  uploaderId String   @db.Uuid
+  text       String?
+  imageKey   String?
+  createdAt  DateTime @default(now())
+
+  dispute  Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  uploader User    @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  @@index([disputeId])
+  @@map("dispute_evidence")
+}
+
+model IdempotencyRecord {
+  id           String   @id @default(uuid()) @db.Uuid
+  key          String   @unique
+  operation    String
+  responseJson Json
+  createdAt    DateTime @default(now())
+
+  @@index([operation])
+  @@map("idempotency_records")
+}
+
+model UserBlock {
+  id        String   @id @default(uuid()) @db.Uuid
+  blockerId String   @db.Uuid
+  blockedId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  blocker User @relation("UserBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("UserBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
+model UserMute {
+  id             String   @id @default(uuid()) @db.Uuid
+  muterId        String   @db.Uuid
+  mutedId        String   @db.Uuid
+  conversationId String?  @db.Uuid
+  createdAt      DateTime @default(now())
+
+  muter        User          @relation("UserMuter", fields: [muterId], references: [id], onDelete: Cascade)
+  muted        User          @relation("UserMuted", fields: [mutedId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([muterId])
+  @@index([conversationId])
+  @@map("user_mutes")
+}
+
+model ChatScanRule {
+  id        String       @id @default(uuid()) @db.Uuid
+  pattern   String
+  kind      ChatScanKind
+  enabled   Boolean      @default(true)
+  createdAt DateTime     @default(now())
+
+  @@index([enabled])
+  @@map("chat_scan_rules")
+}
+
+model MeetPoint {
+  id        String   @id @default(uuid()) @db.Uuid
+  community String
+  name      String
+  landmark  String
+  lat       Float
+  lng       Float
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  orders Order[]
+
+  @@index([community, active])
+  @@map("meet_points")
+}
+
+model DeliveryShipment {
+  id            String                 @id @default(uuid()) @db.Uuid
+  orderId       String                 @unique @db.Uuid
+  provider      String
+  providerRef   String?
+  quoteKobo     Int
+  distanceKm    Float?
+  status        DeliveryShipmentStatus @default(QUOTED)
+  etaFrom       DateTime?
+  etaTo         DateTime?
+  failureReason String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  order  Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  events DeliveryEvent[]
+
+  @@index([providerRef])
+  @@index([status])
+  @@map("delivery_shipments")
+}
+
+model DeliveryEvent {
+  id         String                 @id @default(uuid()) @db.Uuid
+  shipmentId String                 @db.Uuid
+  status     DeliveryShipmentStatus
+  payload    Json?
+  createdAt  DateTime               @default(now())
+
+  shipment DeliveryShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId, createdAt])
+  @@map("delivery_events")
+}
+
+/// One-way seller address disclosure for a funded order — never revoke.
+model AddressDisclosure {
+  id              String   @id @default(uuid()) @db.Uuid
+  orderId         String   @unique @db.Uuid
+  disclosedById   String   @db.Uuid
+  addressSnapshot String
+  createdAt       DateTime @default(now())
+
+  order       Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  disclosedBy User  @relation("AddressDiscloser", fields: [disclosedById], references: [id], onDelete: Cascade)
+
+  @@index([disclosedById])
+  @@map("address_disclosures")
+}
+
+model Notification {
+  id       String              @id @default(uuid()) @db.Uuid
+  userId   String              @db.Uuid
+  /// PRD §29 category string enum (e.g. PAYMENT_RECEIVED).
+  category String
+  channel  NotificationChannel
+  title    String
+  body     String
+  deepLink String?
+  readAt   DateTime?
+  createdAt DateTime           @default(now())
+  meta     Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@index([category])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id       String              @id @default(uuid()) @db.Uuid
+  userId   String              @db.Uuid
+  category String
+  channel  NotificationChannel
+  enabled  Boolean             @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category, channel])
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+model DevicePushToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  token     String
+  platform  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@index([userId])
+  @@map("device_push_tokens")
+}
+
+model SupportTicket {
+  id         String              @id @default(uuid()) @db.Uuid
+  orderId    String?             @db.Uuid
+  userId     String              @db.Uuid
+  assigneeId String?             @db.Uuid
+  subject    String
+  status     SupportTicketStatus @default(OPEN)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  order    Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignee User?               @relation("SupportAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  notes    SupportTicketNote[]
+
+  @@index([userId, status])
+  @@index([orderId])
+  @@index([assigneeId])
+  @@map("support_tickets")
+}
+
+model SupportTicketNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @db.Uuid
+  authorId  String   @db.Uuid
+  body      String
+  internal  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User          @relation("SupportNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("support_ticket_notes")
+}
+
+model AdminTotp {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @unique @db.Uuid
+  secret     String
+  enabledAt  DateTime?
+  verified   Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admin_totp")
+}
+
+model Promotion {
+  id          String        @id @default(uuid()) @db.Uuid
+  listingId   String        @db.Uuid
+  kind        PromotionKind
+  startsAt    DateTime
+  endsAt      DateTime
+  feeKobo     Int           @default(0)
+  createdById String        @db.Uuid
+  createdAt   DateTime      @default(now())
+
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("PromotionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([kind, startsAt, endsAt])
+  @@map("promotions")
+}
+
+model HeroBanner {
+  id        String   @id @default(uuid()) @db.Uuid
+  title     String
+  body      String
+  imageUrl  String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([active, sortOrder])
+  @@map("hero_banners")
+}
+
+model Community {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([active])
+  @@map("communities")
+}
+
+model WhitelistEntry {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  reason      String
+  createdById String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  user      User @relation("WhitelistUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("WhitelistCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("whitelist_entries")
+}
+
+model UserWarning {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  message     String
+  createdById String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  user      User @relation("WarnedUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("WarningCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("user_warnings")
+}
+
+/// Two-way post-transaction review. Visible only when both sides have submitted (PUBLISHED).
+model Review {
+  id                     String       @id @default(uuid()) @db.Uuid
+  orderId                String       @db.Uuid
+  reviewerId             String       @db.Uuid
+  revieweeId             String       @db.Uuid
+  overall                Int
+  accuracy               Int
+  communication          Int
+  punctuality            Int
+  transactionExperience  Int
+  body                   String?      @db.VarChar(500)
+  photoKeys              String[]     @default([])
+  status                 ReviewStatus @default(PENDING_MUTUAL)
+  reply                  String?      @db.VarChar(200)
+  repliedAt              DateTime?
+  publishedAt            DateTime?
+  createdAt              DateTime     @default(now())
+
+  order    Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reviewer User          @relation("ReviewReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewee User          @relation("ReviewReviewee", fields: [revieweeId], references: [id], onDelete: Cascade)
+  reports  ReviewReport[]
+
+  @@unique([orderId, reviewerId])
+  @@index([revieweeId, status])
+  @@index([orderId])
+  @@map("reviews")
+}
+
+model ReviewReport {
+  id         String   @id @default(uuid()) @db.Uuid
+  reviewId   String   @db.Uuid
+  reporterId String   @db.Uuid
+  reason     String
+  createdAt  DateTime @default(now())
+
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reporter User   @relation("ReviewReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@index([reporterId])
+  @@map("review_reports")
+}
+
+/// Computed 0–100 reputation; public APIs expose tier only when ≥70.
+model TrustScore {
+  id                     String   @id @default(uuid()) @db.Uuid
+  userId                 String   @unique @db.Uuid
+  score                  Int
+  /// TOP_SELLER | TRUSTED | null
+  tier                   String?
+  completionRate         Float
+  avgRating              Float?
+  medianResponseMinutes  Float?
+  cancellationRate       Float
+  disputeRate            Float
+  accountAgeDays         Int
+  verificationPoints     Int
+  computedAt             DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([score])
+  @@index([tier])
+  @@map("trust_scores")
+}
+
+model TrustScoreHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  score     Int
+  tier      String?
+  reason    String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("trust_score_history")
+}
+
+/// First seller reply latency per conversation (for median response time).
+model ChatResponseSample {
+  id               String   @id @default(uuid()) @db.Uuid
+  conversationId   String   @unique @db.Uuid
+  sellerId         String   @db.Uuid
+  buyerMessageAt   DateTime
+  firstReplyAt     DateTime
+  latencyMinutes   Float
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  seller       User         @relation("ChatResponseSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId, firstReplyAt])
+  @@map("chat_response_samples")
+}
+
+/// Weighted fraud/risk rule definition (PRD §32).
+model RiskRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  name      String
+  weight    Int
+  enabled   Boolean  @default(true)
+  config    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("risk_rules")
+}
+
+/// Explainable risk score snapshot for a user and/or listing.
+model RiskAssessment {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String?   @db.Uuid
+  listingId  String?   @db.Uuid
+  level      RiskLevel
+  score      Int
+  rulesFired Json
+  createdAt  DateTime  @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  listing Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([listingId])
+  @@index([level])
+  @@index([createdAt])
+  @@map("risk_assessments")
+}
+
+model ModerationKeyword {
+  id        String   @id @default(uuid()) @db.Uuid
+  pattern   String
+  category  String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([enabled])
+  @@index([category])
+  @@map("moderation_keywords")
+}
+
+model ModerationDecision {
+  id        String            @id @default(uuid()) @db.Uuid
+  listingId String            @db.Uuid
+  outcome   ModerationOutcome
+  reasons   String[]
+  detail    Json?
+  createdAt DateTime          @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([outcome])
+  @@index([createdAt])
+  @@map("moderation_decisions")
+}
+
+model ModerationAppeal {
+  id           String       @id @default(uuid()) @db.Uuid
+  listingId    String       @db.Uuid
+  userId       String       @db.Uuid
+  reason       String
+  status       AppealStatus @default(OPEN)
+  createdAt    DateTime     @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?      @db.Uuid
+
+  listing    Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User?   @relation("AppealReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([listingId])
+  @@index([userId])
+  @@index([status])
+  @@map("moderation_appeals")
+}
+
+model ConsentRecord {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @db.Uuid
+  channel   ConsentChannel
+  granted   Boolean
+  updatedAt DateTime       @updatedAt
+  createdAt DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel])
+  @@index([userId])
+  @@map("consent_records")
 }

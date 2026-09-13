@@ -1,27 +1,107 @@
-# API documentation (stub)
+# API reference (`/api/v1`) — `v0.9.0-rc`
 
-> OpenAPI-derived docs will be generated from `apps/api` in later phases. Do not treat this file as complete until Phase 10 regenerates it.
+> Regenerated for Phase 10 from the Nest route surface. For interactive OpenAPI, run the API and use route inventory below. Full Swagger UI can be enabled later via `@nestjs/swagger` without changing contracts.
 
-## Base URL (local)
+**Base (local):** `http://localhost:3001/api/v1`  
+**Auth:** `Authorization: Bearer <accessToken>` (user). Admin routes require admin JWT (+ optional TOTP session).
 
-`http://localhost:3001/api/v1`
+## Health
 
-## Planned surface (PRD §43)
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| GET | `/healthz` | no | Liveness |
+| GET | `/readyz` | no | Readiness |
+| GET | `/metrics` | no | Prometheus text stub |
 
-Versioned REST under `/api/v1`. Admin routes separately authorised.
+### Example
 
-### Health (Phase 0)
+```http
+GET /api/v1/healthz
+→ 200 {"status":"ok"}
+```
 
-| Method | Path | Notes |
-| --- | --- | --- |
-| GET | `/healthz` | Liveness |
-| GET | `/readyz` | Readiness (deps) |
-| GET | `/metrics` | Metrics stub |
+## Auth
 
-### Auth / users (Phase 1+)
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| POST | `/auth/otp/request` | no | Rate-limited |
+| POST | `/auth/otp/verify` | no | Issues tokens |
+| POST | `/auth/login` | no | Email/password (admin/demo) |
+| POST | `/auth/refresh` | no | Rotation + reuse detection |
+| POST | `/auth/logout` | no | |
+| POST | `/auth/oauth/:provider/callback` | no | Google/Apple mock/live |
 
-See `CURSOR-PROMPT.md` Prompt 2 for the endpoint list (`/auth/otp/*`, `/me`, verifications, admin users).
+## Me / privacy
 
-### Listings / search / chat / orders / payments
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| GET/PATCH | `/me` | user | Profile |
+| GET | `/me/export` | user | DSAR JSON |
+| GET/PUT | `/me/consents` | user | SMS/MARKETING/EMAIL |
+| GET | `/me/devices` | user | |
+| DELETE | `/me/devices/:id` | user | |
+| POST | `/me/logout-all` | user | |
+| POST | `/me/delete-request` | user | Pseudonymise |
 
-Added in Phases 2–6. This stub will be replaced by generated OpenAPI examples.
+## Listings / media / discovery
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| GET | `/categories` | no | |
+| POST/GET | `/listings` | mixed | Create auth; browse public |
+| GET/PATCH/DELETE | `/listings/:id` | mixed | |
+| POST | `/listings/:id/assist` | user | AI draft |
+| POST | `/listings/:id/publish` | user | Risk + moderation |
+| POST | `/listings/:id/images` | user | |
+| POST | `/listings/:id/appeal` | user | After REJECTED |
+| POST | `/listings/:id/report` | user | |
+| POST | `/media/presign` | user | |
+| POST | `/media/complete` | user | |
+| GET | `/search` | no | |
+| POST | `/search/nl` | no | |
+| GET | `/home` | no | Rails |
+
+## Chat / offers / social
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| GET/POST | `/conversations` | user | |
+| GET/POST | `/conversations/:id/messages` | user | |
+| POST | `/listings/:id/offers` | user | |
+| POST | `/offers/:id/accept\|reject\|counter` | user | |
+| POST | `/listings/:id/favourite` | user | |
+| GET | `/me/favourites` | user | |
+
+## Orders / payments / disputes / delivery
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| POST/GET | `/orders` | user | |
+| POST | `/orders/:id/handed-over` | user | |
+| POST | `/orders/:id/confirm-receipt` | user | |
+| POST | `/payments/initiate` | user | |
+| POST | `/webhooks/paystack` | HMAC | Raw body |
+| POST | `/orders/:id/disputes` | user | |
+| GET | `/meet-points` | no | |
+| GET | `/orders/:id/delivery-quote` | user | |
+
+## Reviews / trust / notifications
+
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| POST | `/orders/:id/reviews` | user | |
+| GET | `/users/:id/trust-score` | no | |
+| GET | `/notifications` | user | |
+
+## Admin (`/admin/*`)
+
+Admin-only JWT. Key groups: `/admin/auth/*`, `/admin/dashboard/kpis`, users, listings, orders, disputes, verifications, reports, risk-events, appeals, support, catalog, promotions, analytics, audit. See `docs/RBAC.md`.
+
+### Example — admin login
+
+```http
+POST /api/v1/admin/auth/login
+Content-Type: application/json
+
+{"email":"risk@demo.reworth.ng","password":"DemoRisk!2026"}
+```
