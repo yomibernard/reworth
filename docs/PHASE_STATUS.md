@@ -2,18 +2,17 @@
 
 | Field | Value |
 | --- | --- |
-| Current phase | **2.4 — Verticals & Commercial** |
-| Prompt | Post-launch 2.4 |
-| Target tag | `v1.3-verticals` |
-| Status | **Complete (pending PR)** |
-| Last completed | **2.4** web + admin UI + docs (tag `v1.3-verticals`) |
+| Current phase | **3.1 — AI & Platform Services** |
+| Prompt | Post-launch 3.1 |
+| Target tag | `v2.0` |
+| Status | **Not started** |
+| Last completed | **2.4** `v1.3-verticals` (PR #14 merged) |
 | Last updated | 2026-09-13 |
 
-## What exists (through 2.4 UI)
-- Vehicle inspection badges + request CTA + report modal; luxury auth badges + sell toggle
-- Pro apply / bulk CSV / subscribe; storefront `/u/[handle]`; referrals page
-- Admin Pro sellers, Inspections, Referrals; ADR-005 IN_AUTHENTICATION
-- Mobile thin badges on ListingDetailModal
+## What exists (through 2.4)
+- Vehicle inspection + luxury authentication (`IN_AUTHENTICATION`)
+- Pro sellers (bulk CSV, storefront, subscription); referral programme + anti-abuse
+- Intelligence (alerts, recs v2, valuation, seller analytics); Moving sales + estates; Swap
 
 ## Resume
-Merge PR → tag `v1.3-verticals`. Next: Prompt 3.1 AI & Platform (`v2.0`) only after 2.4 API + UAT.
+Start Prompt 3.1 AI & Platform Services (`v2.0`): marketplace assistant, room scan, instant buy, consignment.
