@@ -12,6 +12,16 @@ describe('ListingStateMachine', () => {
     );
   });
 
+  it('allows DRAFT → REJECTED (moderation)', () => {
+    expect(ListingStateMachine.canTransition('DRAFT', 'REJECTED')).toBe(true);
+  });
+
+  it('allows REJECTED → UNDER_REVIEW (appeal approved)', () => {
+    expect(
+      ListingStateMachine.canTransition('REJECTED', 'UNDER_REVIEW'),
+    ).toBe(true);
+  });
+
   it('throws ConflictException on invalid transition', () => {
     expect(() =>
       ListingStateMachine.assertTransition('SOLD', 'LIVE'),

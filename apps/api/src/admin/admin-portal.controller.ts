@@ -46,6 +46,7 @@ import {
   AdminCategoryDto,
   AdminChatScanRuleDto,
   AdminCommunityDto,
+  AdminAppealResolveDto,
   AdminExtendExpiryDto,
   AdminFeatureListingDto,
   AdminHeroBannerDto,
@@ -293,6 +294,23 @@ export class AdminPortalController {
     @Req() req: { ip?: string },
   ) {
     return this.portal.reviewRiskEvent(actor, id, req.ip);
+  }
+
+  @Get('appeals')
+  @Roles(...LISTINGS_MOD)
+  listAppeals() {
+    return this.portal.listAppeals();
+  }
+
+  @Post('appeals/:id/resolve')
+  @Roles(...LISTINGS_MOD)
+  resolveAppeal(
+    @CurrentUser() actor: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: AdminAppealResolveDto,
+    @Req() req: { ip?: string },
+  ) {
+    return this.portal.resolveAppeal(actor, id, dto, req.ip);
   }
 
   // ── Support ────────────────────────────────────────────────────────

@@ -19,16 +19,28 @@ export class HomeCache implements OnModuleDestroy {
     const url = config.get<string>('REDIS_URL');
     if (url && process.env.NODE_ENV !== 'test') {
       try {
-        this.redis = new Redis(url, {
+        const client = new Redis(url, {
           maxRetriesPerRequest: 1,
           lazyConnect: true,
           enableOfflineQueue: false,
+          retryStrategy: () => null,
         });
-        this.redis.connect().catch((err: Error) => {
-          this.logger.warn(`Redis unavailable, using memory cache: ${err.message}`);
-          void this.redis?.quit();
+        client.on('error', (err: Error) => {
+          this.logger.warn(`Redis error (memory fallback): ${err.message}`);
           this.redis = null;
         });
+        client
+          .connect()
+          .then(() => {
+            this.redis = client;
+          })
+          .catch((err: Error) => {
+            this.logger.warn(
+              `Redis unavailable, using memory cache: ${err.message}`,
+            );
+            client.disconnect(false);
+            this.redis = null;
+          });
       } catch (err) {
         this.logger.warn(`Redis init failed: ${(err as Error).message}`);
         this.redis = null;

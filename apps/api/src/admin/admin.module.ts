@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { AdminOnlyGuard } from '../common/guards/admin-only.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { ModerationModule } from '../moderation/moderation.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrdersModule } from '../orders/orders.module';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -18,6 +19,7 @@ import { AdminUsersController } from './admin-users.controller';
     AuthModule,
     PrismaModule,
     NotificationsModule,
+    ModerationModule,
     forwardRef(() => OrdersModule),
   ],
   controllers: [

@@ -18,6 +18,7 @@ import {
 import {
   AssistListingDto,
   AttachImagesDto,
+  AppealListingDto,
   BrowseListingsQueryDto,
   CreateListingDto,
   ReportListingDto,
@@ -109,5 +110,15 @@ export class ListingsController {
     @Body() dto: ReportListingDto,
   ) {
     return this.listings.report(id, user.id, dto);
+  }
+
+  @Post('listings/:id/appeal')
+  @UseGuards(JwtAuthGuard)
+  appeal(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: AppealListingDto,
+  ) {
+    return this.listings.createAppeal(id, user.id, dto.reason);
   }
 }

@@ -1,4 +1,5 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import {
   CurrentUser,
@@ -9,6 +10,7 @@ import { MediaService } from './media.service';
 
 @Controller('media')
 @UseGuards(JwtAuthGuard)
+@Throttle({ upload: { limit: 30, ttl: 60_000 } })
 export class MediaController {
   constructor(private readonly media: MediaService) {}
 

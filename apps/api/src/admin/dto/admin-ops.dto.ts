@@ -223,3 +223,13 @@ export class AdminCommunityDto {
   @IsBoolean()
   active?: boolean;
 }
+
+export class AdminAppealResolveDto {
+  @IsIn(['APPROVED', 'DENIED'])
+  status!: 'APPROVED' | 'DENIED';
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  note?: string;
+}

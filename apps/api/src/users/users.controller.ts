@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -14,6 +15,7 @@ import {
   CurrentUser,
   type AuthUser,
 } from '../common/decorators/current-user.decorator';
+import { UpdateConsentsDto } from './dto/consents.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
@@ -30,6 +32,24 @@ export class UsersController {
   @Patch()
   updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto) {
     return this.users.updateMe(user.id, dto);
+  }
+
+  @Get('export')
+  exportMe(@CurrentUser() user: AuthUser) {
+    return this.users.exportMe(user.id);
+  }
+
+  @Get('consents')
+  getConsents(@CurrentUser() user: AuthUser) {
+    return this.users.getConsents(user.id);
+  }
+
+  @Put('consents')
+  updateConsents(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateConsentsDto,
+  ) {
+    return this.users.updateConsents(user.id, dto);
   }
 
   @Get('devices')

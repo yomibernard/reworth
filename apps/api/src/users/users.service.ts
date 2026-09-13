@@ -1,7 +1,23 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { createHash } from 'crypto';
+import { ConsentChannel, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
+import type { UpdateConsentsDto } from './dto/consents.dto';
+
+function deletedHash(userId: string, kind: string): string {
+  return (
+    'deleted_' +
+    createHash('sha256')
+      .update(`${kind}:${userId}`)
+      .digest('hex')
+      .slice(0, 24)
+  );
+}
 
 @Injectable()
 export class UsersService {
@@ -57,6 +73,9 @@ export class UsersService {
       phone: user.phone,
       email: user.email,
       status: user.status,
+      riskLevel: user.riskLevel,
+      riskScore: user.riskScore,
+      enhancedVerificationRequired: user.enhancedVerificationRequired,
       phoneVerifiedAt: user.phoneVerifiedAt,
       emailVerifiedAt: user.emailVerifiedAt,
       profile,
@@ -120,6 +139,130 @@ export class UsersService {
     return this.getMe(userId);
   }
 
+  async exportMe(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+        addresses: true,
+        devices: {
+          where: { revokedAt: null },
+          select: {
+            id: true,
+            name: true,
+            platform: true,
+            fingerprint: true,
+            lastSeenAt: true,
+            createdAt: true,
+          },
+        },
+        consentRecords: true,
+        listings: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            priceKobo: true,
+            community: true,
+            createdAt: true,
+            publishedAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 500,
+        },
+        ordersAsBuyer: {
+          select: { id: true, status: true, totalKobo: true, createdAt: true },
+          take: 200,
+        },
+        ordersAsSeller: {
+          select: { id: true, status: true, totalKobo: true, createdAt: true },
+          take: 200,
+        },
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    await this.audit.log({
+      actorUserId: userId,
+      action: 'USER_DATA_EXPORTED',
+      entityType: 'User',
+      entityId: userId,
+    });
+
+    return {
+      exportedAt: new Date().toISOString(),
+      profile: user.profile,
+      contact: {
+        phone: user.phone,
+        email: user.email,
+        status: user.status,
+        createdAt: user.createdAt,
+      },
+      addresses: user.addresses,
+      listings: user.listings,
+      orders: {
+        asBuyer: user.ordersAsBuyer.map((o) => ({
+          id: o.id,
+          status: o.status,
+          totalKobo: o.totalKobo,
+          createdAt: o.createdAt,
+        })),
+        asSeller: user.ordersAsSeller.map((o) => ({
+          id: o.id,
+          status: o.status,
+          totalKobo: o.totalKobo,
+          createdAt: o.createdAt,
+        })),
+      },
+      consents: user.consentRecords,
+      devices: user.devices,
+    };
+  }
+
+  async getConsents(userId: string) {
+    const rows = await this.prisma.consentRecord.findMany({
+      where: { userId },
+    });
+    const byChannel = new Map(rows.map((r) => [r.channel, r]));
+    const channels: ConsentChannel[] = ['SMS', 'MARKETING', 'EMAIL'];
+    return {
+      consents: channels.map((channel) => {
+        const row = byChannel.get(channel);
+        return {
+          channel,
+          granted: row?.granted ?? false,
+          updatedAt: row?.updatedAt ?? null,
+        };
+      }),
+    };
+  }
+
+  async updateConsents(userId: string, dto: UpdateConsentsDto) {
+    for (const item of dto.consents) {
+      await this.prisma.consentRecord.upsert({
+        where: {
+          userId_channel: { userId, channel: item.channel },
+        },
+        create: {
+          userId,
+          channel: item.channel,
+          granted: item.granted,
+        },
+        update: { granted: item.granted },
+      });
+    }
+
+    await this.audit.log({
+      actorUserId: userId,
+      action: 'CONSENTS_UPDATED',
+      entityType: 'User',
+      entityId: userId,
+      afterJson: { consents: dto.consents } as unknown as Prisma.InputJsonValue,
+    });
+
+    return this.getConsents(userId);
+  }
+
   async listDevices(userId: string) {
     const devices = await this.prisma.device.findMany({
       where: { userId, revokedAt: null },
@@ -177,31 +320,91 @@ export class UsersService {
   }
 
   async requestDelete(userId: string, ip?: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true, addresses: true },
+    });
     if (!user) throw new NotFoundException('User not found');
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        deletedAt: new Date(),
-        // Soft-mark for deletion processing; sessions revoked
-      },
-    });
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
+    const phonePseudo = deletedHash(userId, 'phone');
+    const emailPseudo = `${deletedHash(userId, 'email')}@deleted.reworth.local`;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          status: 'DELETED',
+          deletedAt: new Date(),
+          phone: phonePseudo,
+          email: emailPseudo,
+          passwordHash: null,
+          phoneVerifiedAt: null,
+          emailVerifiedAt: null,
+        },
+      });
+
+      if (user.profile) {
+        await tx.profile.update({
+          where: { userId },
+          data: {
+            displayName: 'Deleted User',
+            fullName: null,
+            avatarUrl: null,
+            bio: null,
+            showFullName: false,
+          },
+        });
+      }
+
+      // Scrub address PII; keep rows for FK integrity where needed
+      await tx.address.updateMany({
+        where: { userId },
+        data: {
+          line1: '[redacted]',
+          line2: null,
+          geoLat: null,
+          geoLng: null,
+          label: 'Deleted',
+        },
+      });
+
+      // Clear private meetup addresses on seller listings
+      await tx.listing.updateMany({
+        where: { sellerId: userId },
+        data: { addressPrivate: null },
+      });
+
+      // Null/redact address disclosures created by this user
+      await tx.addressDisclosure.updateMany({
+        where: { disclosedById: userId },
+        data: { addressSnapshot: '[redacted]' },
+      });
+
+      await tx.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+
+      await tx.device.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
     });
 
     await this.audit.log({
       actorUserId: userId,
-      action: 'USER_DELETE_REQUESTED',
+      action: 'USER_DELETED_PSEUDONYMISED',
       entityType: 'User',
       entityId: userId,
-      beforeJson: { status: user.status, deletedAt: user.deletedAt },
-      afterJson: { deletionRequested: true },
+      beforeJson: {
+        status: user.status,
+        hadPhone: Boolean(user.phone),
+        hadEmail: Boolean(user.email),
+      },
+      afterJson: { status: 'DELETED', pseudonymised: true },
       ip: ip ?? null,
     });
 
-    return { ok: true, deletionRequested: true };
+    return { ok: true, deleted: true, pseudonymised: true };
   }
 }

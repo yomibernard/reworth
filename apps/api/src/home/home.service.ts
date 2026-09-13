@@ -118,7 +118,7 @@ export class HomeService {
         },
       },
       orderBy: { publishedAt: 'desc' },
-      take: 200,
+      take: 60,
     });
 
     type Row = (typeof live)[number] & { distanceKm?: number | null };

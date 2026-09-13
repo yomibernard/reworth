@@ -12,6 +12,7 @@ import {
 } from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
 import { AuditService } from '../audit/audit.service';
+import { ModerationService } from '../moderation/moderation.service';
 import { NotificationCategory } from '../notifications/notification-categories';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
@@ -22,6 +23,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Inject } from '@nestjs/common';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import type {
+  AdminAppealResolveDto,
   AdminExtendExpiryDto,
   AdminFeatureListingDto,
   AdminHeroBannerDto,
@@ -43,6 +45,7 @@ export class AdminPortalService {
     private readonly auth: AuthService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly moderation: ModerationService,
     @Inject(PAYMENT_PROVIDER) private readonly psp: PaymentProvider,
   ) {}
 
@@ -710,6 +713,34 @@ export class AdminPortalService {
       action: 'RISK_EVENT_REVIEWED',
       entityType: 'RiskEvent',
       entityId: id,
+      ip: ip ?? null,
+    });
+    return updated;
+  }
+
+  async listAppeals() {
+    return this.moderation.listOpenAppeals();
+  }
+
+  async resolveAppeal(
+    actor: AuthUser,
+    id: string,
+    dto: AdminAppealResolveDto,
+    ip?: string,
+  ) {
+    const updated = await this.moderation.resolveAppeal(
+      id,
+      actor.id,
+      dto.status,
+      dto.note,
+    );
+    await this.audit.log({
+      actorUserId: actor.id,
+      actorRole: actor.roles[0] ?? null,
+      action: 'MODERATION_APPEAL_RESOLVED',
+      entityType: 'ModerationAppeal',
+      entityId: id,
+      afterJson: { status: dto.status, note: dto.note ?? null },
       ip: ip ?? null,
     });
     return updated;

@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
+import { AppThrottlerGuard } from './common/guards/app-throttler.guard';
 import { DeliveryModule } from './delivery/delivery.module';
 import { DisputesModule } from './disputes/disputes.module';
 import { FavouritesModule } from './favourites/favourites.module';
@@ -15,12 +16,14 @@ import { HomeModule } from './home/home.module';
 import { IdentityModule } from './identity/identity.module';
 import { ListingsModule } from './listings/listings.module';
 import { MediaModule } from './media/media.module';
+import { ModerationModule } from './moderation/moderation.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OffersModule } from './offers/offers.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { RiskModule } from './risk/risk.module';
 import { SearchModule } from './search/search.module';
 import { UsersModule } from './users/users.module';
 
@@ -38,8 +41,24 @@ import { UsersModule } from './users/users.module';
     }),
     ThrottlerModule.forRoot([
       {
+        name: 'default',
         ttl: 60_000,
         limit: 120,
+      },
+      {
+        name: 'auth',
+        ttl: 60_000,
+        limit: 20,
+      },
+      {
+        name: 'search',
+        ttl: 60_000,
+        limit: 60,
+      },
+      {
+        name: 'upload',
+        ttl: 60_000,
+        limit: 30,
       },
     ]),
     PrismaModule,
@@ -51,6 +70,8 @@ import { UsersModule } from './users/users.module';
     AdminModule,
     MediaModule,
     ListingsModule,
+    RiskModule,
+    ModerationModule,
     SearchModule,
     HomeModule,
     FavouritesModule,
@@ -66,7 +87,7 @@ import { UsersModule } from './users/users.module';
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: AppThrottlerGuard,
     },
   ],
 })

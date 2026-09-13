@@ -2,30 +2,37 @@
 
 | Field | Value |
 | --- | --- |
-| Current phase | **8 done** · resume **9 — Risk / Security** |
-| Prompt | Prompt 9 ✅ · Prompt 10 next |
-| Target tag | `v0.8-admin` ✅ · next `v0.9-risk-security` |
-| Branch | `main` (merged PR #8) · cut `phase-9-risk-security` next |
-| Status | **Complete — merged** |
+| Current phase | **9 — Risk, Moderation & Security** |
+| Prompt | Prompt 10 |
+| Target tag | `v0.9-risk-security` |
+| Branch | `phase-9-risk-security` |
+| Status | **Complete (pending PR merge / tag)** |
 | Last updated | 2026-09-13 |
 
-## What exists (Phase 8)
+## What exists (Phase 9)
 
-### API
-- Schema: AdminTotp, Promotion, HeroBanner, Community, SupportTicketNote, WhitelistEntry, UserWarning; SupportTicket assignee + IN_PROGRESS; RiskEvent review fields
-- Admin auth: `POST /admin/auth/login`, TOTP setup/verify (otplib); AdminOnlyGuard on `/admin/*`
-- Dashboard KPIs, users, listings, orders/refunds, disputes, verifications, reports, fraud, support, catalog CRUD, promotions, analytics (+ CSV), audit
-- Every mutation audit-logged; RBAC matrix in [`docs/RBAC.md`](RBAC.md)
+### Risk engine
+- Weighted `RiskRule` table + `RiskEngineService` (duplicate image, low price, rapid listing, reported user, device fingerprint, cancellations, suspicious payment, off-platform chat, location jump)
+- Per-user/listing Low/Med/High; HIGH → under_review + fraud queue + enhanced verification + support ticket
+- `RiskAssessment.rulesFired` explainability
 
-### Admin UI (`apps/admin`)
-- Login + TOTP second step
-- Role-gated nav shell
-- Pages: `/`, `/users`, `/listings`, `/orders`, `/disputes`, `/verifications`, `/reports`, `/fraud`, `/support`, `/catalog`, `/promotions`, `/analytics`, `/audit`
+### Moderation
+- Prohibited keyword taxonomy; mock image NSFW adapter; publish pipeline → reject / under_review
+- Appeals → admin queue (`/admin/appeals`)
+
+### Security & privacy
+- Helmet CSP/headers; named rate limits; Zod boundary helpers; `pnpm audit --prod` CI (critical)
+- `docs/SECURITY.md`, `docs/PRIVACY.md`, `docs/PERF.md`
+- DSAR: `GET /me/export`, consents, delete+pseudonymise; web/mobile privacy settings
+
+### Perf
+- `infra/k6/mixed-load.js` + `phase9-500vu-gate.js` (500 VU); Lighthouse CI config on web
+- Local single-node cannot meet p95 budget at 500 open VUs — staging re-run in Phase 10
 
 ## Resume point
-**Phase 8 complete.** Next: **Phase 9 — Risk, Moderation & Security** (`v0.9-risk-security`).
+**Phase 9 complete.** Next: **Phase 10 — UAT & launch readiness** (`v0.9.0-rc`).
 
 ```
-Continue: resume Phase 9 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
+Continue: resume Phase 10 from docs/PHASE_STATUS.md. Re-read AGENTS.md and
 PRD.md, verify the last commit's tests still pass, then continue the plan.
 ```
