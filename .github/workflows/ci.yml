@@ -39,7 +39,8 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/reworth
 
       - name: Dependency audit (prod)
-        run: pnpm --filter @reworth/api audit --prod --audit-level=critical
+        working-directory: apps/api
+        run: pnpm audit --prod --audit-level=critical
 
       - name: Lint
         run: pnpm lint
