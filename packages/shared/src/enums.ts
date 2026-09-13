@@ -234,6 +234,43 @@ export enum ManagedPickupStatus {
   NoShow = "NO_SHOW",
 }
 
+export enum CorporateAccountStatus {
+  Applied = "APPLIED",
+  Approved = "APPROVED",
+  Active = "ACTIVE",
+  Suspended = "SUSPENDED",
+  Rejected = "REJECTED",
+}
+
+export enum RelocationProjectStatus {
+  Draft = "DRAFT",
+  Intake = "INTAKE",
+  Listed = "LISTED",
+  InFulfilment = "IN_FULFILMENT",
+  Completing = "COMPLETING",
+  Completed = "COMPLETED",
+  Cancelled = "CANCELLED",
+}
+
+export enum EstatePartnerStatus {
+  Applied = "APPLIED",
+  Active = "ACTIVE",
+  Suspended = "SUSPENDED",
+  Revoked = "REVOKED",
+}
+
+export enum CircularPartnerKind {
+  Charity = "CHARITY",
+  Recycler = "RECYCLER",
+}
+
+export enum CircularHandoffStatus {
+  Scheduled = "SCHEDULED",
+  PickedUp = "PICKED_UP",
+  Completed = "COMPLETED",
+  Cancelled = "CANCELLED",
+}
+
 export enum AssistantToolName {
   Search = "search",
   Bundle = "bundle",

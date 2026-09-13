@@ -36,6 +36,10 @@ import { ReferralsModule } from './referrals/referrals.module';
 import { AssistantModule } from './assistant/assistant.module';
 import { RoomScanModule } from './room-scan/room-scan.module';
 import { PlatformServicesModule } from './platform-services/platform-services.module';
+import { RegionModule } from './region/region.module';
+import { CorporateModule } from './corporate/corporate.module';
+import { PartnerModule } from './partner/partner.module';
+import { CircularModule } from './circular/circular.module';
 
 @Module({
   imports: [
@@ -72,6 +76,7 @@ import { PlatformServicesModule } from './platform-services/platform-services.mo
       },
     ]),
     PrismaModule,
+    RegionModule,
     AuditModule,
     HealthModule,
     AuthModule,
@@ -103,6 +108,9 @@ import { PlatformServicesModule } from './platform-services/platform-services.mo
     AssistantModule,
     RoomScanModule,
     PlatformServicesModule,
+    CorporateModule,
+    PartnerModule,
+    CircularModule,
   ],
   providers: [
     {

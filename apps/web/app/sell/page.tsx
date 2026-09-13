@@ -32,6 +32,7 @@ import {
   publishListing,
   uploadListingPhoto,
 } from "../../lib/listings";
+import { listRegions, type RegionCity } from "../../lib/region";
 import type {
   PriceIntelligence,
   PublicListing,
@@ -112,6 +113,10 @@ export default function SellPage() {
   const [fulfilmentPickup, setFulfilmentPickup] = useState(true);
   const [fulfilmentMeet, setFulfilmentMeet] = useState(true);
   const [fulfilmentDelivery, setFulfilmentDelivery] = useState(false);
+  const [donateIfUnsold, setDonateIfUnsold] = useState(false);
+  const [donateIfUnsoldDays, setDonateIfUnsoldDays] = useState(30);
+  const [cities, setCities] = useState<RegionCity[]>([]);
+  const [city, setCity] = useState("Lagos");
 
   const [published, setPublished] = useState<PublicListing | null>(null);
 
@@ -124,9 +129,10 @@ export default function SellPage() {
     setReady(true);
     void (async () => {
       try {
-        const [all, mine] = await Promise.all([
+        const [all, mine, regions] = await Promise.all([
           listEstateCommunities({ limit: 50 }, token),
           listMyCommunities(token).catch(() => ({ items: [] })),
+          listRegions().catch(() => [] as RegionCity[]),
         ]);
         const memberIds = new Set(
           mine.items
@@ -140,6 +146,12 @@ export default function SellPage() {
           ...all.items.filter((c) => !memberIds.has(c.id)),
         ];
         setEstateCommunities(preferred);
+        setCities(regions);
+        if (regions.length) {
+          setCity((prev) =>
+            regions.some((r) => r.key === prev) ? prev : regions[0].key,
+          );
+        }
       } catch {
         setEstateCommunities([]);
       }
@@ -190,6 +202,13 @@ export default function SellPage() {
     setFulfilmentMeet(l.fulfilmentMeet);
     setFulfilmentDelivery(l.fulfilmentDelivery);
     setAuthRequired(Boolean(l.authRequired));
+    if (l.city) setCity(l.city);
+    if (l.donateIfUnsoldDays != null && l.donateIfUnsoldDays > 0) {
+      setDonateIfUnsold(true);
+      setDonateIfUnsoldDays(l.donateIfUnsoldDays);
+    } else {
+      setDonateIfUnsold(false);
+    }
     const v = l.vehicle;
     if (v && typeof v === "object") {
       setVehicleYear(v.year != null ? String(v.year) : "");
@@ -325,6 +344,8 @@ export default function SellPage() {
       fulfilmentPickup,
       fulfilmentMeet,
       fulfilmentDelivery,
+      city: city || undefined,
+      donateIfUnsoldDays: donateIfUnsold ? donateIfUnsoldDays : null,
     };
     if (isVehicleCat || vehicleYear || vehicleMake || vehicleMileage) {
       body.vehicle = {
@@ -856,6 +877,40 @@ export default function SellPage() {
                 />
                 Price is negotiable
               </label>
+              <div className="mt-6 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] p-4">
+                <label className="flex items-start gap-3 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={donateIfUnsold}
+                    onChange={(e) => setDonateIfUnsold(e.target.checked)}
+                    className="mt-1 h-4 w-4 accent-[var(--rw-accent)]"
+                  />
+                  <span>
+                    Donate if unsold
+                    <span className="mt-0.5 block font-normal text-[var(--rw-ink-muted)]">
+                      After the waiting period, route to a verified charity or
+                      recycler with your consent.
+                    </span>
+                  </span>
+                </label>
+                {donateIfUnsold ? (
+                  <label className="mt-4 block text-sm font-medium">
+                    Days before hand-off
+                    <input
+                      type="number"
+                      min={7}
+                      max={180}
+                      value={donateIfUnsoldDays}
+                      onChange={(e) =>
+                        setDonateIfUnsoldDays(
+                          Math.max(7, Math.min(180, Number(e.target.value) || 30)),
+                        )
+                      }
+                      className="mt-2 w-full rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg)] px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+                    />
+                  </label>
+                ) : null}
+              </div>
               {error ? (
                 <p className="mt-4 text-sm text-[var(--rw-error)]" role="alert">
                   {error}
@@ -893,6 +948,23 @@ export default function SellPage() {
               <p className="mt-3 text-[var(--rw-ink-muted)]">
                 Buyers see your community — never your street address.
               </p>
+              {cities.length > 0 ? (
+                <label className="mt-6 block text-sm font-medium">
+                  City
+                  <select
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="mt-2 w-full rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+                    disabled={busy}
+                  >
+                    {cities.map((c) => (
+                      <option key={c.key} value={c.key}>
+                        {c.displayName || c.key}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
               <div className="mt-8 flex flex-wrap gap-2">
                 {COMMUNITIES.map((c) => (
                   <Chip

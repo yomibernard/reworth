@@ -64,6 +64,26 @@ async function bootstrap() {
       next();
     },
   );
+  // Estate partner membership sync HMAC (Phase 3.2)
+  app.use(
+    '/api/v1/partner/members/sync',
+    raw({ type: '*/*' }),
+    (
+      req: { body?: Buffer | unknown; rawBody?: Buffer },
+      _res: unknown,
+      next: () => void,
+    ) => {
+      if (Buffer.isBuffer(req.body)) {
+        req.rawBody = req.body;
+        try {
+          req.body = JSON.parse(req.body.toString('utf8'));
+        } catch {
+          /* leave as-is if not JSON */
+        }
+      }
+      next();
+    },
+  );
   app.use(json({ limit: '2mb' }));
 
   // All routes under /api/v1 including healthz (PRD §43 / Phase 0 brief)

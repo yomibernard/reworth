@@ -1,3 +1,6 @@
+import { Injectable, Optional } from '@nestjs/common';
+import { RegionConfigService } from '../region/region-config.service';
+
 export type GeocodeResult = {
   community: string;
   geoLat: number;
@@ -7,13 +10,17 @@ export type GeocodeResult = {
 
 export interface GeocodingProvider {
   readonly name: string;
-  geocodeCommunity(community: string): Promise<GeocodeResult | null>;
+  geocodeCommunity(community: string, city?: string): Promise<GeocodeResult | null>;
   reverse?(lat: number, lng: number): Promise<GeocodeResult | null>;
 }
 
 export const GEOCODING_PROVIDER = Symbol('GEOCODING_PROVIDER');
 
-/** Fixture coordinates for Lagos communities (approx centroids). */
+/**
+ * Resolves community centroids via RegionConfigService (config/regions).
+ * Falls back to embedded Lagos fixtures when region config is unavailable.
+ */
+@Injectable()
 export class MockGeocodingProvider implements GeocodingProvider {
   readonly name = 'mock-geocoding';
 
@@ -68,10 +75,21 @@ export class MockGeocodingProvider implements GeocodingProvider {
     },
   };
 
-  async geocodeCommunity(community: string): Promise<GeocodeResult | null> {
+  constructor(
+    @Optional() private readonly regions?: RegionConfigService,
+  ) {}
+
+  async geocodeCommunity(
+    community: string,
+    city = 'lagos',
+  ): Promise<GeocodeResult | null> {
+    if (this.regions) {
+      const fromConfig = this.regions.getCommunityGeo(city, community);
+      if (fromConfig) return fromConfig;
+    }
+
     const key = community.trim().toUpperCase().replace(/\s+/g, '_');
     if (this.fixtures[key]) return this.fixtures[key];
-    // soft aliases
     if (/lekki/.test(community.toLowerCase())) return this.fixtures.LEKKI_PH1;
     if (/ikoyi/.test(community.toLowerCase())) return this.fixtures.IKOYI;
     if (/victoria|vi\b/.test(community.toLowerCase())) return this.fixtures.VI;

@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import {
   computeDeliveryFeeKobo,
+  DEFAULT_DELIVERY_RATES,
   type CreateShipmentInput,
   type CreateShipmentResult,
   type DeliveryProvider,
@@ -9,6 +10,7 @@ import {
   type UpdateShipmentStatusInput,
 } from './delivery.provider';
 import { haversineKm } from './search.provider';
+import { RegionConfigService } from '../region/region-config.service';
 
 @Injectable()
 export class MockDeliveryProvider implements DeliveryProvider {
@@ -19,6 +21,10 @@ export class MockDeliveryProvider implements DeliveryProvider {
     { orderId: string; status: string }
   >();
 
+  constructor(
+    @Optional() private readonly regions?: RegionConfigService,
+  ) {}
+
   async quote(input: DeliveryQuoteInput): Promise<DeliveryQuoteResult> {
     const distanceKm = haversineKm(
       input.fromLat,
@@ -26,7 +32,10 @@ export class MockDeliveryProvider implements DeliveryProvider {
       input.toLat,
       input.toLng,
     );
-    const feeKobo = computeDeliveryFeeKobo(distanceKm);
+    const rates = this.regions
+      ? this.regions.getDeliveryRates(input.city)
+      : DEFAULT_DELIVERY_RATES;
+    const feeKobo = computeDeliveryFeeKobo(distanceKm, rates);
     return {
       feeKobo,
       distanceKm: Math.round(distanceKm * 100) / 100,
