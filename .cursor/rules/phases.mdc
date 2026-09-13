@@ -1,21 +1,21 @@
 ﻿---
-description: ReWorth phase plan and git tags â€” execute one phase at a time
+description: ReWorth phase plan and git tags — execute one phase at a time
 alwaysApply: true
 ---
 
-# ReWorth â€” phase rules
+# ReWorth — phase rules
 
-**Current phase: 9 (Risk / Security)** â€” Phase 9 merged (`v0.9-risk-security`, PR #9). Next: Phase 10 UAT (`v0.9.0-rc`).
+**Current phase: 10 (UAT / RC)** — tag `v0.9.0-rc` pending merge.
 
 Do **not** implement features from later phases in the same PR.
 
 ## MVP tags
 
-`v0.0-scaffold` â†’ `v0.1-auth` â†’ `v0.2-listings` â†’ `v0.3-discovery` â†’ `v0.4-chat-offers` â†’ `v0.5-orders-payments` â†’ `v0.6-logistics-notifications` â†’ `v0.7-trust` â†’ `v0.8-admin` â†’ `v0.9-risk-security` â†’ `v0.9.0-rc`
+`v0.0-scaffold` → `v0.1-auth` → `v0.2-listings` → `v0.3-discovery` → `v0.4-chat-offers` → `v0.5-orders-payments` → `v0.6-logistics-notifications` → `v0.7-trust` → `v0.8-admin` → `v0.9-risk-security` → `v0.9.0-rc`
 
 ## Post-launch (entry gate required)
 
-`v1.0` Swap Â· `v1.1` Moving/Estates Â· `v1.2` Intelligence Â· `v1.3` Verticals Â· `v2.0` AI services Â· `v2.1` B2B/expansion
+`v1.0` Swap · `v1.1` Moving/Estates · `v1.2` Intelligence · `v1.3` Verticals · `v2.0` AI services · `v2.1` B2B/expansion
 
 ## Resume
 

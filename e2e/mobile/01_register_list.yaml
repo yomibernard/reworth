@@ -1,0 +1,26 @@
+# ReWorth Maestro — 01 Register / List (stub for device/sim UAT)
+# Requires Expo app + Metro; not run in default CI.
+# Demo seller (after seed:staging): Ori +2348010000001 / DemoOri!2026
+appId: ng.reworth.mobile
+---
+- launchApp
+- assertVisible: "ReWorth"
+# Register or login path
+- tapOn: "Log in"
+- tapOn:
+    id: "phone-input"
+- inputText: "+2348010000001"
+# OTP mock: use debugCode from API when SMS_PROVIDER=mock, or password login if exposed
+- tapOn: "Continue"
+# Sell flow
+- tapOn: "Sell"
+- tapOn: "Add photos"
+# … attach fixture image …
+- tapOn: "Continue"
+- assertVisible: "Title"
+- inputText: "Maestro test chair"
+- tapOn: "AI assist"
+- tapOn: "Publish"
+- assertVisible:
+    text: "Live|Under review"
+    optional: true

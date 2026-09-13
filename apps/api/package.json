@@ -13,6 +13,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
+    "seed:staging": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed-staging.ts",
     "demo:delivery": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/demo-delivery.ts"
   },
   "prisma": {
