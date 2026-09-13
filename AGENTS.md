@@ -1,26 +1,26 @@
-# AGENTS.md — ReWorth living context
+﻿# AGENTS.md â€” ReWorth living context
 
 > Update this file after every phase. Resume point of truth with `docs/PHASE_STATUS.md`.
 
 ## Overview
 
-**ReWorth** is a consumer recommerce marketplace (**buy · sell · swap · give away**) launching in **Lagos, Nigeria** (Lekki, Ikoyi, Victoria Island, Oniru, VGC, Chevron, Ajah and surrounding communities).
+**ReWorth** is a consumer recommerce marketplace (**buy Â· sell Â· swap Â· give away**) launching in **Lagos, Nigeria** (Lekki, Ikoyi, Victoria Island, Oniru, VGC, Chevron, Ajah and surrounding communities).
 
-- Signature UX: photograph an item → AI-assisted draft → **live in ~60 seconds**.
+- Signature UX: photograph an item â†’ AI-assisted draft â†’ **live in ~60 seconds**.
 - Tagline: *"Lagos, your unused things are worth something."*
-- Ambition: Nigeria's leading recommerce ecosystem (PRD §60).
+- Ambition: Nigeria's leading recommerce ecosystem (PRD Â§60).
 
-**Conflict rule:** Product → [`PRD.md`](PRD.md). Engineering & build order → [`CURSOR-PROMPT.md`](CURSOR-PROMPT.md) / [`CURSOR-PROMPT-PHASE2-3.md`](CURSOR-PROMPT-PHASE2-3.md).
+**Conflict rule:** Product â†’ [`PRD.md`](PRD.md). Engineering & build order â†’ [`CURSOR-PROMPT.md`](CURSOR-PROMPT.md) / [`CURSOR-PROMPT-PHASE2-3.md`](CURSOR-PROMPT-PHASE2-3.md).
 
 ## Current phase
 
 | Field | Value |
 | --- | --- |
-| Phase | **9 — Risk / Security** |
+| Phase | **9 â€” Risk / Security** |
 | Prompt | Prompt 10 |
 | Target tag | `v0.9-risk-security` |
-| Status | **Complete (pending PR merge)** |
-| Next | Phase 10 — UAT / RC (`v0.9.0-rc`) |
+| Status | **Merged** (PR #9) |
+| Next | Phase 10 â€” UAT / RC (`v0.9.0-rc`) |
 
 ## 14-role team
 
@@ -38,9 +38,9 @@ Operate as this team; attribute deliverables to a role.
 | Payments Engineer | Paystack escrow, webhooks, payouts |
 | DevOps / Platform | Compose, CI/CD, observability |
 | QA Lead | Suites, e2e, UAT |
-| Security Engineer | §44–45, threat reviews |
+| Security Engineer | Â§44â€“45, threat reviews |
 | UX/UI Designer | Design system, a11y |
-| Data Analyst | PRD §36 events & metrics |
+| Data Analyst | PRD Â§36 events & metrics |
 | Ops / Support Lead | Admin workflows, runbooks |
 
 ## Baked-in stack
@@ -64,10 +64,10 @@ See [`docs/ADRS/001-stack-modular-monolith.md`](docs/ADRS/001-stack-modular-mono
 ## Monorepo map (target)
 
 ```
-apps/api        NestJS — /api/v1
-apps/web        Next.js — public storefront
-apps/admin      Next.js — operations portal
-apps/mobile     Expo — iOS + Android
+apps/api        NestJS â€” /api/v1
+apps/web        Next.js â€” public storefront
+apps/admin      Next.js â€” operations portal
+apps/mobile     Expo â€” iOS + Android
 packages/shared DTOs, enums, NGN/geo helpers
 packages/ui-web Design system (tokens + components)
 packages/config eslint / tsconfig / prettier
@@ -86,11 +86,11 @@ pnpm dev
 # Admin http://localhost:3002
 ```
 
-Copy `.env.example` → `.env` first. Never commit real secrets.
+Copy `.env.example` â†’ `.env` first. Never commit real secrets.
 
 ## Definition of Done
 
-Per **PRD §59**: functional · UX · responsive · security · analytics · error/loading/empty · a11y · tests · docs · PO acceptance.
+Per **PRD Â§59**: functional Â· UX Â· responsive Â· security Â· analytics Â· error/loading/empty Â· a11y Â· tests Â· docs Â· PO acceptance.
 
 ## Phase plan & tags
 
@@ -110,7 +110,7 @@ Per **PRD §59**: functional · UX · responsive · security · analytics · err
 | 9 | `v0.9-risk-security` | Risk, moderation, hardening |
 | 10 | `v0.9.0-rc` | UAT + launch readiness |
 
-### Post-launch (`CURSOR-PROMPT-PHASE2-3.md` — entry gate required)
+### Post-launch (`CURSOR-PROMPT-PHASE2-3.md` â€” entry gate required)
 
 | Prompt | Tag | Focus |
 | --- | --- | --- |
@@ -125,14 +125,14 @@ Per **PRD §59**: functional · UX · responsive · security · analytics · err
 
 **Phase 8 Admin portal complete** (merged PR #8, tag `v0.8-admin`).
 
-**Phase 9 complete** (risk engine, moderation, SECURITY/PRIVACY, k6 scripts). Tag `v0.9-risk-security` pending merge.
+**Phase 9 complete** (risk engine, moderation, SECURITY/PRIVACY, k6 scripts). Tag `v0.9-risk-security` · merged via PR #9.
 
 Still not built:
 
 - Expo/FCM push (mock only); deeper notification-center polish
 - TOTP enforcement for all admins (setup available; policy optional)
 - UAT / launch readiness (Phase 10)
-- All PRD §51–53 / post-launch features
+- All PRD Â§51â€“53 / post-launch features
 - Production credentials, external pen test, store submissions; httpOnly token cookies
 
 Track exact resume detail in [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md). See [`docs/RBAC.md`](docs/RBAC.md), [`docs/SECURITY.md`](docs/SECURITY.md), [`docs/PRIVACY.md`](docs/PRIVACY.md).
@@ -142,8 +142,8 @@ Track exact resume detail in [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md). See
 | Doc | Purpose |
 | --- | --- |
 | [`PRD.md`](PRD.md) | Product requirements (60 sections) |
-| [`CURSOR-PROMPT.md`](CURSOR-PROMPT.md) | MVP Prompts 1–11 |
-| [`CURSOR-PROMPT-PHASE2-3.md`](CURSOR-PROMPT-PHASE2-3.md) | Post-launch 2.1–3.2 |
+| [`CURSOR-PROMPT.md`](CURSOR-PROMPT.md) | MVP Prompts 1â€“11 |
+| [`CURSOR-PROMPT-PHASE2-3.md`](CURSOR-PROMPT-PHASE2-3.md) | Post-launch 2.1â€“3.2 |
 | [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) | Resume cheat sheet |
 | [`docs/ADRS/`](docs/ADRS/) | Architecture decisions |
 | [`.cursor/rules/`](.cursor/rules/) | Cursor agent rules |
