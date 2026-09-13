@@ -71,15 +71,19 @@ function qs(filters: Record<string, string | number | boolean | undefined>) {
   return s ? `?${s}` : "";
 }
 
-export async function fetchHome(params: {
-  community?: string;
-  radiusKm?: RadiusKm;
-}): Promise<HomeResponse> {
+export async function fetchHome(
+  params: {
+    community?: string;
+    radiusKm?: RadiusKm;
+  },
+  token?: string | null,
+): Promise<HomeResponse> {
   return apiFetch<HomeResponse>(
     `/home${qs({
       community: params.community,
       radiusKm: params.radiusKm,
     })}`,
+    { token },
   );
 }
 

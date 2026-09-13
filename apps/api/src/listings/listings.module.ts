@@ -4,6 +4,7 @@ import { MediaModule } from '../media/media.module';
 import { AuthModule } from '../auth/auth.module';
 import { CommunitiesModule } from '../communities/communities.module';
 import { FavouritesModule } from '../favourites/favourites.module';
+import { IntelligenceModule } from '../intelligence/intelligence.module';
 import { ModerationModule } from '../moderation/moderation.module';
 import { RiskModule } from '../risk/risk.module';
 import {
@@ -29,6 +30,7 @@ import { PriceIntelligenceService } from './price-intelligence.service';
     AuthModule,
     CommunitiesModule,
     forwardRef(() => FavouritesModule),
+    forwardRef(() => IntelligenceModule),
     forwardRef(() => RiskModule),
     ModerationModule,
   ],

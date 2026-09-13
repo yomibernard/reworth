@@ -1456,22 +1456,30 @@ export class AdminPortalService {
     return row;
   }
 
-  async analytics(from?: string, to?: string, community?: string) {
+  async analytics(from?: string, to?: string, community?: string, city?: string) {
     const fromDate = from ? new Date(from) : new Date(Date.now() - 30 * 86_400_000);
     const toDate = to ? new Date(to) : new Date();
     const listingWhere: Prisma.ListingWhereInput = {
       createdAt: { gte: fromDate, lte: toDate },
       ...(community ? { community } : {}),
+      ...(city ? { city } : {}),
     };
     const orderWhere: Prisma.OrderWhereInput = {
       createdAt: { gte: fromDate, lte: toDate },
-      ...(community ? { listing: { community } } : {}),
+      ...(community || city
+        ? {
+            listing: {
+              ...(community ? { community } : {}),
+              ...(city ? { city } : {}),
+            },
+          }
+        : {}),
     };
     const [listings, orders, users] = await Promise.all([
       this.prisma.listing.count({ where: listingWhere }),
       this.prisma.order.findMany({
         where: orderWhere,
-        select: { totalKobo: true, status: true, listing: { select: { community: true } } },
+        select: { totalKobo: true, status: true, listing: { select: { community: true, city: true } } },
       }),
       this.prisma.user.count({
         where: { createdAt: { gte: fromDate, lte: toDate } },
@@ -1486,11 +1494,17 @@ export class AdminPortalService {
       { metric: 'orders', value: orders.length },
       { metric: 'gmv_kobo', value: gmvKobo },
     ];
-    return { from: fromDate, to: toDate, community: community ?? null, rows };
+    return {
+      from: fromDate,
+      to: toDate,
+      community: community ?? null,
+      city: city ?? null,
+      rows,
+    };
   }
 
-  async analyticsCsv(from?: string, to?: string, community?: string) {
-    const data = await this.analytics(from, to, community);
+  async analyticsCsv(from?: string, to?: string, community?: string, city?: string) {
+    const data = await this.analytics(from, to, community, city);
     const header = 'metric,value';
     const lines = data.rows.map((r) => `${r.metric},${r.value}`);
     return [header, ...lines].join('\n');

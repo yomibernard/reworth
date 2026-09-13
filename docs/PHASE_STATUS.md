@@ -4,17 +4,17 @@
 | --- | --- |
 | Current phase | **2.3 — Intelligence** |
 | Prompt | Post-launch 2.3 |
-| Target tag | `v1.2` |
-| Status | **Not started** |
-| Last completed | **2.2** `v1.1-moving-communities` (PR #12 merged) |
+| Target tag | `v1.2-intelligence` |
+| Status | **Complete (pending PR merge)** |
+| Last completed | **2.3** web UI + docs (API intelligence module on same branch) |
 | Last updated | 2026-09-13 |
 
-## What exists (through 2.2)
-- MovingSale + follow/events; home rail with combined price; deadline → COMPLETED
-- Community privacy (public/semi/private), memberships, invites, CommunityManager
-- Visibility gating on listings/search (404-leak posture); admin communities ops
-- Web collection + community pages; admin membership queue; mobile chips
-- Tests: communities + moving-sales specs (21)
+## What exists (through 2.3)
+- Saved-search alerts model (`paused`, `digestEnabled`); web My → Searches pause/digest/delete
+- Recommendations surfaces: home (JWT), PDP similar, post-checkout also-like
+- Price intelligence extended fields + confidence label on sell/PDP
+- Seller analytics page + CSV export; METRICS + EXPERIMENTS docs; ADR-004 RecProvider
+- Feature/experiment/valuation schema tables (city-scoped)
 
 ## Resume
-Start Prompt 2.3 Intelligence (`v1.2`): saved-search alerts, recommendations v2, price intelligence, seller analytics.
+After PR merge + tag `v1.2-intelligence`, start Prompt 2.4 Verticals (`v1.3`).

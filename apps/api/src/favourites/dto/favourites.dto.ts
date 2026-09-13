@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsNumber,
   IsObject,
   IsOptional,
@@ -16,6 +17,14 @@ export class CreateSavedSearchDto {
 
   @IsObject()
   filters!: Record<string, unknown>;
+
+  @IsOptional()
+  @IsBoolean()
+  paused?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  digestEnabled?: boolean;
 }
 
 export class UpdateSavedSearchDto {
@@ -33,4 +42,12 @@ export class UpdateSavedSearchDto {
   @Type(() => Number)
   @IsNumber()
   newMatchesCount?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  paused?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  digestEnabled?: boolean;
 }

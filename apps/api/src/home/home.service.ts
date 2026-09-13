@@ -210,10 +210,20 @@ export class HomeService {
       ),
     );
 
-    const recommended = this.recommendations.rank(
-      toItems(withDistance, 40),
-      popularMeta,
-    );
+    let recommended: PublicListingDto[];
+    if (query.viewerId) {
+      recommended = await this.recommendations.recommend({
+        userId: query.viewerId,
+        city: 'Lagos',
+        limit: 12,
+        surface: 'home',
+        seed: `${query.viewerId}:home`,
+      });
+    } else {
+      recommended = this.recommendations
+        .rank(toItems(withDistance, 40), popularMeta)
+        .slice(0, 12);
+    }
 
     const movingSaleItems = await this.movingSales.topForHome({
       lat: query.lat,
@@ -272,3 +282,4 @@ export class HomeService {
     ];
   }
 }
+

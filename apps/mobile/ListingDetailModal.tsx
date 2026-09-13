@@ -23,6 +23,7 @@ import {
   unfavouriteListing,
 } from "./lib/discovery";
 import { getListing } from "./lib/listings";
+import { fetchRecommendations } from "./lib/intelligence";
 import {
   createGiveawayClaim,
   createSwapProposal,
@@ -66,11 +67,13 @@ export function ListingDetailModal({
   const [swapCashNaira, setSwapCashNaira] = useState("0");
   const [swapBusy, setSwapBusy] = useState(false);
   const [claimBusy, setClaimBusy] = useState(false);
+  const [similar, setSimilar] = useState<PublicListing[]>([]);
 
   useEffect(() => {
     if (!listingId) {
       setListing(null);
       setSaved(false);
+      setSimilar([]);
       return;
     }
     let cancelled = false;
@@ -81,6 +84,23 @@ export function ListingDetailModal({
         const token = await getAccessToken();
         const data = await getListing(listingId, token);
         if (!cancelled) setListing(data);
+        if (!cancelled) {
+          void fetchRecommendations(
+            {
+              surface: "similar",
+              listingId,
+              city: data.city ?? undefined,
+              limit: 6,
+            },
+            token,
+          )
+            .then((res) => {
+              if (!cancelled) setSimilar(res.items ?? []);
+            })
+            .catch(() => {
+              if (!cancelled) setSimilar([]);
+            });
+        }
         if (token && !cancelled) {
           try {
             const favs = await getMeFavourites(token);
@@ -372,6 +392,42 @@ export function ListingDetailModal({
               </Text>
             ) : null}
 
+            {similar.length > 0 ? (
+              <View style={styles.similarBlock}>
+                <Text style={styles.section}>Similar items</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.similarScroll}
+                >
+                  {similar.map((item) => {
+                    const imgs = [...item.images].sort(
+                      (a, b) => a.sortOrder - b.sortOrder,
+                    );
+                    const src = listingImageUrl(imgs[0]);
+                    return (
+                      <View key={item.id} style={styles.similarCard}>
+                        {src ? (
+                          <Image
+                            source={{ uri: src }}
+                            style={styles.similarImg}
+                          />
+                        ) : (
+                          <View style={[styles.similarImg, styles.similarPh]} />
+                        )}
+                        <Text numberOfLines={2} style={styles.similarTitle}>
+                          {item.title || "Untitled"}
+                        </Text>
+                        <Text style={styles.similarPrice}>
+                          {formatNgnFromKobo(item.priceKobo)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            ) : null}
+
             <View style={styles.actions}>
               {isSwap ? (
                 <Action
@@ -623,6 +679,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#D1FAE5",
   },
   protectTitle: { fontSize: 14, fontWeight: "700", color: "#0E9F6E" },
+  similarBlock: { marginTop: 24 },
+  similarScroll: { marginTop: 10 },
+  similarCard: { width: 132, marginRight: 10 },
+  similarImg: {
+    width: 132,
+    height: 100,
+    borderRadius: 12,
+    backgroundColor: "#E5E2DC",
+  },
+  similarPh: { backgroundColor: "#E5E2DC" },
+  similarTitle: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#111315",
+  },
+  similarPrice: { marginTop: 2, fontSize: 12, color: "#5C636A" },
   centerText: { textAlign: "center", marginTop: 16 },
   actions: { marginTop: 24, gap: 10 },
   actionBtn: {

@@ -14,6 +14,7 @@ import {
   getMeFavourites,
   unfollowSeller,
   unfavouriteListing,
+  updateSavedSearch,
 } from "../../lib/discovery";
 import type {
   FavouriteItem,
@@ -127,6 +128,42 @@ export default function MyPage() {
     }
   }
 
+  async function patchSearch(
+    search: SavedSearch,
+    patch: { paused?: boolean; digestEnabled?: boolean },
+  ) {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      const updated = await updateSavedSearch(token, search.id, patch);
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              searches: prev.searches.map((s) =>
+                s.id === search.id ? { ...s, ...updated } : s,
+              ),
+            }
+          : prev,
+      );
+      setToast({
+        message: patch.paused != null
+          ? patch.paused
+            ? "Alerts paused"
+            : "Alerts resumed"
+          : patch.digestEnabled
+            ? "Daily digest on"
+            : "Daily digest off",
+        tone: "success",
+      });
+    } catch (err) {
+      setToast({
+        message: err instanceof ApiError ? err.message : "Could not update",
+        tone: "error",
+      });
+    }
+  }
+
   function openSavedSearch(search: SavedSearch) {
     const filters = compactFilters(search.filters as SearchFilters);
     const qs = buildSearchQueryString(filters);
@@ -223,6 +260,7 @@ export default function MyPage() {
               searches={data?.searches ?? []}
               onOpen={openSavedSearch}
               onDelete={removeSearch}
+              onPatch={patchSearch}
             />
           )}
         </div>
@@ -325,16 +363,21 @@ function SearchesTab({
   searches,
   onOpen,
   onDelete,
+  onPatch,
 }: {
   searches: SavedSearch[];
   onOpen: (s: SavedSearch) => void;
   onDelete: (s: SavedSearch) => void;
+  onPatch: (
+    s: SavedSearch,
+    patch: { paused?: boolean; digestEnabled?: boolean },
+  ) => void;
 }) {
   if (searches.length === 0) {
     return (
       <EmptyState
         title="No saved searches"
-        description="Save filters from the search page to get match counts here."
+        description="Save filters from the search page to get match alerts here."
         action={
           <Link href="/search">
             <Button variant="primary">Search</Button>
@@ -345,33 +388,60 @@ function SearchesTab({
   }
   return (
     <ul className="space-y-3">
-      {searches.map((s) => (
-        <li
-          key={s.id}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-4 py-3"
-        >
-          <button
-            type="button"
-            className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
-            onClick={() => onOpen(s)}
+      {searches.map((s) => {
+        const paused = Boolean(s.paused);
+        const digest = Boolean(s.digestEnabled);
+        return (
+          <li
+            key={s.id}
+            className="flex flex-col gap-3 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
           >
-            <p className="font-semibold">
-              {s.name}
-              {s.newMatchesCount > 0 ? (
-                <span className="ml-2 inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-[var(--rw-accent)] px-2 py-0.5 text-xs font-semibold text-white">
-                  {s.newMatchesCount}
-                </span>
-              ) : null}
-            </p>
-            <p className="mt-0.5 truncate text-sm text-[var(--rw-ink-muted)]">
-              {summarizeFilters(s.filters)}
-            </p>
-          </button>
-          <Button variant="ghost" size="sm" onClick={() => void onDelete(s)}>
-            Delete
-          </Button>
-        </li>
-      ))}
+            <button
+              type="button"
+              className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+              onClick={() => onOpen(s)}
+            >
+              <p className="font-semibold">
+                {s.name}
+                {paused ? (
+                  <span className="ml-2 text-xs font-medium text-[var(--rw-ink-muted)]">
+                    Paused
+                  </span>
+                ) : null}
+                {!paused && s.newMatchesCount > 0 ? (
+                  <span className="ml-2 inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-[var(--rw-accent)] px-2 py-0.5 text-xs font-semibold text-white">
+                    {s.newMatchesCount}
+                  </span>
+                ) : null}
+              </p>
+              <p className="mt-0.5 truncate text-sm text-[var(--rw-ink-muted)]">
+                {summarizeFilters(s.filters)}
+                {digest ? " · Daily digest" : ""}
+              </p>
+            </button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void onPatch(s, { paused: !paused })}
+              >
+                {paused ? "Resume" : "Pause"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void onPatch(s, { digestEnabled: !digest })}
+                aria-pressed={digest}
+              >
+                {digest ? "Digest on" : "Digest"}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => void onDelete(s)}>
+                Delete
+              </Button>
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }

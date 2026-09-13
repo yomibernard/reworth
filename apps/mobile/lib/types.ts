@@ -48,6 +48,7 @@ export type PublicListing = {
   sellingMode: string;
   status: string;
   community: string;
+  city?: string | null;
   communityId?: string | null;
   communityOnly?: boolean;
   communityChip?: {
@@ -80,9 +81,20 @@ export type PublicListing = {
 };
 
 export type PriceIntelligence = {
+  listingId?: string;
+  currency?: string;
   estimatedLowKobo: number;
   estimatedHighKobo: number;
   recommendedKobo: number;
+  estimatedLowNaira?: number;
+  estimatedHighNaira?: number;
+  recommendedNaira?: number;
+  basis?: string;
+  quickSaleKobo?: number;
+  maxValueKobo?: number;
+  confidenceLabel?: string;
+  sampleCount?: number;
+  city?: string;
 };
 
 export type SellingModeValue = "SELL" | "SWAP" | "GIVE_AWAY";

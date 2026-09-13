@@ -80,15 +80,19 @@ describe('FavouritesService', () => {
       priceKobo: 200_000_00,
       condition: 'GOOD',
       community: 'LEKKI_PH1',
+      city: 'Lagos',
       fulfilmentDelivery: false,
     });
 
+    expect(prisma.savedSearch.findMany).toHaveBeenCalledWith({
+      where: { paused: false },
+      take: 500,
+    });
     expect(prisma.savedSearch.update).toHaveBeenCalledTimes(1);
     expect(prisma.savedSearch.update).toHaveBeenCalledWith({
       where: { id: 'ss-1' },
       data: {
         newMatchesCount: { increment: 1 },
-        lastCheckedAt: expect.any(Date),
       },
     });
   });

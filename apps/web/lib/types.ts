@@ -111,6 +111,8 @@ export type PublicListing = {
   sellingMode: SellingModeValue | string;
   status: string;
   community: string;
+  /** City scope for matching / comps (default Lagos). */
+  city?: string | null;
   communityId?: string | null;
   communityOnly?: boolean;
   communityChip?: PublicListingCommunityChip | null;
@@ -153,7 +155,71 @@ export type PriceIntelligence = {
   estimatedLowNaira: number;
   estimatedHighNaira: number;
   recommendedNaira: number;
+  /** sold_data | live_listings_fallback | rule_based_mock */
   basis: string;
+  quickSaleKobo?: number;
+  maxValueKobo?: number;
+  quickSaleNaira?: number;
+  maxValueNaira?: number;
+  /** e.g. "Based on 24 similar sold items" */
+  confidenceLabel?: string;
+  sampleCount?: number;
+  city?: string;
+};
+
+/** Phase 2.3 — Recommendations */
+
+export type RecommendationSurface = "home" | "similar" | "post_checkout";
+
+export type Recommendation = {
+  listing: PublicListing;
+  score?: number;
+  reason?: string;
+};
+
+export type RecommendationsResponse = {
+  items: PublicListing[];
+  surface?: RecommendationSurface | string;
+  experimentKey?: string;
+  variant?: string;
+  city?: string;
+};
+
+/** Phase 2.3 — Seller analytics (never includes buyer PII). */
+
+export type SellerListingMetrics = {
+  listingId: string;
+  title: string;
+  status: string;
+  views: number;
+  saves: number;
+  offers: number;
+  offerToSaleConversion: number;
+  timeToSaleHours: number | null;
+  priceCompetitiveness: number | null;
+  askingKobo: number;
+  marketMidKobo?: number | null;
+  revenueKobo?: number;
+  city?: string;
+};
+
+export type SellerAnalyticsAggregate = {
+  views: number;
+  saves: number;
+  offers: number;
+  offerToSaleConversion: number;
+  medianTimeToSaleHours: number | null;
+  responseMinutes?: number | null;
+  revenue30dKobo: number;
+  revenue90dKobo: number;
+};
+
+export type SellerAnalytics = {
+  city?: string;
+  aggregate: SellerAnalyticsAggregate;
+  listings: SellerListingMetrics[];
+  bestPerformers: SellerListingMetrics[];
+  worstPerformers: SellerListingMetrics[];
 };
 
 export type AiListingDraft = {
@@ -293,6 +359,10 @@ export type SavedSearch = {
   filters: Record<string, unknown>;
   newMatchesCount: number;
   lastCheckedAt: string | null;
+  /** Pause alert evaluation without deleting. */
+  paused?: boolean;
+  /** Opt-in daily digest (9am WAT). */
+  digestEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 };

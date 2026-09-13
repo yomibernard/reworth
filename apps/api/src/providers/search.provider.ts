@@ -11,6 +11,8 @@ export type SearchFilters = {
   condition?: string;
   community?: string;
   communityId?: string;
+  /** City scope (default Lagos) */
+  city?: string;
   /** 2 | 5 | 10 | 25 | undefined = all Lagos */
   radiusKm?: number;
   lat?: number;
@@ -232,6 +234,7 @@ export class PostgresFullTextSearchProvider implements SearchProvider {
     if (filters.condition) where.condition = filters.condition;
     if (filters.community) where.community = filters.community;
     if (filters.communityId) where.communityId = filters.communityId;
+    if (filters.city) where.city = filters.city;
     if (filters.deliveryAvailable) where.fulfilmentDelivery = true;
     if (filters.priceMinKobo != null || filters.priceMaxKobo != null) {
       where.priceKobo = {

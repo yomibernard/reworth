@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.2-intelligence — 2026-09-13
+
+### Added
+- Saved-search alerts (15-min scheduler, dedupe, PRD §28 batch wording, pause + 9am WAT digest)
+- Recommendations v2 (WeightedRecProvider, feature store, city-scoped) + A/B `rec_home_v2`
+- Surfaces: home Recommended, PDP Similar items, post-checkout “You might also like”
+- Valuation v2 sold-data comps + cold-start fallback; weekly model-refresh reports
+- Seller analytics API + `/sell/analytics` dashboard + CSV (no buyer PII)
+- Docs: EXPERIMENTS.md, METRICS.md, ADR-004 RecProvider
+- Tests: alerts dedupe, rec determinism + city scope, valuation fixtures, seller metrics
+
 ## v1.1-moving-communities — 2026-09-13
 
 ### Added
