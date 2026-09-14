@@ -38,15 +38,36 @@ No bounce, glass, confetti — celebrate only with publish checkmark.
 
 ## Components
 
-Documented in `packages/ui-web`: Button, ListingCard, Chip, Input, BottomNav, Modal, Toast, Skeleton, EmptyState.  
-Mobile tokens: `apps/mobile/theme/tokens.ts`.
+| Component | Web (`packages/ui-web`) | Mobile (`apps/mobile/components`) |
+| --- | --- | --- |
+| Button | ✓ | Pressables use token emerald |
+| ListingCard | ✓ 3:4, price 20/700 ink | ✓ |
+| Chip | ✓ | category chips on Home |
+| BottomNav | ✓ | ✓ elevated SELL FAB |
+| BottomSheet | Modal | ✓ |
+| Skeleton | ✓ | ✓ HomeSkeleton |
+| EmptyState | ✓ | ✓ |
+| Toast / Input | ✓ | native TextInput |
 
-## Auth / onboarding pattern
+## Screen elevation checklist
 
-1. Welcome slides (skippable)  
-2. **Method:** phone **or** email  
-3. Phone OTP **or** email register/login  
-4. Profile customise: avatar (optional), name, bio, community  
+| Screen | Mobile | Web | Notes |
+| --- | --- | --- | --- |
+| Onboarding | ✓ foundation | ✓ method/email | Photo slides + OTP polish remaining |
+| Home | ✓ rails + card + skeleton | companion | Location pill + category snap |
+| Sell | ✓ success ✓ + haptics | n/a mobile-first | Camera module / scan-line remaining |
+| PDP | partial | companion | Sticky bar polish remaining |
+| Search | partial | companion | Filter sheet remaining |
+| Chat | partial | companion | Bubble tokens remaining |
+| Orders | partial | companion | Timeline pulse remaining |
+| Profile | partial | companion | Dark mode toggle remaining |
+| Notifications | partial | — | |
+
+## Hex & contrast gates
+
+- Contrast: `node scripts/contrast-audit.mjs` (CI)
+- Hex (design-system paths): `node scripts/hex-audit.mjs`
+- Lighthouse: `apps/web` lhci Home/PDP/Search ≥ 90
 
 ## Do / don’t
 

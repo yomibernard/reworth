@@ -47,6 +47,8 @@ import {
   type Community,
   type MeResponse,
 } from "./lib/types";
+import { BottomNav } from "./components/BottomNav";
+import { ThemeProvider, useTheme } from "./theme/ThemeProvider";
 import { colors } from "./theme/tokens";
 
 type Tab = "home" | "discover" | "sell" | "chats" | "profile";
@@ -60,6 +62,14 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export default function App() {
+  return (
+    <ThemeProvider>
+      <AppShell />
+    </ThemeProvider>
+  );
+}
+
+function AppShell() {
   const [booting, setBooting] = useState(true);
   const [authed, setAuthed] = useState(false);
   const [active, setActive] = useState<Tab>("home");
@@ -413,6 +423,8 @@ export default function App() {
                   }}
                 />
 
+                <ThemeToggleButton />
+
                 <Pressable
                   style={styles.secondaryBtn}
                   onPress={() => void signOut()}
@@ -467,41 +479,7 @@ export default function App() {
         )}
       </View>
 
-      <View
-        style={styles.nav}
-        accessibilityRole="tablist"
-        accessibilityLabel="Primary"
-      >
-        {TABS.map((tab) => {
-          const isSell = tab.id === "sell";
-          const isActive = active === tab.id;
-          return (
-            <Pressable
-              key={tab.id}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isActive }}
-              accessibilityLabel={tab.label}
-              onPress={() => setActive(tab.id)}
-              style={[
-                styles.tab,
-                isSell && styles.sellTab,
-                isActive && !isSell && styles.tabActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.tabLabel,
-                  isSell && styles.sellLabel,
-                  isActive && !isSell && styles.tabLabelActive,
-                ]}
-              >
-                {isSell ? "+" : tab.label}
-              </Text>
-              {isSell ? <Text style={styles.sellCaption}>SELL</Text> : null}
-            </Pressable>
-          );
-        })}
-      </View>
+      <BottomNav active={active} onChange={setActive} />
 
       <ListingDetailModal
         listingId={detailId}
@@ -590,6 +568,22 @@ export default function App() {
         onClose={() => setDisputeId(null)}
       />
     </SafeAreaView>
+  );
+}
+
+function ThemeToggleButton() {
+  const { resolved, toggle } = useTheme();
+  return (
+    <Pressable
+      style={styles.secondaryBtn}
+      onPress={toggle}
+      accessibilityRole="button"
+      accessibilityLabel={`Switch to ${resolved === "dark" ? "light" : "dark"} mode`}
+    >
+      <Text style={styles.secondaryBtnText}>
+        {resolved === "dark" ? "Light mode" : "Dark mode"}
+      </Text>
+    </Pressable>
   );
 }
 

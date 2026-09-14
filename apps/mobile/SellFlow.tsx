@@ -358,13 +358,18 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
     if (!listingId) return;
     setBusy(true);
     try {
+      const { hapticMedium, hapticSuccess } = await import("./theme/haptics");
+      await hapticMedium();
       await saveFields();
       const token = await tokenOrThrow();
       const live = await publishListing(listingId, token);
       setPublished(live);
       setStep("done");
+      await hapticSuccess();
       onPublished?.(live);
     } catch (err) {
+      const { hapticError } = await import("./theme/haptics");
+      await hapticError();
       setError(err instanceof ApiError ? err.message : "Publish failed");
     } finally {
       setBusy(false);
@@ -696,17 +701,36 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
       ) : null}
 
       {step === "done" && published ? (
-        <View>
-          <Text style={styles.titlePreview}>
+        <View style={{ alignItems: "center", paddingVertical: 24 }}>
+          {published.status !== "REJECTED" &&
+          published.status !== "UNDER_REVIEW" ? (
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                backgroundColor: "#E6F6EF",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 16,
+              }}
+              accessibilityLabel="Published successfully"
+            >
+              <Text style={{ fontSize: 36, color: "#0E9F6E" }}>✓</Text>
+            </View>
+          ) : null}
+          <Text style={[styles.titlePreview, { textAlign: "center" }]}>
             {published.status === "REJECTED"
               ? "Listing rejected"
               : published.status === "UNDER_REVIEW"
                 ? "Submitted for review"
-                : "Your listing is live"}
+                : "Your item is live"}
           </Text>
-          <Text style={styles.copy}>{published.title}</Text>
+          <Text style={[styles.copy, { textAlign: "center" }]}>
+            {published.title}
+          </Text>
           {published.status === "REJECTED" ? (
-            <View style={{ gap: 8, marginBottom: 12 }}>
+            <View style={{ gap: 8, marginBottom: 12, alignSelf: "stretch" }}>
               <Text style={styles.copy}>
                 {(published.moderationReasons?.length
                   ? published.moderationReasons.join("; ")
@@ -761,13 +785,30 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
             </View>
           ) : null}
           <Pressable
-            style={styles.primaryBtn}
+            style={[styles.primaryBtn, { alignSelf: "stretch" }]}
             onPress={() => onOpenListing?.(published.id)}
           >
             <Text style={styles.primaryBtnText}>View listing</Text>
           </Pressable>
           <Pressable
-            style={styles.secondaryBtn}
+            style={[styles.secondaryBtn, { alignSelf: "stretch" }]}
+            onPress={() => {
+              void (async () => {
+                try {
+                  const { Share } = await import("react-native");
+                  await Share.share({
+                    message: `Check out my listing on ReWorth: ${published.title}`,
+                  });
+                } catch {
+                  /* noop */
+                }
+              })();
+            }}
+          >
+            <Text style={styles.secondaryBtnText}>Share</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.secondaryBtn, { alignSelf: "stretch" }]}
             onPress={() => {
               setStep("photos");
               setPhotos([]);

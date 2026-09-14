@@ -96,7 +96,8 @@ async function bootstrap() {
     }),
   );
 
-  const port = Number(process.env.PORT ?? 3001);
+  // Prefer API_PORT so an ambient shell PORT (IDE tooling, etc.) cannot steal 3001.
+  const port = Number(process.env.API_PORT ?? process.env.PORT ?? 3001);
   await app.listen(port);
 }
 

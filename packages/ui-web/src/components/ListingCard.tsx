@@ -35,7 +35,7 @@ export function ListingCard({
         .join(" ")}
       {...rest}
     >
-      <div className="relative aspect-[4/3] bg-[var(--rw-accent-muted)]">
+      <div className="relative aspect-[3/4] bg-[var(--rw-accent-muted)]">
         {imageSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -53,26 +53,26 @@ export function ListingCard({
         )}
         {verified ? (
           <span
-            className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-xs font-medium"
+            className="absolute top-2 left-2 rounded-full px-2 py-0.5 text-xs font-semibold"
             style={{
               background: "var(--rw-gold-muted)",
               color: "var(--rw-gold)",
             }}
             aria-label="Verified seller"
           >
-            Verified
+            Verified ✓
           </span>
         ) : null}
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3">
-        <h3 className="text-base font-medium text-[var(--rw-ink)] line-clamp-2">
-          {title}
-        </h3>
-        <p className="text-lg font-semibold text-[var(--rw-accent)]">
+        <p className="text-[1.25rem] font-bold text-[var(--rw-ink)] leading-tight">
           {priceLabel}
         </p>
+        <h3 className="text-[0.9375rem] font-medium text-[var(--rw-ink)] line-clamp-1">
+          {title}
+        </h3>
         {community ? (
-          <p className="text-sm text-[var(--rw-ink-muted)]">{community}</p>
+          <p className="text-[0.8125rem] text-[var(--rw-ink-muted)]">{community}</p>
         ) : null}
         {footer ? <div className="mt-auto pt-2">{footer}</div> : null}
       </div>

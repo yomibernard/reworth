@@ -26,12 +26,12 @@ Functional · UX · **mobile behaviour verified on iOS + Android; web parity del
 
 | Field | Value |
 | --- | --- |
-| Phase | **Design elevation** `v1.0.3-design-elevation` (+ phone\|email register) |
+| Phase | **Design elevation** `v1.0.3-design-elevation` (completion pass) |
 | Last completed (post-launch) | **3.3** (`v2.2-monetization`) |
 | MVP Admin | **`v0.8-admin`** (+ harden) |
 | MVP Risk / Security | **`v0.9-risk-security`** (+ harden) |
-| Status | **Shipped** (`v1.0.3-design-elevation`) |
-| Next | Remaining DESIGN.md screen elevation (Sell/PDP/Chat/Home rails); Boost/Plus web parity; staging k6 UAT |
+| Status | **In progress** — foundation shipped; Home/Sell/system components elevating |
+| Next | PDP/Chat/Orders/Search sheets; camera SELL; Maestro + Lighthouse device demo |
 
 ## MVP / post-launch
 
