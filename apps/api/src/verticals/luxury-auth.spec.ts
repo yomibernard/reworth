@@ -19,10 +19,20 @@ describe('Phase 2.4 luxury auth', () => {
   };
 
   function buildService(prisma: any, psp = new MockPsp()) {
+    const ledger = { record: jest.fn().mockResolvedValue({}) };
+    const fees = {
+      getActive: jest.fn().mockResolvedValue({
+        id: 'fee-1',
+        version: 1,
+        rates: { authenticationMarginPct: 0.1 },
+      }),
+    };
     return new LuxuryAuthService(
       prisma,
       configStub(),
       notifications as any,
+      ledger as any,
+      fees as any,
       new MockAuthenticationProvider(),
       psp,
     );

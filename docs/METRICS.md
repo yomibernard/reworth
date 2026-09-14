@@ -127,3 +127,21 @@ Admin analytics should slice:
 | Rec CTR | Experiment metrics for `rec_home_v2` | join user city / listing city |
 
 Never mix cities in a single KPI cell without an explicit “All cities” rollup row.
+
+## Phase 3.3 — Finance & marketplace economics
+
+Admin `GET /admin/finance/summary?days=` (FinanceDashboardService). Amounts in **kobo**.
+
+| Metric | Definition |
+| --- | --- |
+| Revenue by stream | Sum `RevenueLine.netKobo` / `grossKobo` where status ∈ {SETTLED, PENDING}, grouped by `stream` |
+| Revenue by city | Same lines grouped by `RevenueLine.city` |
+| GMV | Sum `Order.amountKobo` for `COMPLETED` orders in window |
+| Take rate | `netTotalKobo / gmvKobo` (0 if GMV = 0) |
+| Boost attach rate | Distinct LIVE listings with active BOOST promotion / LIVE listing count |
+| MRR active | `active Plus subscriptions × subscription.priceKobo` (falls back to default Plus price) |
+| MRR net new | New ACTIVE Plus in window − CANCELLED in window |
+| Churn | Count of CANCELLED seller subscriptions in window |
+
+Reconciliation: nightly (or on-demand) `ReconciliationService.run` compares settled non-deferred RevenueLines to Payment SUCCESS refs; mismatches → `FinanceAlert` (`RECONCILIATION_MISMATCH`).
+

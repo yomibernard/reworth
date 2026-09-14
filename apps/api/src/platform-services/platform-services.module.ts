@@ -6,6 +6,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { IntelligenceModule } from '../intelligence/intelligence.module';
 import { AnalyticsService } from '../listings/analytics.service';
 import { ListingsModule } from '../listings/listings.module';
+import { MonetizationModule } from '../monetization/monetization.module';
 import { OrdersModule, createPaymentProvider } from '../orders/orders.module';
 import { PAYMENT_PROVIDER } from '../providers/payment.provider';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -29,6 +30,7 @@ import { ValuationProductService } from './valuation-product.service';
     forwardRef(() => OrdersModule),
     forwardRef(() => IntelligenceModule),
     forwardRef(() => RoomScanModule),
+    MonetizationModule,
   ],
   controllers: [PlatformServicesController],
   providers: [

@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.2-monetization — 2026-09-14
+
+### Added
+- RevenueLine ledger (all PRD §34 streams) + versioned FeeConfig; order/capture + boost/featured/sub/consign/inspection/auth writers
+- Nightly reconciliation → Finance alerts; admin `/finance` summary + recon
+- Seller self-serve (mobile-first): Boost / Featured / Seller Plus; browse ranking prefers featured/boosted
+- Premium community flags (admin PATCH); ADR-009 promoted search admin-only
+- Docs: `BUYER_JOURNEY_AUDIT.md`, METRICS finance section; Maestro `05_boost_listing.yaml`
+- Tests: fee math, ledger, boost idempotency, subscription lifecycle, recon inject, finance fixtures
+
+## Unreleased — Mobile · Store · Ops
+
+### Added
+- Mobile: Ask / Worth / Room scan / Consign / Pickup tools on Expo home (`PlatformTools`)
+- `ExpoPushProvider` (`PUSH_PROVIDER=expo`) + mobile device token register; `eas.json` stubs
+- Ibadan region config; NDPR checklist; `scripts/k6/smoke.js`; track doc `MOBILE_STORE_OPS_TRACK.md`
+
 ## v2.1-expansion — 2026-09-13
 
 ### Added

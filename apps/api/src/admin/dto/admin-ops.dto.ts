@@ -11,6 +11,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ChatScanKind } from '@prisma/client';
 
 export class AdminLoginDto {
@@ -275,6 +276,23 @@ export class AdminPatchCommunityDto {
 
   @IsOptional()
   geoLng?: number | null;
+
+  /** PRD §34 premium community — off by default. */
+  @IsOptional()
+  @IsBoolean()
+  premium?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  membershipFeeKobo?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  listingFeeKobo?: number;
 }
 
 export class AdminAddCommunityManagerDto {

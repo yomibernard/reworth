@@ -9,6 +9,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { ListingStateMachine } from '../listings/listing-state.machine';
+import { FeeConfigService } from '../monetization/fee-config.service';
+import { computePartnerMarginKobo } from '../monetization/fee-rates';
+import { RevenueLedgerService } from '../monetization/revenue-ledger.service';
 import { NotificationCategory } from '../notifications/notification-categories';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OrderStateMachine } from '../orders/order-state.machine';
@@ -35,6 +38,8 @@ export class LuxuryAuthService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly ledger: RevenueLedgerService,
+    private readonly fees: FeeConfigService,
     @Inject(AUTHENTICATION_PROVIDER)
     private readonly authProvider: AuthenticationProvider,
     @Inject(PAYMENT_PROVIDER) private readonly psp: PaymentProvider,
@@ -108,6 +113,34 @@ export class LuxuryAuthService {
     await this.prisma.luxuryAuthJob.update({
       where: { id: job.id },
       data: { partnerRef: started.partnerRef, status: 'IN_PROGRESS' },
+    });
+
+    const { rates, id: feeConfigVersionId } = await this.fees.getActive();
+    const partnerCost = Math.floor(
+      feeKobo / (1 + rates.authenticationMarginPct),
+    );
+    const { netKobo } = computePartnerMarginKobo(
+      partnerCost,
+      rates.authenticationMarginPct,
+    );
+    const orderPayment = await this.prisma.payment.findFirst({
+      where: { orderId, status: 'SUCCESS' },
+      orderBy: { createdAt: 'desc' },
+    });
+    await this.ledger.record({
+      stream: 'AUTHENTICATION_FEE',
+      grossKobo: feeKobo,
+      netKobo: Math.max(netKobo, 0),
+      orderId,
+      listingId: order.listingId,
+      sellerId: order.sellerId,
+      city: order.listing.city ?? 'Lagos',
+      categoryId: order.listing.categoryId ?? undefined,
+      pspReference: orderPayment?.reference ?? null,
+      deferredPsp: !orderPayment?.reference,
+      feeConfigVersionId,
+      referenceType: 'LuxuryAuthJob',
+      referenceId: `${job.id}:fee`,
     });
 
     await this.notifications.notify({

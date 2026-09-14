@@ -34,6 +34,7 @@ const NAV: { href: string; label: string; roles: readonly string[] }[] = [
   { href: "/referrals", label: "Referrals", roles: NAV_ROLES.promotions },
   { href: "/promotions", label: "Promotions", roles: NAV_ROLES.promotions },
   { href: "/analytics", label: "Analytics", roles: NAV_ROLES.analytics },
+  { href: "/finance", label: "Finance", roles: NAV_ROLES.finance },
   { href: "/audit", label: "Audit", roles: NAV_ROLES.audit },
 ];
 

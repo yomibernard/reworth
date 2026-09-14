@@ -1,7 +1,7 @@
 /**
  * Phase 9 seed — risk rules + moderation keywords (PRD §32–33).
  */
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
 
 const DEFAULT_RULES: Array<{
@@ -72,13 +72,13 @@ export async function seedRiskAndModeration(prisma: PrismaClient) {
         name: rule.name,
         weight: rule.weight,
         enabled: true,
-        config: rule.config ?? undefined,
+        config: (rule.config ?? undefined) as Prisma.InputJsonValue | undefined,
       },
       update: {
         name: rule.name,
         weight: rule.weight,
         enabled: true,
-        config: rule.config ?? undefined,
+        config: (rule.config ?? undefined) as Prisma.InputJsonValue | undefined,
       },
     });
   }

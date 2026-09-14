@@ -82,10 +82,20 @@ describe('Phase 2.4 vehicle inspections', () => {
 
     const psp = new MockPsp();
     const provider = new MockInspectionProvider();
+    const ledger = { record: jest.fn().mockResolvedValue({}) };
+    const fees = {
+      getActive: jest.fn().mockResolvedValue({
+        id: 'fee-1',
+        version: 1,
+        rates: { inspectionMarginPct: 0.1 },
+      }),
+    };
     const svc = new VehicleInspectionsService(
       prisma,
       configStub(),
       notifications as any,
+      ledger as any,
+      fees as any,
       provider,
       psp,
     );

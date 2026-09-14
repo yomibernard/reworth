@@ -26,6 +26,10 @@ import {
 } from "./DiscoveryScreens";
 import { UserProfileModal } from "./UserProfileModal";
 import { PrivacySettings } from "./PrivacySettings";
+import {
+  PlatformToolsModal,
+  type PlatformTool,
+} from "./PlatformTools";
 import { apiFetch, ApiError } from "./lib/api";
 import {
   clearTokens,
@@ -37,6 +41,8 @@ import {
   setOnboardingPhone,
   setTokens,
 } from "./lib/auth";
+import { registerDevicePushToken } from "./lib/push";
+import { listRegions } from "./lib/region";
 import {
   COMMUNITIES,
   type Community,
@@ -71,6 +77,8 @@ export default function App() {
   const [debugHint, setDebugHint] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [homeSearchOpen, setHomeSearchOpen] = useState(false);
+  const [platformTool, setPlatformTool] = useState<PlatformTool>(null);
+  const [cityLabel, setCityLabel] = useState("Lagos");
   const [profileSubtab, setProfileSubtab] = useState<
     "account" | "saved" | "orders"
   >("account");
@@ -118,6 +126,29 @@ export default function App() {
       setBooting(false);
     })();
   }, [refreshMe]);
+
+  useEffect(() => {
+    void listRegions()
+      .then((items) => {
+        const lagos = items.find((c) => c.city === "lagos");
+        if (lagos) setCityLabel(lagos.displayName);
+        else if (items[0]) setCityLabel(items[0].displayName);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (!authed) return;
+    void (async () => {
+      const token = await getAccessToken();
+      if (!token) return;
+      try {
+        await registerDevicePushToken(token);
+      } catch {
+        /* push optional until store credentials exist */
+      }
+    })();
+  }, [authed]);
 
   useEffect(() => {
     if (active !== "home") setHomeSearchOpen(false);
@@ -537,8 +568,10 @@ export default function App() {
               community={
                 me?.profile?.preferredCommunity || community || undefined
               }
+              cityLabel={cityLabel}
               onOpenSearch={() => setHomeSearchOpen(true)}
               onOpenListing={(id) => setDetailId(id)}
+              onOpenTool={(tool) => setPlatformTool(tool)}
             />
           )
         ) : active === "discover" ? (
@@ -613,6 +646,16 @@ export default function App() {
         onOpenSeller={(sellerId) => {
           setDetailId(null);
           setProfileUserId(sellerId);
+        }}
+      />
+
+      <PlatformToolsModal
+        tool={platformTool}
+        city={cityLabel}
+        onClose={() => setPlatformTool(null)}
+        onOpenListing={(id) => {
+          setPlatformTool(null);
+          setDetailId(id);
         }}
       />
 

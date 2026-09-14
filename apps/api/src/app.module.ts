@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { join } from 'node:path';
 import { LoggerModule } from 'nestjs-pino';
 import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
@@ -40,10 +41,15 @@ import { RegionModule } from './region/region.module';
 import { CorporateModule } from './corporate/corporate.module';
 import { PartnerModule } from './partner/partner.module';
 import { CircularModule } from './circular/circular.module';
+import { MonetizationModule } from './monetization/monetization.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // Monorepo: Nest cwd is apps/api; root .env lives two levels up.
+      envFilePath: ['.env', join(process.cwd(), '../../.env')],
+    }),
     LoggerModule.forRoot({
       pinoHttp: {
         transport:
@@ -111,6 +117,7 @@ import { CircularModule } from './circular/circular.module';
     CorporateModule,
     PartnerModule,
     CircularModule,
+    MonetizationModule,
   ],
   providers: [
     {

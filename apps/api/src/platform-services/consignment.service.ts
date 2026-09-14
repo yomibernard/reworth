@@ -8,6 +8,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { normalizeCity } from '../intelligence/city-scope';
 import { ListingsService } from '../listings/listings.service';
+import { FeeConfigService } from '../monetization/fee-config.service';
+import { RevenueLedgerService } from '../monetization/revenue-ledger.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** fee = floor(sold * feeBps / 10000); net = sold - fee */
@@ -27,6 +29,8 @@ export class ConsignmentService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly listings: ListingsService,
+    private readonly ledger: RevenueLedgerService,
+    private readonly fees: FeeConfigService,
   ) {}
 
   feeBpsDefault(): number {
@@ -140,7 +144,7 @@ export class ConsignmentService {
       });
     }
 
-    return this.prisma.consignment.update({
+    const updated = await this.prisma.consignment.update({
       where: { id: consignmentId },
       data: {
         status: 'SOLD',
@@ -150,6 +154,25 @@ export class ConsignmentService {
         soldAt: new Date(),
       },
     });
+
+    if (feeKobo > 0) {
+      const { id: feeConfigVersionId } = await this.fees.getActive();
+      await this.ledger.record({
+        stream: 'CONSIGNMENT_FEE',
+        grossKobo: feeKobo,
+        netKobo: feeKobo,
+        listingId: row.listingId ?? undefined,
+        sellerId: row.consignorId,
+        city: row.city,
+        deferredPsp: true,
+        feeConfigVersionId,
+        referenceType: 'Consignment',
+        referenceId: `${consignmentId}:fee`,
+        meta: { soldPriceKobo, feeBps: row.feeBps },
+      });
+    }
+
+    return updated;
   }
 
   async markReturned(consignmentId: string, consignorId: string) {

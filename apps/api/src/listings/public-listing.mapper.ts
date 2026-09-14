@@ -77,8 +77,11 @@ export type PublicListingDto = {
   proSellerBadge?: string | null;
   instantBuyEligible?: boolean;
   instantBuyBadge?: 'Instant Buy' | null;
+  boosted?: boolean;
+  featured?: boolean;
+  boostedUntil?: Date | null;
+  featuredUntil?: Date | null;
 };
-
 type ListingWithRelations = {
   id: string;
   title: string;
@@ -187,7 +190,14 @@ export function ratingLabelFromTrust(
 
 export function toPublicListing(
   listing: ListingWithRelations,
-  opts?: { viewerLat?: number; viewerLng?: number },
+  opts?: {
+    viewerLat?: number;
+    viewerLng?: number;
+    boosted?: boolean;
+    featured?: boolean;
+    boostedUntil?: Date | null;
+    featuredUntil?: Date | null;
+  },
 ): PublicListingDto {
   const seller = listing.seller;
   const verified = Boolean(
@@ -300,6 +310,10 @@ export function toPublicListing(
         : null,
     instantBuyEligible: listing.instantBuyEligible ?? false,
     instantBuyBadge: listing.instantBuyEligible ? 'Instant Buy' : null,
+    boosted: opts?.boosted ?? false,
+    featured: opts?.featured ?? false,
+    boostedUntil: opts?.boostedUntil ?? null,
+    featuredUntil: opts?.featuredUntil ?? null,
   };
 
   // Hard privacy guarantee — strip any accidental private keys
