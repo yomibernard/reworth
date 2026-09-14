@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { AdminOnlyGuard } from '../common/guards/admin-only.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MonetizationModule } from '../monetization/monetization.module';
 import { OrdersModule, createPaymentProvider } from '../orders/orders.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AUTHENTICATION_PROVIDER } from '../providers/authentication.provider';
@@ -29,6 +30,7 @@ export function createAuthenticationProvider(_config: ConfigService) {
     AuthModule,
     ConfigModule,
     NotificationsModule,
+    MonetizationModule,
     forwardRef(() => OrdersModule),
   ],
   controllers: [VerticalsController],

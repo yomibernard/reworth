@@ -5,18 +5,43 @@
     "version": "0.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "scheme": "reworth",
     "splash": {
       "backgroundColor": "#FAF9F7"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.reworth.app"
+      "bundleIdentifier": "com.reworth.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "ReWorth needs photos to list and room-scan your items.",
+        "NSCameraUsageDescription": "ReWorth needs the camera for room scan and listing photos."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FAF9F7"
       },
-      "package": "com.reworth.app"
+      "package": "com.reworth.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow ReWorth to access your photos for listings and room scan."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
     },
     "web": {
       "bundler": "metro"

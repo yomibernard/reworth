@@ -7,6 +7,7 @@ import {
   MailhogEmailProvider,
   MockEmailProvider,
 } from '../providers/mock-email.provider';
+import { ExpoPushProvider } from '../providers/expo-push.provider';
 import { MockPushProvider } from '../providers/mock-push.provider';
 import { PUSH_PROVIDER } from '../providers/push.provider';
 import {
@@ -33,7 +34,9 @@ export function createPushProvider(config: ConfigService) {
   const provider = (
     config.get<string>('PUSH_PROVIDER') ?? 'mock'
   ).toLowerCase();
-  void provider;
+  if (provider === 'expo') {
+    return new ExpoPushProvider();
+  }
   return new MockPushProvider();
 }
 

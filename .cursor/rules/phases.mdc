@@ -5,9 +5,17 @@ alwaysApply: true
 
 # ReWorth — phase rules
 
-**Post-launch series complete** — last tag `v2.1-expansion` (Phase 3.2).
+**Post-launch series:** last tag `v2.2-monetization` (Phase 3.3).
 
-Do **not** invent a new phase without an explicit product prompt.
+**Active track:** Ops / city launches (`docs/CITY_PLAYBOOK.md`) · mobile parity gaps (`docs/MOBILE_PARITY.md`).
+
+## Mobile-first (mandatory)
+
+- Design → build → test on **mobile first** (iOS + Android).
+- **Build order every phase / track:** mobile → web companion parity.
+- Web gaps must be shipped in-phase or listed in `AGENTS.md` / `docs/MOBILE_PARITY.md` — never silent.
+
+Do **not** invent a new numbered phase without an explicit product prompt.
 
 ## MVP tags
 
@@ -15,8 +23,8 @@ Do **not** invent a new phase without an explicit product prompt.
 
 ## Post-launch
 
-`v1.0-swap` · `v1.1-moving-communities` · `v1.2-intelligence` · `v1.3-verticals` · `v2.0-ai-assistant` · `v2.1-expansion` (done)
+`v1.0-swap` · `v1.1-moving-communities` · `v1.2-intelligence` · `v1.3-verticals` · `v2.0-ai-assistant` · `v2.1-expansion` · `v2.2-monetization` (done)
 
 ## Resume
 
-See `docs/PHASE_STATUS.md`. Next: city launches via `docs/CITY_PLAYBOOK.md` (config-only).
+See `docs/PHASE_STATUS.md` and `docs/MOBILE_PARITY.md`. Primary consumer surface: `apps/mobile`.

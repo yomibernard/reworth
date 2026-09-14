@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@reworth/ui-web";
 import { downloadCsv } from "../../lib/api";
 import {
@@ -23,17 +24,25 @@ export default function AnalyticsPage() {
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title="Analytics"
-        description="Table metrics for the selected window."
+        description="Table metrics for the selected window. Revenue take-rate, MRR, and boost attach live under Finance."
         actions={
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() =>
-              void downloadCsv("/admin/analytics/export.csv", "analytics.csv")
-            }
-          >
-            Export CSV
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() =>
+                void downloadCsv("/admin/analytics/export.csv", "analytics.csv")
+              }
+            >
+              Export CSV
+            </Button>
+            <Link
+              href="/finance"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Finance metrics →
+            </Link>
+          </div>
         }
       />
       <StatusLine

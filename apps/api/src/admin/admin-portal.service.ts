@@ -1196,6 +1196,13 @@ export class AdminPortalService {
         ...(dto.active !== undefined ? { active: dto.active } : {}),
         ...(dto.geoLat !== undefined ? { geoLat: dto.geoLat } : {}),
         ...(dto.geoLng !== undefined ? { geoLng: dto.geoLng } : {}),
+        ...(dto.premium !== undefined ? { premium: dto.premium } : {}),
+        ...(dto.membershipFeeKobo !== undefined
+          ? { membershipFeeKobo: dto.membershipFeeKobo }
+          : {}),
+        ...(dto.listingFeeKobo !== undefined
+          ? { listingFeeKobo: dto.listingFeeKobo }
+          : {}),
       },
     });
     await this.audit.log({

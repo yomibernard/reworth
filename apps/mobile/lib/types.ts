@@ -93,6 +93,11 @@ export type PublicListing = {
   certificateId?: string | null;
   /** Phase 3.1 — Instant Buy eligible. */
   instantBuyEligible?: boolean;
+  /** Phase 3.3 — seller promotions */
+  boosted?: boolean;
+  featured?: boolean;
+  boostedUntil?: string | null;
+  featuredUntil?: string | null;
 };
 
 export type PriceIntelligence = {

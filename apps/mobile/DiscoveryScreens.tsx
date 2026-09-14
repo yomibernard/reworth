@@ -19,14 +19,18 @@ import { formatNgnFromKobo, type PublicListing } from "./lib/types";
 
 type Props = {
   community?: string;
+  cityLabel?: string;
   onOpenSearch: () => void;
   onOpenListing: (id: string) => void;
+  onOpenTool?: (tool: "ask" | "worth" | "scan" | "consign" | "pickup") => void;
 };
 
 export function DiscoveryHome({
   community,
+  cityLabel = "Lagos",
   onOpenSearch,
   onOpenListing,
+  onOpenTool,
 }: Props) {
   const [rails, setRails] = useState<HomeRail[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,14 +103,29 @@ export function DiscoveryHome({
         accessibilityRole="search"
         accessibilityLabel="Open search"
       >
-        <Text style={styles.searchPlaceholder}>Search Lagos…</Text>
+        <Text style={styles.searchPlaceholder}>Search {cityLabel}…</Text>
       </Pressable>
 
-      <View style={styles.toolsRow} accessibilityLabel="AI tools">
-        <Text style={styles.toolsHint}>Ask ReWorth on the web → /ask</Text>
-        <Text style={styles.toolsHintMuted}>
-          Room scan · Worth · Consign available at reworth.app
-        </Text>
+      <View style={styles.toolsRow} accessibilityLabel="AI & platform tools">
+        {(
+          [
+            ["ask", "Ask"],
+            ["worth", "Worth"],
+            ["scan", "Scan"],
+            ["consign", "Consign"],
+            ["pickup", "Pickup"],
+          ] as const
+        ).map(([id, label]) => (
+          <Pressable
+            key={id}
+            style={styles.toolChip}
+            onPress={() => onOpenTool?.(id)}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+          >
+            <Text style={styles.toolChipText}>{label}</Text>
+          </Pressable>
+        ))}
       </View>
 
       {loading && rails.length === 0 ? (
@@ -423,7 +442,22 @@ const styles = StyleSheet.create({
   searchPlaceholder: { color: "#5C636A", fontSize: 16 },
   toolsRow: {
     marginTop: 12,
-    gap: 4,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  toolChip: {
+    backgroundColor: "#ECFDF5",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+  },
+  toolChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0E9F6E",
   },
   toolsHint: {
     fontSize: 13,

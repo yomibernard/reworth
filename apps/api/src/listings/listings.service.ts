@@ -195,9 +195,61 @@ export class ListingsService {
       });
     }
 
-    return filtered.map((r) =>
-      toPublicListing(r, { viewerLat: query.lat, viewerLng: query.lng }),
-    );
+    const now = new Date();
+    const promoRows = await this.prisma.promotion.findMany({
+      where: {
+        listingId: { in: filtered.map((r) => r.id) },
+        paymentStatus: 'SUCCESS',
+        startsAt: { lte: now },
+        endsAt: { gt: now },
+        kind: { in: ['BOOST', 'FEATURED', 'PROMOTED'] },
+      },
+    });
+    const promoByListing = new Map<
+      string,
+      { boosted: boolean; featured: boolean; boostedUntil: Date | null; featuredUntil: Date | null; rank: number }
+    >();
+    for (const p of promoRows) {
+      const cur = promoByListing.get(p.listingId) ?? {
+        boosted: false,
+        featured: false,
+        boostedUntil: null,
+        featuredUntil: null,
+        rank: 0,
+      };
+      if (p.kind === 'FEATURED' || p.kind === 'PROMOTED') {
+        cur.featured = true;
+        cur.featuredUntil = p.endsAt;
+        cur.rank = Math.max(cur.rank, 2);
+      }
+      if (p.kind === 'BOOST') {
+        cur.boosted = true;
+        cur.boostedUntil = p.endsAt;
+        cur.rank = Math.max(cur.rank, 1);
+      }
+      promoByListing.set(p.listingId, cur);
+    }
+
+    filtered = [...filtered].sort((a, b) => {
+      const ra = promoByListing.get(a.id)?.rank ?? 0;
+      const rb = promoByListing.get(b.id)?.rank ?? 0;
+      if (rb !== ra) return rb - ra;
+      const ta = a.publishedAt?.getTime() ?? 0;
+      const tb = b.publishedAt?.getTime() ?? 0;
+      return tb - ta;
+    });
+
+    return filtered.map((r) => {
+      const promo = promoByListing.get(r.id);
+      return toPublicListing(r, {
+        viewerLat: query.lat,
+        viewerLng: query.lng,
+        boosted: promo?.boosted,
+        featured: promo?.featured,
+        boostedUntil: promo?.boostedUntil ?? null,
+        featuredUntil: promo?.featuredUntil ?? null,
+      });
+    });
   }
 
   async getById(id: string, viewerId?: string | null) {
@@ -254,7 +306,25 @@ export class ListingsService {
       }
     }
 
-    return toPublicListing(listing);
+    const now = new Date();
+    const activePromos = await this.prisma.promotion.findMany({
+      where: {
+        listingId: id,
+        paymentStatus: 'SUCCESS',
+        startsAt: { lte: now },
+        endsAt: { gt: now },
+        kind: { in: ['BOOST', 'FEATURED'] },
+      },
+    });
+    const boost = activePromos.find((p) => p.kind === 'BOOST');
+    const featured = activePromos.find((p) => p.kind === 'FEATURED');
+
+    return toPublicListing(listing, {
+      boosted: Boolean(boost),
+      featured: Boolean(featured),
+      boostedUntil: boost?.endsAt ?? null,
+      featuredUntil: featured?.endsAt ?? null,
+    });
   }
 
   async update(id: string, sellerId: string, dto: UpdateListingDto) {

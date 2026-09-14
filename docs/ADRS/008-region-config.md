@@ -11,7 +11,7 @@ National expansion was previously assumed to arrive via a mythical `v1.0.1-multi
 ## Decision
 
 1. **Source of truth** — `config/regions/<city>.json` (override directory via `REGION_CONFIG_DIR`).
-2. **Launch set** — Ship Lagos, Abuja, Port Harcourt. **Ibadan** is next (config-only proof in tests; not required in prod bundle until supply-first launch).
+2. **Launch set** — Lagos, Abuja, Port Harcourt, **Ibadan** (config-only; supply-first before marketing).
 3. **Required keys** — `city`, `displayName`, `timezone` (`Africa/Lagos`), `communities[]`, `geocoding` (lat/lng per community), `logistics.baseFeeKobo` / `perKmKobo`, `priceBands`, `sms.enabled`, `psp.enabled`.
 4. **Runtime** — `RegionConfigService` loads all JSON at boot; `getCity`, `listCities`, `getCommunityGeo`, `getDeliveryRates`. Geocoding + delivery quote resolve via this service with Lagos fallback.
 5. **Automation** — `scripts/validate-city-config.mjs` + `docs/CITY_PLAYBOOK.md` for supply-first launch ops.

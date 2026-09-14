@@ -12,6 +12,11 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { NotificationCategory } from '../notifications/notification-categories';
 import { NotificationsService } from '../notifications/notifications.service';
+import { FeeConfigService } from '../monetization/fee-config.service';
+import {
+  computePartnerMarginKobo,
+} from '../monetization/fee-rates';
+import { RevenueLedgerService } from '../monetization/revenue-ledger.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   INSPECTION_PROVIDER,
@@ -40,6 +45,8 @@ export class VehicleInspectionsService
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly ledger: RevenueLedgerService,
+    private readonly fees: FeeConfigService,
     @Inject(INSPECTION_PROVIDER) private readonly inspection: InspectionProvider,
     @Inject(PAYMENT_PROVIDER) private readonly psp: PaymentProvider,
   ) {}
@@ -149,10 +156,38 @@ export class VehicleInspectionsService
       (this.psp as MockPsp).simulateWebhookSuccess(paymentRef);
     }
 
-    return this.prisma.vehicleInspection.update({
+    const updated = await this.prisma.vehicleInspection.update({
       where: { id: row.id },
       data: { status: 'REQUESTED', paymentRef },
     });
+
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: row.listingId },
+      select: { city: true, categoryId: true, sellerId: true },
+    });
+    const { rates, id: feeConfigVersionId } = await this.fees.getActive();
+    const partnerCost = Math.floor(
+      row.feeKobo / (1 + rates.inspectionMarginPct),
+    );
+    const { netKobo } = computePartnerMarginKobo(
+      partnerCost,
+      rates.inspectionMarginPct,
+    );
+    await this.ledger.record({
+      stream: 'INSPECTION_FEE',
+      grossKobo: row.feeKobo,
+      netKobo: Math.max(netKobo, 0),
+      listingId: row.listingId,
+      sellerId: listing?.sellerId,
+      city: listing?.city ?? 'Lagos',
+      categoryId: listing?.categoryId ?? undefined,
+      pspReference: paymentRef,
+      feeConfigVersionId,
+      referenceType: 'VehicleInspection',
+      referenceId: `${row.id}:fee`,
+    });
+
+    return updated;
   }
 
   async schedule(inspectionId: string, userId: string, dto: ScheduleInspectionDto) {

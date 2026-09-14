@@ -1,0 +1,19 @@
+# Local port remap — avoids conflicts with other stacks on 5432/6379/9000/1025.
+# Usage: docker compose -f infra/docker-compose.yml -f infra/docker-compose.ports.yml up -d postgres redis minio mailhog
+services:
+  postgres:
+    ports:
+      - "5436:5432"
+  redis:
+    ports:
+      - "6381:6379"
+  minio:
+    ports:
+      - "9020:9000"
+      - "9021:9001"
+  mailhog:
+    ports:
+      - "1026:1025"
+      - "8026:8025"
+  opensearch:
+    profiles: ["opensearch"]

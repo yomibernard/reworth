@@ -116,5 +116,6 @@ export const NAV_ROLES = {
   ],
   promotions: ["SUPER_ADMIN", "OPERATIONS", "MARKETING"],
   analytics: ["SUPER_ADMIN", "OPERATIONS", "FINANCE", "MARKETING"],
+  finance: ["SUPER_ADMIN", "FINANCE", "OPERATIONS"],
   audit: ["SUPER_ADMIN", "OPERATIONS", "RISK_FRAUD"],
 } as const;
