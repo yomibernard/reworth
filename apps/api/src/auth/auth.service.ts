@@ -528,11 +528,23 @@ export class AuthService {
       where: { userId },
       select: { role: true },
     });
+    const roleCodes = roles.map((r) => r.role);
+    const isAdmin = roleCodes.length > 0;
+    let totpVerified = false;
+    if (isAdmin) {
+      const totp = await this.prisma.adminTotp.findUnique({
+        where: { userId },
+        select: { verified: true, enabledAt: true },
+      });
+      totpVerified = Boolean(totp?.verified && totp.enabledAt);
+    }
     return this.jwt.sign(
       {
         sub: userId,
         typ: 'access',
-        roles: roles.map((r) => r.role),
+        roles: roleCodes,
+        admin: isAdmin,
+        totpVerified,
       },
       {
         secret:

@@ -117,6 +117,189 @@ describe('admin-rbac — CONTENT_MODERATOR', () => {
   });
 });
 
+/**
+ * Table-driven permission matrix — 7 roles × page/action bundles from admin-roles.ts.
+ * CONTENT_MODERATOR must fail transactions/finance; RISK_FRAUD succeeds fraud; etc.
+ */
+describe('admin-rbac — 7-role × area matrix', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const rolesMod = require('./admin-roles') as typeof import('./admin-roles');
+
+  const areas: Array<{ area: string; required: readonly AdminRole[] }> = [
+    { area: 'dashboard', required: rolesMod.DASHBOARD },
+    { area: 'users_read', required: rolesMod.USERS_READ },
+    { area: 'listings_mod', required: rolesMod.LISTINGS_MOD },
+    { area: 'orders_read', required: rolesMod.ORDERS_READ },
+    { area: 'orders_refund', required: rolesMod.FINANCE },
+    { area: 'disputes', required: rolesMod.DISPUTES },
+    { area: 'verifications', required: rolesMod.VERIFICATIONS },
+    { area: 'reports', required: rolesMod.REPORTS },
+    { area: 'fraud', required: rolesMod.FRAUD },
+    { area: 'support', required: rolesMod.SUPPORT },
+    { area: 'catalog', required: rolesMod.CATALOG },
+    { area: 'promotions', required: rolesMod.PROMOTIONS },
+    { area: 'analytics', required: rolesMod.ANALYTICS },
+    { area: 'audit', required: rolesMod.AUDIT },
+    { area: 'finance', required: rolesMod.FINANCE },
+  ];
+
+  const allRoles = Object.values(AdminRole);
+
+  function can(role: AdminRole, required: readonly AdminRole[]): boolean {
+    if (role === AdminRole.SUPER_ADMIN) return true;
+    return required.includes(role);
+  }
+
+  it.each(
+    allRoles.flatMap((role) =>
+      areas.map((a) => ({
+        role,
+        area: a.area,
+        required: a.required,
+        expectOk: can(role, a.required),
+      })),
+    ),
+  )('$role on $area → $expectOk', async ({ role, required, expectOk }) => {
+    const audit = { log: jest.fn().mockResolvedValue(null) };
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue([...required]),
+    };
+    const guard = new RolesGuard(
+      reflector as unknown as Reflector,
+      audit as unknown as AuditService,
+    );
+    const ctx = {
+      getHandler: () => ({}),
+      getClass: () => ({}),
+      switchToHttp: () => ({
+        getRequest: () => ({
+          user: { id: `u-${role}`, roles: [role] },
+          path: '/api/v1/admin/matrix',
+        }),
+      }),
+    } as unknown as ExecutionContext;
+
+    if (expectOk) {
+      await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    } else {
+      await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'RBAC_DENIED' }),
+      );
+    }
+  });
+
+  it('CONTENT_MODERATOR denied on Transactions (orders refund) with audit', async () => {
+    const audit = { log: jest.fn().mockResolvedValue(null) };
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue([...rolesMod.FINANCE]),
+    };
+    const guard = new RolesGuard(
+      reflector as unknown as Reflector,
+      audit as unknown as AuditService,
+    );
+    await expect(
+      guard.canActivate({
+        getHandler: () => ({}),
+        getClass: () => ({}),
+        switchToHttp: () => ({
+          getRequest: () => ({
+            user: { id: 'mod', roles: [AdminRole.CONTENT_MODERATOR] },
+            path: '/api/v1/admin/orders/x/refund',
+          }),
+        }),
+      } as unknown as ExecutionContext),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'RBAC_DENIED' }),
+    );
+  });
+});
+
+describe('audit — dispute resolve completeness', () => {
+  it('DISPUTE_RESOLVED audit row is required for resolve()', async () => {
+    const auditLog = jest.fn().mockResolvedValue({ id: 'a-d1' });
+    const notify = jest.fn().mockResolvedValue({ created: [], skipped: [] });
+    const psp = {
+      refund: jest.fn().mockResolvedValue({
+        status: 'refunded',
+        providerReference: 'psp-r1',
+      }),
+    };
+    const order = {
+      id: 'o1',
+      buyerId: 'b1',
+      sellerId: 's1',
+      totalKobo: 10_000,
+      status: 'DISPUTE_HOLD',
+    };
+    const dispute = {
+      id: 'd1',
+      status: 'AWAITING_ADMIN',
+      resolution: null,
+      order,
+    };
+    const payment = {
+      id: 'p1',
+      reference: 'ref-1',
+      status: 'SUCCESS',
+    };
+    const prisma = {
+      dispute: {
+        findUnique: jest.fn().mockResolvedValue(dispute),
+        update: jest.fn().mockImplementation(async ({ data }: { data: object }) => ({
+          ...dispute,
+          ...data,
+        })),
+      },
+      payment: {
+        findFirst: jest.fn().mockResolvedValue(payment),
+        update: jest.fn(),
+      },
+      refund: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+      },
+      order: { update: jest.fn() },
+      orderEvent: { create: jest.fn() },
+      $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          refund: { create: jest.fn() },
+          payment: { update: jest.fn() },
+          order: { update: jest.fn() },
+          orderEvent: { create: jest.fn() },
+        }),
+      ),
+    };
+    const { DisputesService } = await import('../disputes/disputes.service');
+    const service = new DisputesService(
+      prisma as never,
+      {} as never,
+      { notify, log: jest.fn() } as never,
+      { log: auditLog } as never,
+      psp as never,
+    );
+    await service.resolve('d1', 'admin-1', {
+      resolution: 'PARTIAL_REFUND',
+      amountKobo: 4000,
+      note: 'partial',
+    });
+    expect(auditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'DISPUTE_RESOLVED',
+        entityType: 'Dispute',
+        entityId: 'd1',
+        beforeJson: expect.any(Object),
+        afterJson: expect.objectContaining({ resolution: 'PARTIAL_REFUND' }),
+      }),
+    );
+    expect(psp.refund).toHaveBeenCalled();
+    expect(notify).toHaveBeenCalled();
+  });
+});
+
 describe('audit — suspend user', () => {
   it('creates AuditLog on suspend', async () => {
     const auditLog = jest.fn().mockResolvedValue({ id: 'a1' });

@@ -118,4 +118,47 @@ export const NAV_ROLES = {
   analytics: ["SUPER_ADMIN", "OPERATIONS", "FINANCE", "MARKETING"],
   finance: ["SUPER_ADMIN", "FINANCE", "OPERATIONS"],
   audit: ["SUPER_ADMIN", "OPERATIONS", "RISK_FRAUD"],
+  security: [
+    "SUPER_ADMIN",
+    "OPERATIONS",
+    "FINANCE",
+    "CUSTOMER_SUPPORT",
+    "RISK_FRAUD",
+    "MARKETING",
+    "CONTENT_MODERATOR",
+  ],
 } as const;
+
+/** Map admin app paths → allowed roles (page-level gate). */
+export function rolesForPath(pathname: string): readonly string[] | null {
+  if (pathname === "/login") return null;
+  if (pathname === "/" || pathname === "") return NAV_ROLES.dashboard;
+  const map: Record<string, readonly string[]> = {
+    "/users": NAV_ROLES.users,
+    "/listings": NAV_ROLES.listings,
+    "/orders": NAV_ROLES.orders,
+    "/disputes": NAV_ROLES.disputes,
+    "/verifications": NAV_ROLES.verifications,
+    "/reports": NAV_ROLES.reports,
+    "/fraud": NAV_ROLES.fraud,
+    "/support": NAV_ROLES.support,
+    "/catalog": NAV_ROLES.catalog,
+    "/communities": NAV_ROLES.catalog,
+    "/promotions": NAV_ROLES.promotions,
+    "/analytics": NAV_ROLES.analytics,
+    "/finance": NAV_ROLES.finance,
+    "/audit": NAV_ROLES.audit,
+    "/security": NAV_ROLES.security,
+    "/pro-sellers": NAV_ROLES.listings,
+    "/corporate": NAV_ROLES.listings,
+    "/partners": NAV_ROLES.catalog,
+    "/inspections": NAV_ROLES.orders,
+    "/referrals": NAV_ROLES.promotions,
+  };
+  for (const [prefix, roles] of Object.entries(map)) {
+    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
+      return roles;
+    }
+  }
+  return NAV_ROLES.dashboard;
+}

@@ -26,14 +26,16 @@ Functional · UX · **mobile behaviour verified on iOS + Android; web parity del
 
 | Field | Value |
 | --- | --- |
-| Phase | **3.3 — Monetization & Marketplace Economics** |
-| Last completed | **3.3** (`v2.2-monetization`) |
-| Status | **Shipped** (pending merge/tag if PR open) |
-| Next | Ops hardening / city launches via CITY_PLAYBOOK; close MOBILE_PARITY web companion gaps for Boost/Plus |
+| Phase | **Post-launch complete through 3.3** · MVP tagged through `v0.9.0-rc` |
+| Last completed (post-launch) | **3.3** (`v2.2-monetization`) |
+| MVP Admin | **`v0.8-admin`** (+ harden — see `docs/PHASE_8_HARDENING.md`) |
+| Status | **Shipped** |
+| Next | Ops / city launches via `CITY_PLAYBOOK`; close `MOBILE_PARITY` Boost/Plus web gaps |
 
 ## MVP / post-launch
 
-Shipped through `v2.2-monetization`: swap → communities → intelligence → verticals → AI → B2B/expansion → monetization.
+MVP: scaffold → … → trust (`v0.7`) → **admin (`v0.8-admin`)** → risk (`v0.9`) → RC.  
+Post-launch through `v2.2-monetization`: swap → communities → intelligence → verticals → AI → B2B/expansion → monetization.
 
 ## Known gaps
 

@@ -9,6 +9,10 @@ export type AccessTokenPayload = {
   sub: string;
   typ: 'access';
   roles: string[];
+  /** True when the subject holds ≥1 AdminRole (Phase 8). */
+  admin?: boolean;
+  /** True when AdminTotp is verified+enabled for this subject. */
+  totpVerified?: boolean;
 };
 
 @Injectable()
