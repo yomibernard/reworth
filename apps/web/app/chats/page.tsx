@@ -153,6 +153,10 @@ export default function ChatsPage() {
                           <span className="inline-flex min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-[var(--rw-accent)] px-1.5 py-0.5 text-xs font-bold text-white">
                             {c.unreadCount > 99 ? "99+" : c.unreadCount}
                           </span>
+                        ) : c.muted ? (
+                          <span className="shrink-0 text-xs font-medium text-[var(--rw-ink-muted)]">
+                            Muted
+                          </span>
                         ) : null}
                       </div>
                       <p className="mt-0.5 truncate text-sm text-[var(--rw-ink-muted)]">
