@@ -101,7 +101,11 @@ describe('MessagesService block + clientMsgId', () => {
     const scanProcessor = {
       processMessage: jest.fn(),
     } as unknown as ChatScanProcessor;
-    const service = new MessagesService(prisma as never, scanProcessor);
+    const service = new MessagesService(
+      prisma as never,
+      scanProcessor,
+      { log: jest.fn() } as never,
+    );
     await expect(
       service.createOrGetConversation('buyer-1', 'listing-1'),
     ).rejects.toBeInstanceOf(ForbiddenException);
