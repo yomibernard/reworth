@@ -102,3 +102,30 @@ describe('MockImageModerationProvider', () => {
     expect(result.reasons).toContain('IMAGE_NSFW_META');
   });
 });
+
+describe('ModerationService edge cases', () => {
+  const service = new ModerationService(
+    {} as never,
+    {} as never,
+    new MockImageModerationProvider(),
+  );
+
+  it('ignores partial word that is not the seeded pattern', () => {
+    const hits = service.matchKeywords('I like headphones', [
+      { pattern: 'ak-47', category: 'weapons' },
+    ]);
+    expect(hits).toHaveLength(0);
+  });
+
+  it('matches pattern inside longer sentence', () => {
+    const hits = service.matchKeywords(
+      'Brand new cocaine for party weekend',
+      [{ pattern: 'cocaine', category: 'drugs' }],
+    );
+    expect(hits).toHaveLength(1);
+  });
+
+  it('handles empty blob', () => {
+    expect(service.matchKeywords('', SAMPLE_KEYWORDS)).toHaveLength(0);
+  });
+});

@@ -20,6 +20,7 @@ import {
   patchListing,
   presignMedia,
   publishListing,
+  appealListing,
 } from "./lib/listings";
 import {
   cancelSellerPlus,
@@ -121,6 +122,9 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
   const [busy, setBusy] = useState(false);
   const [assistLoading, setAssistLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [appealReason, setAppealReason] = useState("");
+  const [appealBusy, setAppealBusy] = useState(false);
+  const [appealOk, setAppealOk] = useState(false);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -694,11 +698,68 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
       {step === "done" && published ? (
         <View>
           <Text style={styles.titlePreview}>
-            {published.status === "UNDER_REVIEW"
-              ? "Submitted for review"
-              : "Your listing is live"}
+            {published.status === "REJECTED"
+              ? "Listing rejected"
+              : published.status === "UNDER_REVIEW"
+                ? "Submitted for review"
+                : "Your listing is live"}
           </Text>
           <Text style={styles.copy}>{published.title}</Text>
+          {published.status === "REJECTED" ? (
+            <View style={{ gap: 8, marginBottom: 12 }}>
+              <Text style={styles.copy}>
+                {(published.moderationReasons?.length
+                  ? published.moderationReasons.join("; ")
+                  : "Content moderation rejected this listing.") +
+                  " You can appeal — our team will review."}
+              </Text>
+              {appealOk ? (
+                <Text style={styles.copy}>Appeal submitted.</Text>
+              ) : (
+                <>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Why should this be allowed?"
+                    value={appealReason}
+                    onChangeText={setAppealReason}
+                    multiline
+                  />
+                  <Pressable
+                    style={[styles.primaryBtn, appealBusy && styles.btnDisabled]}
+                    disabled={appealBusy || appealReason.trim().length < 8}
+                    onPress={() =>
+                      void (async () => {
+                        const token = await getAccessToken();
+                        if (!token || !published.id) return;
+                        setAppealBusy(true);
+                        setError(null);
+                        try {
+                          await appealListing(
+                            published.id,
+                            token,
+                            appealReason.trim(),
+                          );
+                          setAppealOk(true);
+                        } catch (err) {
+                          setError(
+                            err instanceof ApiError
+                              ? err.message
+                              : "Appeal failed",
+                          );
+                        } finally {
+                          setAppealBusy(false);
+                        }
+                      })()
+                    }
+                  >
+                    <Text style={styles.primaryBtnText}>
+                      {appealBusy ? "…" : "Submit appeal"}
+                    </Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+          ) : null}
           <Pressable
             style={styles.primaryBtn}
             onPress={() => onOpenListing?.(published.id)}
@@ -712,6 +773,8 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
               setPhotos([]);
               setListingId(null);
               setPublished(null);
+              setAppealOk(false);
+              setAppealReason("");
             }}
           >
             <Text style={styles.secondaryBtnText}>List another</Text>

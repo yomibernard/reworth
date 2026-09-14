@@ -98,6 +98,8 @@ export type PublicListing = {
   featured?: boolean;
   boostedUntil?: string | null;
   featuredUntil?: string | null;
+  /** Owner publish path — moderation rejection reasons. */
+  moderationReasons?: string[];
 };
 
 export type PriceIntelligence = {

@@ -63,6 +63,18 @@ export async function publishListing(
   });
 }
 
+export async function appealListing(
+  id: string,
+  token: string,
+  reason: string,
+): Promise<{ id: string; status: string }> {
+  return apiFetch(`/listings/${id}/appeal`, {
+    method: "POST",
+    token,
+    body: { reason },
+  });
+}
+
 export async function assistListing(
   id: string,
   token: string,

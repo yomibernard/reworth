@@ -140,6 +140,7 @@ export function rolesForPath(pathname: string): readonly string[] | null {
     "/disputes": NAV_ROLES.disputes,
     "/verifications": NAV_ROLES.verifications,
     "/reports": NAV_ROLES.reports,
+    "/appeals": NAV_ROLES.reports,
     "/fraud": NAV_ROLES.fraud,
     "/support": NAV_ROLES.support,
     "/catalog": NAV_ROLES.catalog,
