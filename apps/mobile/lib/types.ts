@@ -18,6 +18,8 @@ export type MeResponse = {
   profile: {
     displayName: string;
     preferredCommunity: string;
+    bio?: string | null;
+    avatarUrl?: string | null;
   } | null;
   verificationLevels: {
     L1_PHONE: boolean;

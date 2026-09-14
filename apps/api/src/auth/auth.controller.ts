@@ -8,6 +8,7 @@ import {
   OtpRequestDto,
   OtpVerifyDto,
   RefreshDto,
+  RegisterDto,
 } from './dto/auth.dto';
 
 @Controller('auth')
@@ -23,6 +24,11 @@ export class AuthController {
   @Post('otp/verify')
   verifyOtp(@Body() dto: OtpVerifyDto, @Req() req: { ip?: string }) {
     return this.auth.verifyOtp(dto, req.ip);
+  }
+
+  @Post('register')
+  register(@Body() dto: RegisterDto, @Req() req: { ip?: string }) {
+    return this.auth.register(dto, req.ip);
   }
 
   @Post('login')

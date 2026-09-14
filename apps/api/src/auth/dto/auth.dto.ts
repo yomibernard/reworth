@@ -61,6 +61,26 @@ export class LoginDto {
   device?: DeviceDto;
 }
 
+/** Consumer email registration (phone OTP remains the alternate path). */
+export class RegisterDto {
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @MinLength(8)
+  password!: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  displayName?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DeviceDto)
+  device?: DeviceDto;
+}
+
 export class RefreshDto {
   @IsString()
   @MinLength(10)

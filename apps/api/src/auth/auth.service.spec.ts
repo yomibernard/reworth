@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminRole, DevicePlatform } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { SMS_PROVIDER } from '../providers/sms.provider';
 import { AuthService } from './auth.service';
 import { hashWithPepper } from './crypto.util';
@@ -40,6 +41,7 @@ describe('AuthService', () => {
         updateMany: jest.fn(),
       },
       userRole: { findMany: jest.fn().mockResolvedValue([]) },
+      adminTotp: { findUnique: jest.fn().mockResolvedValue(null) },
     };
   }
 
@@ -48,7 +50,7 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: 'PrismaService', useValue: prisma },
+        { provide: PrismaService, useValue: prisma },
         {
           provide: ConfigService,
           useValue: {
@@ -217,6 +219,35 @@ describe('AuthService', () => {
       });
 
       expect(result.userId).toBe('u-oauth');
+      expect(result.accessToken).toBe('access.jwt');
+      expect(prisma.user.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('register (email)', () => {
+    it('creates consumer account and issues session', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({
+        id: 'u-reg',
+        email: 'new@reworth.ng',
+        profile: { displayName: 'Ada' },
+        roles: [],
+      });
+      prisma.device.create.mockResolvedValue({ id: 'd1' });
+      prisma.refreshToken.create.mockResolvedValue({ id: 'rt1' });
+      prisma.userRole.findMany.mockResolvedValue([]);
+      (prisma as { adminTotp?: { findUnique: jest.Mock } }).adminTotp = {
+        findUnique: jest.fn().mockResolvedValue(null),
+      };
+
+      const result = await service.register({
+        email: 'new@reworth.ng',
+        password: 'password123',
+        displayName: 'Ada',
+        device: { name: 'Phone', platform: DevicePlatform.IOS },
+      });
+
+      expect(result.userId).toBe('u-reg');
       expect(result.accessToken).toBe('access.jwt');
       expect(prisma.user.create).toHaveBeenCalled();
     });
