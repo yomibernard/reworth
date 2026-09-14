@@ -47,6 +47,8 @@ import {
   type Community,
   type MeResponse,
 } from "./lib/types";
+import { BottomNav } from "./components/BottomNav";
+import { ThemeProvider, useTheme } from "./theme/ThemeProvider";
 import { colors } from "./theme/tokens";
 
 type Tab = "home" | "discover" | "sell" | "chats" | "profile";
@@ -60,6 +62,14 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export default function App() {
+  return (
+    <ThemeProvider>
+      <AppShell />
+    </ThemeProvider>
+  );
+}
+
+function AppShell() {
   const [booting, setBooting] = useState(true);
   const [authed, setAuthed] = useState(false);
   const [active, setActive] = useState<Tab>("home");
@@ -413,6 +423,8 @@ export default function App() {
                   }}
                 />
 
+                <ThemeToggleButton />
+
                 <Pressable
                   style={styles.secondaryBtn}
                   onPress={() => void signOut()}
@@ -467,41 +479,7 @@ export default function App() {
         )}
       </View>
 
-      <View
-        style={styles.nav}
-        accessibilityRole="tablist"
-        accessibilityLabel="Primary"
-      >
-        {TABS.map((tab) => {
-          const isSell = tab.id === "sell";
-          const isActive = active === tab.id;
-          return (
-            <Pressable
-              key={tab.id}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isActive }}
-              accessibilityLabel={tab.label}
-              onPress={() => setActive(tab.id)}
-              style={[
-                styles.tab,
-                isSell && styles.sellTab,
-                isActive && !isSell && styles.tabActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.tabLabel,
-                  isSell && styles.sellLabel,
-                  isActive && !isSell && styles.tabLabelActive,
-                ]}
-              >
-                {isSell ? "+" : tab.label}
-              </Text>
-              {isSell ? <Text style={styles.sellCaption}>SELL</Text> : null}
-            </Pressable>
-          );
-        })}
-      </View>
+      <BottomNav active={active} onChange={setActive} />
 
       <ListingDetailModal
         listingId={detailId}
@@ -593,6 +571,22 @@ export default function App() {
   );
 }
 
+function ThemeToggleButton() {
+  const { resolved, toggle } = useTheme();
+  return (
+    <Pressable
+      style={styles.secondaryBtn}
+      onPress={toggle}
+      accessibilityRole="button"
+      accessibilityLabel={`Switch to ${resolved === "dark" ? "light" : "dark"} mode`}
+    >
+      <Text style={styles.secondaryBtnText}>
+        {resolved === "dark" ? "Light mode" : "Dark mode"}
+      </Text>
+    </Pressable>
+  );
+}
+
 function Badge({ label, ok }: { label: string; ok: boolean }) {
   return (
     <View style={[styles.badge, ok ? styles.badgeOk : styles.badgeMuted]}>
@@ -607,7 +601,7 @@ function Badge({ label, ok }: { label: string; ok: boolean }) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#FAF9F7",
+    backgroundColor: "#FCFAF6",
   },
   center: {
     flex: 1,
@@ -630,21 +624,21 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 40,
     fontWeight: "700",
-    color: "#111315",
+    color: "#172A3A",
     letterSpacing: -0.5,
   },
   title: {
     marginTop: 28,
     fontSize: 28,
     fontWeight: "700",
-    color: "#111315",
+    color: "#172A3A",
     letterSpacing: -0.3,
   },
   copy: {
     marginTop: 12,
     fontSize: 17,
     lineHeight: 24,
-    color: "#5C636A",
+    color: "#59636D",
   },
   subtabs: {
     flexDirection: "row",
@@ -654,19 +648,19 @@ const styles = StyleSheet.create({
   subtab: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     paddingHorizontal: 14,
     paddingVertical: 8,
     backgroundColor: "#FFFFFF",
   },
   subtabActive: {
-    backgroundColor: "#0E9F6E",
-    borderColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
+    borderColor: "#D96A32",
   },
   subtabText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#111315",
+    color: "#172A3A",
   },
   subtabTextActive: {
     color: "#FFFFFF",
@@ -676,23 +670,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontSize: 14,
     fontWeight: "600",
-    color: "#111315",
+    color: "#172A3A",
   },
   sectionLabel: {
     marginTop: 28,
     marginBottom: 10,
     fontSize: 15,
     fontWeight: "600",
-    color: "#111315",
+    color: "#172A3A",
   },
   input: {
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#111315",
+    color: "#172A3A",
     backgroundColor: "#FFFFFF",
   },
   otpInput: {
@@ -708,27 +702,27 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
     backgroundColor: "#FFFFFF",
   },
   chipSelected: {
-    backgroundColor: "#0E9F6E",
-    borderColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
+    borderColor: "#D96A32",
   },
   chipText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#111315",
+    color: "#172A3A",
   },
   chipTextSelected: {
     color: "#FFFFFF",
   },
   primaryBtn: {
     marginTop: 28,
-    backgroundColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
@@ -741,14 +735,14 @@ const styles = StyleSheet.create({
   secondaryBtn: {
     marginTop: 32,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
     backgroundColor: "#FFFFFF",
   },
   secondaryBtnText: {
-    color: "#111315",
+    color: "#172A3A",
     fontSize: 15,
     fontWeight: "600",
   },
@@ -758,17 +752,17 @@ const styles = StyleSheet.create({
   link: {
     marginTop: 16,
     textAlign: "center",
-    color: "#0E9F6E",
+    color: "#D96A32",
     fontWeight: "600",
   },
   error: {
     marginTop: 10,
-    color: "#DC2626",
+    color: "#C94A3A",
     fontSize: 14,
   },
   hint: {
     marginTop: 10,
-    color: "#0E9F6E",
+    color: "#D96A32",
     fontSize: 14,
   },
   badges: {
@@ -782,27 +776,27 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   badgeOk: {
-    backgroundColor: "#D1FAE5",
+    backgroundColor: "#E4F0EA",
   },
   badgeMuted: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
   },
   badgeText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#5C636A",
+    color: "#59636D",
   },
   badgeTextOk: {
-    color: "#0E9F6E",
+    color: "#D96A32",
   },
   nav: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-around",
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#E5E2DC",
+    borderTopColor: "#E4DDD4",
     backgroundColor: "#FFFFFF",
     paddingTop: 8,
     paddingBottom: 10,
@@ -817,10 +811,10 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#5C636A",
+    color: "#59636D",
   },
   tabLabelActive: {
-    color: "#0E9F6E",
+    color: "#D96A32",
   },
   sellTab: {
     marginTop: -22,
@@ -828,10 +822,10 @@ const styles = StyleSheet.create({
     height: 56,
     flex: 0,
     borderRadius: 28,
-    backgroundColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#0E9F6E",
+    shadowColor: "#D96A32",
     shadowOpacity: 0.35,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -849,24 +843,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.6,
-    color: "#0E9F6E",
+    color: "#D96A32",
   },
   listingRow: {
     marginTop: 14,
     padding: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     backgroundColor: "#FFFFFF",
   },
   listingTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#111315",
+    color: "#172A3A",
   },
   listingMeta: {
     marginTop: 6,
     fontSize: 14,
-    color: "#5C636A",
+    color: "#59636D",
   },
 });

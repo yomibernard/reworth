@@ -110,7 +110,7 @@ export function OrdersPanel({ meId, onOpenOrder }: Props) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#0E9F6E" />
+        <ActivityIndicator color="#D96A32" />
       </View>
     );
   }
@@ -347,7 +347,7 @@ export function CheckoutModal({
 
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator color="#0E9F6E" />
+            <ActivityIndicator color="#D96A32" />
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.pad}>
@@ -682,7 +682,7 @@ export function OrderDetailModal({
         </View>
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator color="#0E9F6E" />
+            <ActivityIndicator color="#D96A32" />
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.pad}>
@@ -789,16 +789,38 @@ export function OrderDetailModal({
                 ) : null}
 
                 <Text style={styles.section}>Timeline</Text>
-                {order.events.map((ev) => (
-                  <View key={ev.id} style={styles.event}>
-                    <Text style={styles.eventType}>
-                      {ev.type.replace(/_/g, " ")}
-                    </Text>
-                    <Text style={styles.muted}>
-                      {new Date(ev.createdAt).toLocaleString()}
-                    </Text>
-                  </View>
-                ))}
+                {order.events.map((ev, idx) => {
+                  const current = idx === order.events.length - 1;
+                  return (
+                    <View
+                      key={ev.id}
+                      style={[
+                        styles.event,
+                        current && styles.eventCurrent,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.eventDot,
+                          current && styles.eventDotCurrent,
+                        ]}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.eventType,
+                            current && styles.eventTypeCurrent,
+                          ]}
+                        >
+                          {ev.type.replace(/_/g, " ")}
+                        </Text>
+                        <Text style={styles.muted}>
+                          {new Date(ev.createdAt).toLocaleString()}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
 
                 <View style={styles.actionsCol}>
                   {isSeller && order.status === "FUNDED" ? (
@@ -1057,7 +1079,7 @@ export function DisputeModal({
         </View>
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator color="#0E9F6E" />
+            <ActivityIndicator color="#D96A32" />
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.pad}>
@@ -1233,7 +1255,7 @@ export async function fetchMeId(): Promise<string | null> {
 }
 
 const styles = StyleSheet.create({
-  modalRoot: { flex: 1, backgroundColor: "#FAF9F7" },
+  modalRoot: { flex: 1, backgroundColor: "#FCFAF6" },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1242,10 +1264,10 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E2DC",
+    borderBottomColor: "#E4DDD4",
   },
-  brand: { fontSize: 18, fontWeight: "700", color: "#1A1A1A" },
-  link: { color: "#0E9F6E", fontWeight: "600", fontSize: 15 },
+  brand: { fontSize: 18, fontWeight: "700", color: "#172A3A" },
+  link: { color: "#D96A32", fontWeight: "600", fontSize: 15 },
   pad: { padding: 16, paddingBottom: 40, gap: 10 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   error: { color: "#B42318", marginBottom: 8 },
@@ -1255,32 +1277,32 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     padding: 14,
     marginBottom: 10,
   },
-  cardTitle: { fontSize: 17, fontWeight: "600", color: "#1A1A1A" },
-  price: { fontSize: 28, fontWeight: "700", color: "#1A1A1A" },
+  cardTitle: { fontSize: 17, fontWeight: "600", color: "#172A3A" },
+  price: { fontSize: 28, fontWeight: "700", color: "#172A3A" },
   badge: {
     alignSelf: "flex-start",
     marginTop: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: "#D1FAE5",
+    backgroundColor: "#E4F0EA",
     color: "#065F46",
     overflow: "hidden",
     fontSize: 13,
     fontWeight: "600",
   },
   protect: {
-    backgroundColor: "#ECFDF5",
+    backgroundColor: "#F8E6DC",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(14,159,110,0.3)",
     padding: 12,
   },
-  protectTitle: { fontWeight: "700", color: "#0E9F6E", marginBottom: 4 },
+  protectTitle: { fontWeight: "700", color: "#D96A32", marginBottom: 4 },
   section: { fontSize: 16, fontWeight: "600", marginTop: 8 },
   rowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
@@ -1288,17 +1310,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     backgroundColor: "#fff",
   },
-  chipOn: { backgroundColor: "#0E9F6E", borderColor: "#0E9F6E" },
-  chipText: { fontSize: 13, color: "#1A1A1A" },
+  chipOn: { backgroundColor: "#D96A32", borderColor: "#D96A32" },
+  chipText: { fontSize: 13, color: "#172A3A" },
   chipTextOn: { color: "#fff", fontWeight: "600" },
   breakdown: {
     backgroundColor: "#fff",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     padding: 12,
     gap: 8,
   },
@@ -1309,7 +1331,7 @@ const styles = StyleSheet.create({
   },
   bold: { fontWeight: "700", fontSize: 16 },
   primaryBtn: {
-    backgroundColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
@@ -1325,29 +1347,54 @@ const styles = StyleSheet.create({
   primaryBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   secondaryBtn: {
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
     backgroundColor: "#fff",
     marginTop: 8,
   },
-  secondaryBtnText: { fontWeight: "600", color: "#1A1A1A" },
+  secondaryBtnText: { fontWeight: "600", color: "#172A3A" },
   disabled: { opacity: 0.5 },
   event: {
-    borderLeftWidth: 2,
-    borderLeftColor: "#0E9F6E",
-    paddingLeft: 10,
-    marginBottom: 8,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingVertical: 8,
+    borderLeftWidth: 0,
+    marginBottom: 4,
   },
-  eventType: { fontWeight: "600", textTransform: "capitalize" },
+  eventCurrent: {
+    backgroundColor: "#F2E7D5",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+  },
+  eventDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginTop: 4,
+    backgroundColor: "#E4DDD4",
+  },
+  eventDotCurrent: {
+    backgroundColor: "#D96A32",
+  },
+  eventType: {
+    fontWeight: "600",
+    textTransform: "capitalize",
+    fontSize: 15,
+    color: "#172A3A",
+  },
+  eventTypeCurrent: {
+    color: "#D96A32",
+  },
   actionsCol: { gap: 4, marginTop: 8 },
   disputeBox: {
     marginTop: 12,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     backgroundColor: "#fff",
     gap: 8,
   },
@@ -1356,7 +1403,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     backgroundColor: "#fff",
     gap: 10,
   },
@@ -1366,16 +1413,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5EDD0",
     gap: 4,
   },
-  waitTitle: { fontWeight: "700", color: "#1A1A1A", fontSize: 16 },
+  waitTitle: { fontWeight: "700", color: "#172A3A", fontSize: 16 },
   doneCard: {
     padding: 12,
     borderRadius: 12,
-    backgroundColor: "#D1FAE5",
+    backgroundColor: "#E4F0EA",
     gap: 4,
   },
-  doneTitle: { fontWeight: "700", color: "#0E9F6E", fontSize: 16 },
+  doneTitle: { fontWeight: "700", color: "#D96A32", fontSize: 16 },
   starRow: { gap: 6 },
-  starLabel: { fontSize: 13, fontWeight: "600", color: "#1A1A1A" },
+  starLabel: { fontSize: 13, fontWeight: "600", color: "#172A3A" },
   starBtns: { flexDirection: "row", gap: 6 },
   starBtn: {
     width: 36,
@@ -1383,16 +1430,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FAF9F7",
+    backgroundColor: "#FCFAF6",
   },
   starBtnOn: { backgroundColor: "#F5EDD0" },
   starGlyph: { fontSize: 18, color: "#C9A227" },
   input: {
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 10,
     padding: 12,
-    backgroundColor: "#FAF9F7",
+    backgroundColor: "#FCFAF6",
     minHeight: 44,
     textAlignVertical: "top",
   },

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
+  Dimensions,
   Image,
   Modal,
   Pressable,
@@ -10,6 +10,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { BottomSheet } from "./components/BottomSheet";
+import { Skeleton } from "./components/Skeleton";
 import { ApiError, apiFetch } from "./lib/api";
 import { getAccessToken } from "./lib/auth";
 import {
@@ -46,6 +48,10 @@ import {
   type MeResponse,
   type PublicListing,
 } from "./lib/types";
+import { hapticLight } from "./theme/haptics";
+import { useColors } from "./theme/ThemeProvider";
+
+const GALLERY_W = Dimensions.get("window").width;
 
 type Props = {
   listingId: string | null;
@@ -86,6 +92,17 @@ export function ListingDetailModal({
   const [featuredQuote, setFeaturedQuote] = useState<FeaturedQuote | null>(null);
   const [boostBusy, setBoostBusy] = useState(false);
   const [quoteBusy, setQuoteBusy] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [descExpanded, setDescExpanded] = useState(false);
+  const c = useColors();
+
+  const gallery = useMemo(() => {
+    if (!listing?.images?.length) return [] as string[];
+    return [...listing.images]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((img) => listingImageUrl(img))
+      .filter((u): u is string => Boolean(u));
+  }, [listing]);
 
   async function reloadListing(id: string, token?: string | null) {
     const data = await getListing(id, token);
@@ -100,6 +117,8 @@ export function ListingDetailModal({
       setSimilar([]);
       setMeId(null);
       setBoostOpen(false);
+      setGalleryIndex(0);
+      setDescExpanded(false);
       return;
     }
     let cancelled = false;
@@ -373,11 +392,6 @@ export function ListingDetailModal({
     listing?.sellingMode === "SWAP" || listing?.sellingMode === "SWAP_CASH";
   const isGiveAway = listing?.sellingMode === "GIVE_AWAY";
   const isOwner = Boolean(meId && listing?.seller.id === meId);
-  const hero = listing
-    ? listingImageUrl(
-        [...listing.images].sort((a, b) => a.sortOrder - b.sortOrder)[0],
-      )
-    : null;
 
   return (
     <Modal
@@ -386,49 +400,116 @@ export function ListingDetailModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.safe}>
-        <View style={styles.header}>
-          <Text style={styles.brand}>ReWorth</Text>
-          <Pressable onPress={onClose} accessibilityRole="button">
-            <Text style={styles.close}>Close</Text>
+      <View style={[styles.safe, { backgroundColor: c.canvas }]}>
+        <View style={[styles.header, { borderBottomColor: c.border }]}>
+          <Text style={[styles.brand, { color: c.ink }]}>ReWorth</Text>
+          <Pressable
+            onPress={onClose}
+            accessibilityRole="button"
+            hitSlop={8}
+            style={{ minHeight: 44, justifyContent: "center" }}
+          >
+            <Text style={[styles.close, { color: c.emerald }]}>Close</Text>
           </Pressable>
         </View>
 
         {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color="#0E9F6E" />
+          <View style={{ padding: 16, gap: 12 }}>
+            <Skeleton height={280} />
+            <Skeleton height={24} width="40%" />
+            <Skeleton height={20} width="70%" />
+            <Skeleton height={48} />
           </View>
         ) : error || !listing ? (
           <View style={styles.center}>
-            <Text style={styles.error}>{error ?? "Unavailable"}</Text>
+            <Text style={[styles.error, { color: c.error }]}>
+              {error ?? "Unavailable"}
+            </Text>
           </View>
         ) : (
-          <ScrollView contentContainerStyle={styles.body}>
-            {hero ? (
-              <Image
-                source={{ uri: hero }}
-                style={styles.hero}
-                resizeMode="cover"
-                accessibilityLabel="Listing photo"
-              />
-            ) : (
-              <View style={[styles.hero, styles.heroEmpty]}>
-                <Text style={styles.muted}>No photo</Text>
-              </View>
-            )}
+          <>
+          <ScrollView
+            contentContainerStyle={[styles.body, { paddingBottom: 120 }]}
+          >
+            <View>
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={(e) => {
+                  const i = Math.round(
+                    e.nativeEvent.contentOffset.x / GALLERY_W,
+                  );
+                  setGalleryIndex(i);
+                }}
+                accessibilityLabel="Listing photo gallery"
+              >
+                {(gallery.length ? gallery : [null]).map((uri, i) =>
+                  uri ? (
+                    <Image
+                      key={`${uri}-${i}`}
+                      source={{ uri }}
+                      style={[styles.hero, { width: GALLERY_W }]}
+                      resizeMode="cover"
+                      accessibilityLabel={`Photo of ${listing.title || "listing"}, ${i + 1} of ${gallery.length || 1}`}
+                    />
+                  ) : (
+                    <View
+                      key="empty"
+                      style={[
+                        styles.hero,
+                        styles.heroEmpty,
+                        { width: GALLERY_W, backgroundColor: c.emeraldWash },
+                      ]}
+                    >
+                      <Text style={{ color: c.muted }}>No photo</Text>
+                    </View>
+                  ),
+                )}
+              </ScrollView>
+              {gallery.length > 0 ? (
+                <View
+                  style={[styles.counterChip, { backgroundColor: c.surface }]}
+                  accessibilityLabel={`Photo ${galleryIndex + 1} of ${gallery.length}`}
+                >
+                  <Text style={{ color: c.ink, fontSize: 13, fontWeight: "600" }}>
+                    {galleryIndex + 1}/{gallery.length}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
 
-            <Text style={styles.price}>
-              {isGiveAway
-                ? "Free"
-                : isSwap
-                  ? "Swap"
-                  : formatNgnFromKobo(listing.priceKobo)}
-              {!isGiveAway && !isSwap && listing.negotiable
-                ? " · Negotiable"
-                : ""}
+            <View style={styles.priceRow}>
+              <Text style={[styles.price, { color: c.ink }]}>
+                {isGiveAway
+                  ? "Free"
+                  : isSwap
+                    ? "Swap"
+                    : formatNgnFromKobo(listing.priceKobo)}
+              </Text>
+              {!isGiveAway && !isSwap && listing.negotiable ? (
+                <View
+                  style={[styles.negoChip, { backgroundColor: c.emeraldWash }]}
+                >
+                  <Text style={{ color: c.emerald, fontSize: 13, fontWeight: "600" }}>
+                    Negotiable
+                  </Text>
+                </View>
+              ) : null}
+              {listing.buyerProtection ? (
+                <View
+                  style={[styles.negoChip, { borderColor: c.border, borderWidth: StyleSheet.hairlineWidth }]}
+                >
+                  <Text style={{ color: c.muted, fontSize: 12, fontWeight: "600" }}>
+                    Buyer Protection
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={[styles.title, { color: c.ink }]}>
+              {listing.title || "Untitled"}
             </Text>
-            <Text style={styles.title}>{listing.title || "Untitled"}</Text>
-            <Text style={styles.meta}>
+            <Text style={[styles.meta, { color: c.muted }]}>
               {listing.condition} · {listing.community || "Lagos"}
             </Text>
             {(() => {
@@ -526,9 +607,19 @@ export function ListingDetailModal({
             </Pressable>
 
             <Text style={styles.section}>Description</Text>
-            <Text style={styles.copy}>
+            <Text style={styles.copy} numberOfLines={descExpanded ? undefined : 2}>
               {listing.description || "No description."}
             </Text>
+            {listing.description && listing.description.length > 80 ? (
+              <Pressable
+                onPress={() => setDescExpanded((v) => !v)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.profileLink}>
+                  {descExpanded ? "Less" : "More"}
+                </Text>
+              </Pressable>
+            ) : null}
 
             <Text style={styles.section}>Delivery</Text>
             <Text style={styles.copy}>
@@ -594,103 +685,120 @@ export function ListingDetailModal({
               </View>
             ) : null}
 
-            <View style={styles.actions}>
-              {isOwner ? (
-                <Action
-                  label="Boost listing"
-                  primary
-                  onPress={() => setBoostOpen(true)}
-                />
-              ) : null}
-              {isSwap ? (
-                <Action
-                  label={swapBusy ? "Loading…" : "Swap"}
-                  primary={!isOwner}
-                  onPress={() => {
-                    if (!swapBusy) void openSwapSheet();
-                  }}
-                />
-              ) : isGiveAway ? (
-                <Action
-                  label={claimBusy ? "Claiming…" : "Claim this item"}
-                  primary={!isOwner}
-                  onPress={() => {
-                    if (!claimBusy) void claimGiveaway();
-                  }}
-                />
-              ) : !isOwner ? (
-                <>
-                  <Action
-                    label="Make offer"
-                    onPress={() => setOfferOpen(true)}
-                  />
-                  <Action
-                    label="Buy now"
-                    primary
-                    onPress={() => {
-                      if (listingId) onBuyNow?.(listingId);
-                      else setToast("Coming soon");
-                    }}
-                  />
-                </>
-              ) : null}
-              {!isOwner ? (
-                <Action
-                  label={chatBusy ? "Opening…" : "Chat"}
-                  onPress={() => {
-                    if (!chatBusy) void startChat();
-                  }}
-                />
-              ) : null}
-              <Action
-                label={saved ? "Saved ♥" : "Save"}
-                onPress={() => {
-                  if (!saving) void toggleSave();
-                }}
-              />
-              <Action
-                label="Share"
-                onPress={() =>
-                  setToast(`Listing ${listing.id} — copy from web for now`)
-                }
-              />
-            </View>
-
             {toast ? (
               <Pressable onPress={() => setToast(null)}>
                 <Text style={styles.toast}>{toast}</Text>
               </Pressable>
             ) : null}
           </ScrollView>
-        )}
 
-        <Modal visible={offerOpen} animationType="slide" transparent>
-          <View style={styles.sheetBackdrop}>
-            <View style={styles.sheet}>
-              <Text style={styles.sheetTitle}>Make offer</Text>
-              <Text style={styles.label}>Amount (₦)</Text>
-              <TextInput
-                style={styles.input}
-                value={offerNaira}
-                onChangeText={setOfferNaira}
-                keyboardType="numeric"
-                placeholder="45000"
-              />
+          <View style={[styles.stickyBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
+            {isOwner ? (
               <Pressable
-                style={[styles.primaryBtn, offerBusy && styles.disabled]}
-                disabled={offerBusy}
-                onPress={() => void submitOffer()}
+                style={[styles.stickyPrimary, { backgroundColor: c.emerald, flex: 1 }]}
+                onPress={() => setBoostOpen(true)}
+                accessibilityRole="button"
               >
-                <Text style={styles.primaryBtnText}>
-                  {offerBusy ? "Sending…" : "Send offer"}
+                <Text style={styles.stickyPrimaryText}>Boost listing</Text>
+              </Pressable>
+            ) : isSwap ? (
+              <Pressable
+                style={[styles.stickyPrimary, { backgroundColor: c.emerald, flex: 1 }]}
+                onPress={() => {
+                  if (!swapBusy) void openSwapSheet();
+                }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.stickyPrimaryText}>
+                  {swapBusy ? "…" : "Propose swap"}
                 </Text>
               </Pressable>
-              <Pressable onPress={() => setOfferOpen(false)}>
-                <Text style={styles.cancel}>Cancel</Text>
+            ) : isGiveAway ? (
+              <Pressable
+                style={[styles.stickyPrimary, { backgroundColor: c.emerald, flex: 1 }]}
+                onPress={() => {
+                  if (!claimBusy) void claimGiveaway();
+                }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.stickyPrimaryText}>
+                  {claimBusy ? "…" : "Claim this item"}
+                </Text>
               </Pressable>
-            </View>
+            ) : (
+              <>
+                <Pressable
+                  style={[styles.stickyOutline, { borderColor: c.border }]}
+                  onPress={() => {
+                    if (!chatBusy) void startChat();
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Chat"
+                >
+                  <Text style={{ color: c.ink, fontWeight: "600" }}>
+                    {chatBusy ? "…" : "Chat"}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={styles.stickyGhost}
+                  onPress={() => {
+                    void hapticLight();
+                    if (!saving) void toggleSave();
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={saved ? "Unsave" : "Save"}
+                >
+                  <Text style={{ color: saved ? c.emerald : c.ink, fontSize: 18 }}>
+                    ♥
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.stickyOutline, { borderColor: c.border, flex: 1 }]}
+                  onPress={() => setOfferOpen(true)}
+                  accessibilityRole="button"
+                >
+                  <Text style={{ color: c.ink, fontWeight: "600" }}>Offer</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.stickyPrimary, { backgroundColor: c.emerald, flex: 1.2 }]}
+                  onPress={() => {
+                    if (listingId) onBuyNow?.(listingId);
+                    else setToast("Coming soon");
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.stickyPrimaryText}>Buy Now</Text>
+                </Pressable>
+              </>
+            )}
           </View>
-        </Modal>
+          </>
+        )}
+
+        <BottomSheet
+          visible={offerOpen}
+          title="Make offer"
+          onClose={() => setOfferOpen(false)}
+        >
+          <Text style={styles.label}>Amount (₦)</Text>
+          <TextInput
+            style={styles.input}
+            value={offerNaira}
+            onChangeText={setOfferNaira}
+            keyboardType="numeric"
+            placeholder="45000"
+            accessibilityLabel="Offer amount in naira"
+          />
+          <Pressable
+            style={[styles.primaryBtn, offerBusy && styles.disabled]}
+            disabled={offerBusy}
+            onPress={() => void submitOffer()}
+          >
+            <Text style={styles.primaryBtnText}>
+              {offerBusy ? "Sending…" : "Send offer"}
+            </Text>
+          </Pressable>
+        </BottomSheet>
 
         <Modal visible={swapOpen} animationType="slide" transparent>
           <View style={styles.sheetBackdrop}>
@@ -819,29 +927,8 @@ export function ListingDetailModal({
   );
 }
 
-function Action({
-  label,
-  onPress,
-  primary,
-}: {
-  label: string;
-  onPress: () => void;
-  primary?: boolean;
-}) {
-  return (
-    <Pressable
-      style={[styles.actionBtn, primary && styles.actionPrimary]}
-      onPress={onPress}
-    >
-      <Text style={[styles.actionText, primary && styles.actionTextPrimary]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FAF9F7" },
+  safe: { flex: 1, backgroundColor: "#FCFAF6" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -850,57 +937,166 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
   },
-  brand: { fontSize: 20, fontWeight: "700", color: "#111315" },
-  close: { fontSize: 16, fontWeight: "600", color: "#0E9F6E" },
+  brand: { fontSize: 20, fontWeight: "700", color: "#172A3A" },
+  close: { fontSize: 16, fontWeight: "600", color: "#D96A32" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  body: { paddingHorizontal: 20, paddingBottom: 40 },
+  body: { paddingBottom: 40 },
   hero: {
-    width: "100%",
-    height: 260,
-    borderRadius: 20,
-    backgroundColor: "#E5E2DC",
+    height: 320,
+    backgroundColor: "#E4DDD4",
   },
   heroEmpty: { alignItems: "center", justifyContent: "center" },
-  price: {
+  counterChip: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minHeight: 28,
+    justifyContent: "center",
+  },
+  priceRow: {
     marginTop: 20,
-    fontSize: 28,
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+  },
+  negoChip: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  stickyBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 20,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  stickyPrimary: {
+    minHeight: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  stickyPrimaryText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
+  stickyOutline: {
+    minHeight: 48,
+    minWidth: 56,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  stickyGhost: {
+    minHeight: 48,
+    minWidth: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  price: {
+    fontSize: 24,
     fontWeight: "700",
-    color: "#111315",
+    color: "#172A3A",
   },
   title: {
     marginTop: 8,
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#111315",
+    paddingHorizontal: 20,
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#172A3A",
   },
-  meta: { marginTop: 8, fontSize: 14, color: "#5C636A" },
+  meta: { marginTop: 8, paddingHorizontal: 20, fontSize: 13, color: "#59636D" },
+  section: {
+    marginTop: 24,
+    marginBottom: 8,
+    paddingHorizontal: 20,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#172A3A",
+  },
+  copy: {
+    paddingHorizontal: 20,
+    fontSize: 15,
+    color: "#172A3A",
+    lineHeight: 22,
+  },
+  seller: {
+    marginTop: 20,
+    marginHorizontal: 20,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#E4DDD4",
+    backgroundColor: "#FFFFFF",
+    gap: 4,
+  },
+  protect: {
+    marginTop: 16,
+    marginHorizontal: 20,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#E4DDD4",
+    backgroundColor: "#FFFFFF",
+  },
+  similarBlock: { marginTop: 8, paddingLeft: 20 },
+  chip: {
+    marginTop: 8,
+    marginHorizontal: 20,
+    alignSelf: "flex-start",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "#F2E7D5",
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#D96A32",
+  },
   badgeRow: {
     marginTop: 10,
+    marginHorizontal: 20,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
   },
   verticalBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "#D1FAE5",
+    backgroundColor: "#E4F0EA",
     overflow: "hidden",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     fontSize: 12,
     fontWeight: "700",
-    color: "#047857",
+    color: "#2F7D5B",
   },
   instantBuyBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "#D1FAE5",
+    backgroundColor: "#E4F0EA",
     overflow: "hidden",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     fontSize: 12,
     fontWeight: "700",
-    color: "#0E9F6E",
+    color: "#D96A32",
   },
   promoBadge: {
     alignSelf: "flex-start",
@@ -927,31 +1123,16 @@ const styles = StyleSheet.create({
   verticalBadgeMuted: {
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     overflow: "hidden",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     fontSize: 12,
     fontWeight: "600",
-    color: "#5C636A",
+    color: "#59636D",
   },
-  chip: {
-    marginTop: 8,
-    alignSelf: "flex-start",
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#0E9F6E",
-  },
-  seller: {
-    marginTop: 20,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E5E2DC",
-    backgroundColor: "#FFFFFF",
-  },
-  sellerName: { fontSize: 16, fontWeight: "700", color: "#111315" },
+  sellerName: { fontSize: 16, fontWeight: "700", color: "#172A3A" },
   trustBadge: {
     alignSelf: "flex-start",
     marginTop: 6,
@@ -962,102 +1143,89 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     fontSize: 12,
     fontWeight: "700",
-    color: "#111315",
+    color: "#C9A227",
   },
   profileLink: {
     marginTop: 8,
+    marginHorizontal: 20,
     fontSize: 14,
     fontWeight: "600",
-    color: "#0E9F6E",
+    color: "#D96A32",
   },
-  section: {
-    marginTop: 22,
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111315",
-  },
-  copy: { marginTop: 8, fontSize: 15, lineHeight: 22, color: "#5C636A" },
-  muted: { marginTop: 4, fontSize: 14, color: "#5C636A" },
-  protect: {
-    marginTop: 20,
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: "#D1FAE5",
-  },
-  protectTitle: { fontSize: 14, fontWeight: "700", color: "#0E9F6E" },
-  similarBlock: { marginTop: 24 },
+  muted: { marginTop: 4, fontSize: 13, color: "#59636D" },
+  protectTitle: { fontSize: 14, fontWeight: "700", color: "#D96A32" },
   similarScroll: { marginTop: 10 },
   similarCard: { width: 132, marginRight: 10 },
   similarImg: {
     width: 132,
     height: 100,
     borderRadius: 12,
-    backgroundColor: "#E5E2DC",
+    backgroundColor: "#E4DDD4",
   },
-  similarPh: { backgroundColor: "#E5E2DC" },
+  similarPh: { backgroundColor: "#E4DDD4" },
   similarTitle: {
     marginTop: 6,
     fontSize: 13,
     fontWeight: "600",
-    color: "#111315",
+    color: "#172A3A",
   },
-  similarPrice: { marginTop: 2, fontSize: 12, color: "#5C636A" },
+  similarPrice: { marginTop: 2, fontSize: 13, fontWeight: "700", color: "#172A3A" },
   centerText: { textAlign: "center", marginTop: 16 },
   actions: { marginTop: 24, gap: 10 },
   actionBtn: {
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
     backgroundColor: "#FFFFFF",
   },
   actionPrimary: {
-    backgroundColor: "#0E9F6E",
-    borderColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
+    borderColor: "#D96A32",
   },
-  actionText: { fontSize: 15, fontWeight: "700", color: "#111315" },
+  actionText: { fontSize: 15, fontWeight: "700", color: "#172A3A" },
   actionTextPrimary: { color: "#FFFFFF" },
   toast: {
     marginTop: 16,
     textAlign: "center",
-    color: "#0E9F6E",
+    color: "#D96A32",
     fontWeight: "600",
   },
-  error: { color: "#DC2626", fontSize: 15 },
+  error: { color: "#C94A3A", fontSize: 15 },
   sheetBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "flex-end",
   },
   sheet: {
-    backgroundColor: "#FAF9F7",
+    backgroundColor: "#FCFAF6",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: 32,
   },
-  sheetTitle: { fontSize: 20, fontWeight: "700", color: "#111315" },
+  sheetTitle: { fontSize: 20, fontWeight: "700", color: "#172A3A" },
   label: {
     marginTop: 16,
     marginBottom: 8,
     fontSize: 14,
     fontWeight: "600",
-    color: "#111315",
+    color: "#172A3A",
   },
   input: {
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#111315",
+    color: "#172A3A",
     backgroundColor: "#FFFFFF",
   },
   primaryBtn: {
     marginTop: 20,
-    backgroundColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
@@ -1066,23 +1234,23 @@ const styles = StyleSheet.create({
   cancel: {
     marginTop: 14,
     textAlign: "center",
-    color: "#0E9F6E",
+    color: "#D96A32",
     fontWeight: "600",
   },
   disabled: { opacity: 0.55 },
   pickRow: {
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     backgroundColor: "#FFFFFF",
   },
   pickRowActive: {
-    borderColor: "#0E9F6E",
-    backgroundColor: "#ECFDF5",
+    borderColor: "#D96A32",
+    backgroundColor: "#F8E6DC",
   },
-  pickTitle: { fontSize: 15, fontWeight: "600", color: "#111315" },
+  pickTitle: { fontSize: 15, fontWeight: "600", color: "#172A3A" },
   durationRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1091,22 +1259,22 @@ const styles = StyleSheet.create({
   },
   durationChip: {
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     backgroundColor: "#FFFFFF",
   },
   durationChipActive: {
-    borderColor: "#0E9F6E",
-    backgroundColor: "#ECFDF5",
+    borderColor: "#D96A32",
+    backgroundColor: "#F8E6DC",
   },
-  durationChipText: { fontSize: 14, fontWeight: "600", color: "#111315" },
-  durationChipTextActive: { color: "#047857" },
+  durationChipText: { fontSize: 14, fontWeight: "600", color: "#172A3A" },
+  durationChipTextActive: { color: "#2F7D5B" },
   secondarySheetBtn: {
     marginTop: 12,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
@@ -1115,6 +1283,6 @@ const styles = StyleSheet.create({
   secondarySheetBtnText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#111315",
+    color: "#172A3A",
   },
 });

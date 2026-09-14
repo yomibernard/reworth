@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -358,13 +357,18 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
     if (!listingId) return;
     setBusy(true);
     try {
+      const { hapticMedium, hapticSuccess } = await import("./theme/haptics");
+      await hapticMedium();
       await saveFields();
       const token = await tokenOrThrow();
       const live = await publishListing(listingId, token);
       setPublished(live);
       setStep("done");
+      await hapticSuccess();
       onPublished?.(live);
     } catch (err) {
+      const { hapticError } = await import("./theme/haptics");
+      await hapticError();
       setError(err instanceof ApiError ? err.message : "Publish failed");
     } finally {
       setBusy(false);
@@ -425,15 +429,38 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
       {step === "photos" ? (
         <View>
           <Text style={styles.copy}>
-            Add 2–6 photos. AI drafts title, price, and more.
+            Add up to 6 photos. Tap a slot or Analyze when ready.
           </Text>
+          <View style={styles.filmstrip}>
+            {Array.from({ length: 6 }).map((_, i) => {
+              const photo = photos[i];
+              return (
+                <Pressable
+                  key={i}
+                  style={[
+                    styles.filmSlot,
+                    photo ? styles.filmSlotFilled : null,
+                  ]}
+                  onPress={() => void addPhotos()}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    photo ? `Photo ${i + 1} of ${photos.length}` : `Add photo slot ${i + 1}`
+                  }
+                >
+                  <Text style={styles.filmSlotText}>
+                    {photo ? String(i + 1) : "+"}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <Text style={styles.meta}>{photos.length} / 6 photos</Text>
           <Pressable
             style={styles.primaryBtn}
             onPress={() => void addPhotos()}
             accessibilityRole="button"
           >
-            <Text style={styles.primaryBtnText}>Choose photos</Text>
+            <Text style={styles.primaryBtnText}>Add photos</Text>
           </Pressable>
           <Pressable
             style={styles.secondaryBtn}
@@ -444,13 +471,17 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
           </Pressable>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable
-            style={[styles.primaryBtn, (busy || photos.length < 2) && styles.btnDisabled]}
+            style={[
+              styles.primaryBtn,
+              (busy || photos.length < 2) && styles.btnDisabled,
+            ]}
             onPress={() => void continuePhotos()}
             disabled={busy || photos.length < 2}
             accessibilityRole="button"
+            accessibilityLabel="Analyze photos"
           >
             <Text style={styles.primaryBtnText}>
-              {busy ? "Uploading…" : "Continue"}
+              {busy ? "Uploading…" : "Analyze"}
             </Text>
           </Pressable>
         </View>
@@ -459,8 +490,10 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
       {step === "draft" ? (
         <View>
           {assistLoading ? (
-            <View style={styles.centerBlock}>
-              <ActivityIndicator color="#0E9F6E" />
+            <View style={styles.scanBlock} accessibilityLabel="Reading your photos">
+              <View style={styles.scanFrame}>
+                <View style={styles.scanLine} />
+              </View>
               <Text style={styles.copy}>Reading your photos…</Text>
             </View>
           ) : (
@@ -696,17 +729,36 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
       ) : null}
 
       {step === "done" && published ? (
-        <View>
-          <Text style={styles.titlePreview}>
+        <View style={{ alignItems: "center", paddingVertical: 24 }}>
+          {published.status !== "REJECTED" &&
+          published.status !== "UNDER_REVIEW" ? (
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                backgroundColor: "#F2E7D5",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 16,
+              }}
+              accessibilityLabel="Published successfully"
+            >
+              <Text style={{ fontSize: 36, color: "#D96A32" }}>✓</Text>
+            </View>
+          ) : null}
+          <Text style={[styles.titlePreview, { textAlign: "center" }]}>
             {published.status === "REJECTED"
               ? "Listing rejected"
               : published.status === "UNDER_REVIEW"
                 ? "Submitted for review"
-                : "Your listing is live"}
+                : "Your item is live"}
           </Text>
-          <Text style={styles.copy}>{published.title}</Text>
+          <Text style={[styles.copy, { textAlign: "center" }]}>
+            {published.title}
+          </Text>
           {published.status === "REJECTED" ? (
-            <View style={{ gap: 8, marginBottom: 12 }}>
+            <View style={{ gap: 8, marginBottom: 12, alignSelf: "stretch" }}>
               <Text style={styles.copy}>
                 {(published.moderationReasons?.length
                   ? published.moderationReasons.join("; ")
@@ -761,13 +813,30 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
             </View>
           ) : null}
           <Pressable
-            style={styles.primaryBtn}
+            style={[styles.primaryBtn, { alignSelf: "stretch" }]}
             onPress={() => onOpenListing?.(published.id)}
           >
             <Text style={styles.primaryBtnText}>View listing</Text>
           </Pressable>
           <Pressable
-            style={styles.secondaryBtn}
+            style={[styles.secondaryBtn, { alignSelf: "stretch" }]}
+            onPress={() => {
+              void (async () => {
+                try {
+                  const { Share } = await import("react-native");
+                  await Share.share({
+                    message: `Check out my listing on ReWorth: ${published.title}`,
+                  });
+                } catch {
+                  /* noop */
+                }
+              })();
+            }}
+          >
+            <Text style={styles.secondaryBtnText}>Share</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.secondaryBtn, { alignSelf: "stretch" }]}
             onPress={() => {
               setStep("photos");
               setPhotos([]);
@@ -848,43 +917,43 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 32,
     fontWeight: "700",
-    color: "#111315",
+    color: "#172A3A",
     letterSpacing: -0.4,
   },
   stepHint: {
     marginTop: 6,
     fontSize: 13,
     fontWeight: "600",
-    color: "#0E9F6E",
+    color: "#D96A32",
   },
   copy: {
     marginTop: 12,
     fontSize: 16,
     lineHeight: 22,
-    color: "#5C636A",
+    color: "#59636D",
   },
-  meta: { marginTop: 8, fontSize: 14, color: "#5C636A" },
+  meta: { marginTop: 8, fontSize: 14, color: "#59636D" },
   label: {
     marginBottom: 6,
     fontSize: 14,
     fontWeight: "600",
-    color: "#111315",
+    color: "#172A3A",
   },
   field: { marginTop: 14 },
   input: {
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#111315",
+    color: "#172A3A",
     backgroundColor: "#FFFFFF",
   },
   textarea: { minHeight: 96, textAlignVertical: "top" },
   primaryBtn: {
     marginTop: 20,
-    backgroundColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
@@ -893,92 +962,128 @@ const styles = StyleSheet.create({
   secondaryBtn: {
     marginTop: 12,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
     backgroundColor: "#FFFFFF",
   },
-  secondaryBtnText: { color: "#111315", fontSize: 15, fontWeight: "600" },
+  secondaryBtnText: { color: "#172A3A", fontSize: 15, fontWeight: "600" },
   btnDisabled: { opacity: 0.55 },
-  error: { marginTop: 10, color: "#DC2626", fontSize: 14 },
+  error: { marginTop: 10, color: "#C94A3A", fontSize: 14 },
   row: { flexDirection: "row", gap: 10, marginTop: 8 },
   flex: { flex: 1 },
   centerBlock: { alignItems: "center", paddingVertical: 40, gap: 12 },
+  filmstrip: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 16,
+  },
+  filmSlot: {
+    width: 56,
+    height: 72,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#E4DDD4",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filmSlotFilled: {
+    backgroundColor: "#F2E7D5",
+    borderColor: "#D96A32",
+  },
+  filmSlotText: { fontSize: 16, fontWeight: "700", color: "#D96A32" },
+  scanBlock: { alignItems: "center", paddingVertical: 32, gap: 16 },
+  scanFrame: {
+    width: "100%",
+    height: 160,
+    borderRadius: 16,
+    backgroundColor: "#F2E7D5",
+    overflow: "hidden",
+    justifyContent: "center",
+  },
+  scanLine: {
+    height: 3,
+    width: "100%",
+    backgroundColor: "#D96A32",
+    opacity: 0.85,
+  },
   intel: {
     marginTop: 16,
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     backgroundColor: "#FFFFFF",
   },
-  intelTitle: { fontSize: 14, fontWeight: "700", color: "#111315" },
+  intelTitle: { fontSize: 14, fontWeight: "700", color: "#172A3A" },
   intelRec: {
     marginTop: 6,
     fontSize: 16,
     fontWeight: "700",
-    color: "#0E9F6E",
+    color: "#D96A32",
   },
   modeBtn: {
     marginTop: 10,
     padding: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     backgroundColor: "#FFFFFF",
   },
   modeSelected: {
-    borderColor: "#0E9F6E",
-    backgroundColor: "#D1FAE5",
+    borderColor: "#D96A32",
+    backgroundColor: "#E4F0EA",
   },
-  modeText: { fontSize: 16, fontWeight: "600", color: "#111315" },
+  modeText: { fontSize: 16, fontWeight: "600", color: "#172A3A" },
   checkRow: { marginTop: 14 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 },
   chip: {
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
     backgroundColor: "#FFFFFF",
   },
-  chipSelected: { backgroundColor: "#0E9F6E", borderColor: "#0E9F6E" },
-  chipText: { fontSize: 13, fontWeight: "600", color: "#111315" },
+  chipSelected: { backgroundColor: "#D96A32", borderColor: "#D96A32" },
+  chipText: { fontSize: 13, fontWeight: "600", color: "#172A3A" },
   chipTextSelected: { color: "#FFFFFF" },
   titlePreview: {
     marginTop: 16,
     fontSize: 22,
     fontWeight: "700",
-    color: "#111315",
+    color: "#172A3A",
   },
   planCard: {
     marginTop: 16,
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     backgroundColor: "#FFFFFF",
   },
-  planTitle: { fontSize: 15, fontWeight: "700", color: "#111315" },
+  planTitle: { fontSize: 15, fontWeight: "700", color: "#172A3A" },
   planCopy: {
     marginTop: 6,
     fontSize: 13,
     lineHeight: 18,
-    color: "#5C636A",
+    color: "#59636D",
   },
   planBtn: {
     marginTop: 12,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 12,
     paddingVertical: 10,
     alignItems: "center",
   },
-  planBtnText: { fontSize: 14, fontWeight: "600", color: "#111315" },
+  planBtnText: { fontSize: 14, fontWeight: "600", color: "#172A3A" },
   planBtnPrimary: {
     marginTop: 12,
-    backgroundColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
     borderRadius: 12,
     paddingVertical: 10,
     alignItems: "center",
@@ -988,6 +1093,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 13,
     fontWeight: "600",
-    color: "#0E9F6E",
+    color: "#D96A32",
   },
 });

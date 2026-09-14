@@ -281,7 +281,7 @@ function ScanPanel({
           {busy ? "Scanning…" : "Run demo scan"}
         </Text>
       </Pressable>
-      {busy ? <ActivityIndicator color="#0E9F6E" style={{ marginTop: 16 }} /> : null}
+      {busy ? <ActivityIndicator color="#D96A32" style={{ marginTop: 16 }} /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {scan ? (
         <View style={styles.card}>
@@ -477,7 +477,7 @@ function PickupPanel({ city }: { city: string }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FAF9F7" },
+  safe: { flex: 1, backgroundColor: "#FCFAF6" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -486,26 +486,26 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E2DC",
+    borderBottomColor: "#E4DDD4",
   },
-  title: { fontSize: 20, fontWeight: "700", color: "#1A1A1A" },
-  close: { color: "#0E9F6E", fontWeight: "600", fontSize: 16 },
+  title: { fontSize: 20, fontWeight: "700", color: "#172A3A" },
+  close: { color: "#D96A32", fontWeight: "600", fontSize: 16 },
   body: { flex: 1 },
   flex: { flex: 1 },
   pad: { padding: 16, gap: 12, paddingBottom: 40 },
   hint: { color: "#6B7280", fontSize: 14, lineHeight: 20 },
   input: {
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     backgroundColor: "#fff",
     fontSize: 16,
-    color: "#1A1A1A",
+    color: "#172A3A",
   },
   primaryBtn: {
-    backgroundColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
@@ -519,23 +519,23 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 6,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
   },
-  cardTitle: { fontWeight: "700", fontSize: 16, color: "#1A1A1A" },
-  price: { fontSize: 24, fontWeight: "700", color: "#0E9F6E" },
+  cardTitle: { fontWeight: "700", fontSize: 16, color: "#172A3A" },
+  price: { fontSize: 24, fontWeight: "700", color: "#D96A32" },
   meta: { color: "#6B7280", fontSize: 14 },
-  link: { color: "#0E9F6E", fontWeight: "600", marginTop: 4 },
+  link: { color: "#D96A32", fontWeight: "600", marginTop: 4 },
   bubble: { borderRadius: 12, padding: 12, maxWidth: "92%" },
-  userBubble: { alignSelf: "flex-end", backgroundColor: "#D1FAE5" },
-  botBubble: { alignSelf: "flex-start", backgroundColor: "#fff", borderWidth: 1, borderColor: "#E5E2DC" },
-  bubbleText: { color: "#1A1A1A", fontSize: 15, lineHeight: 21 },
-  composer: { padding: 12, gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#E5E2DC" },
+  userBubble: { alignSelf: "flex-end", backgroundColor: "#E4F0EA" },
+  botBubble: { alignSelf: "flex-start", backgroundColor: "#fff", borderWidth: 1, borderColor: "#E4DDD4" },
+  bubbleText: { color: "#172A3A", fontSize: 15, lineHeight: 21 },
+  composer: { padding: 12, gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#E4DDD4" },
   slot: {
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     backgroundColor: "#fff",
   },
-  slotActive: { borderColor: "#0E9F6E", backgroundColor: "#ECFDF5" },
+  slotActive: { borderColor: "#D96A32", backgroundColor: "#F8E6DC" },
 });
