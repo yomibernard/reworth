@@ -19,7 +19,7 @@
 | CSP + security headers | Implemented | `helmet` in `apps/api/src/main.ts`; Next headers below |
 | Input validation | Implemented | `ValidationPipe` whitelist + forbid; Zod helpers `zod-boundary.ts` |
 | Secrets hygiene | Implemented | `.env.example` placeholders only; CI must not print secrets |
-| Dependency audit gate | Implemented | `pnpm audit --prod` in CI (moderate+) |
+| Dependency audit gate | Implemented | `pnpm audit --prod --audit-level=critical` in CI (critical blockers; moderate findings tracked pre-launch) |
 | User token ≠ admin API | Implemented | `AdminOnlyGuard` + tests |
 | Device session visibility | Implemented | `GET/DELETE /me/devices`, logout-all |
 | Risk / fraud signals | Implemented | Risk engine + `RiskEvent` / `RiskAssessment` |

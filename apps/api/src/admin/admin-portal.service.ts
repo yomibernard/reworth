@@ -694,15 +694,40 @@ export class AdminPortalService {
   }
 
   async listRiskEvents() {
+    const items = await this.prisma.riskEvent.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: {
+        user: { include: { profile: true } },
+        listing: { select: { id: true, title: true } },
+      },
+    });
+    const listingIds = [
+      ...new Set(
+        items
+          .map((e) => e.listingId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const assessments = listingIds.length
+      ? await this.prisma.riskAssessment.findMany({
+          where: { listingId: { in: listingIds } },
+          orderBy: { createdAt: 'desc' },
+        })
+      : [];
+    const latestByListing = new Map<string, (typeof assessments)[0]>();
+    for (const a of assessments) {
+      if (a.listingId && !latestByListing.has(a.listingId)) {
+        latestByListing.set(a.listingId, a);
+      }
+    }
     return {
-      items: await this.prisma.riskEvent.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-        include: {
-          user: { include: { profile: true } },
-          listing: { select: { id: true, title: true } },
-        },
-      }),
+      items: items.map((e) => ({
+        ...e,
+        assessment: e.listingId
+          ? latestByListing.get(e.listingId) ?? null
+          : null,
+      })),
     };
   }
 

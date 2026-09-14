@@ -81,6 +81,9 @@ export type PublicListingDto = {
   featured?: boolean;
   boostedUntil?: Date | null;
   featuredUntil?: Date | null;
+  /** Present for seller after moderation REJECTED (owner publish path). */
+  moderationReasons?: string[];
+  riskFlags?: string[];
 };
 type ListingWithRelations = {
   id: string;

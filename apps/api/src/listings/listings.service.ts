@@ -472,7 +472,10 @@ export class ListingsService {
         where: { id },
         include: listingInclude,
       });
-      return toPublicListing(rejected);
+      return {
+        ...toPublicListing(rejected),
+        moderationReasons: mod.reasons,
+      };
     }
 
     // 2. Risk engine

@@ -30,6 +30,7 @@ import {
   getPriceIntelligence,
   patchListing,
   publishListing,
+  appealListing,
   uploadListingPhoto,
 } from "../../lib/listings";
 import { listRegions, type RegionCity } from "../../lib/region";
@@ -86,6 +87,9 @@ export default function SellPage() {
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [busy, setBusy] = useState(false);
   const [assistLoading, setAssistLoading] = useState(false);
+  const [appealReason, setAppealReason] = useState("");
+  const [appealBusy, setAppealBusy] = useState(false);
+  const [appealOk, setAppealOk] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -1174,19 +1178,78 @@ export default function SellPage() {
           {step === "done" && published ? (
             <section aria-labelledby="sell-done-title" className="text-center">
               <p className="text-sm font-semibold uppercase tracking-wider text-[var(--rw-accent)]">
-                {published.status === "UNDER_REVIEW" ? "In review" : "Live"}
+                {published.status === "REJECTED"
+                  ? "Rejected"
+                  : published.status === "UNDER_REVIEW"
+                    ? "In review"
+                    : "Live"}
               </p>
               <h1
                 id="sell-done-title"
                 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl"
               >
-                {published.status === "UNDER_REVIEW"
-                  ? "Submitted for review"
-                  : "Your listing is live"}
+                {published.status === "REJECTED"
+                  ? "Listing rejected"
+                  : published.status === "UNDER_REVIEW"
+                    ? "Submitted for review"
+                    : "Your listing is live"}
               </h1>
               <p className="mx-auto mt-3 max-w-md text-[var(--rw-ink-muted)]">
-                {published.title || "Listing"} is ready for Lagos buyers.
+                {published.status === "REJECTED"
+                  ? published.moderationReasons?.length
+                    ? published.moderationReasons.join("; ")
+                    : "Content moderation rejected this listing."
+                  : `${published.title || "Listing"} is ready for Lagos buyers.`}
               </p>
+              {published.status === "REJECTED" ? (
+                <div className="mx-auto mt-6 max-w-md space-y-3 text-left">
+                  {appealOk ? (
+                    <p className="text-sm text-[var(--rw-accent)]">
+                      Appeal submitted — it appears in the moderation queue.
+                    </p>
+                  ) : (
+                    <>
+                      <label className="block text-sm">
+                        Appeal reason
+                        <textarea
+                          className="mt-1 w-full rounded-[var(--rw-radius-md)] border border-[var(--rw-border)] bg-[var(--rw-bg)] px-3 py-2 text-sm"
+                          rows={3}
+                          value={appealReason}
+                          onChange={(e) => setAppealReason(e.target.value)}
+                        />
+                      </label>
+                      <Button
+                        variant="sell"
+                        disabled={appealBusy || appealReason.trim().length < 8}
+                        onClick={() => {
+                          void (async () => {
+                            const token = tokenOrThrow();
+                            setAppealBusy(true);
+                            try {
+                              await appealListing(
+                                published.id,
+                                token,
+                                appealReason.trim(),
+                              );
+                              setAppealOk(true);
+                            } catch (err) {
+                              setError(
+                                err instanceof ApiError
+                                  ? err.message
+                                  : "Appeal failed",
+                              );
+                            } finally {
+                              setAppealBusy(false);
+                            }
+                          })();
+                        }}
+                      >
+                        {appealBusy ? "…" : "Submit appeal"}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ) : null}
               <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <Link href={`/listings/${published.id}`}>
                   <Button variant="sell" size="lg" className="w-full sm:w-auto">
@@ -1206,6 +1269,8 @@ export default function SellPage() {
                     setTitle("");
                     setDescription("");
                     setError(null);
+                    setAppealOk(false);
+                    setAppealReason("");
                   }}
                 >
                   List another

@@ -21,6 +21,7 @@ City launches via `docs/CITY_PLAYBOOK.md` (config-only). Close remaining `MOBILE
 
 ## MVP residual harden (no retag)
 
-- **Phase 8 admin** — `docs/PHASE_8_HARDENING.md` (JWT claims, page RoleGuard, TOTP UI, disputes resolve, fraud suspend, matrix tests). Tag `v0.8-admin` unchanged.
+- **Phase 9 risk/security** — `docs/PHASE_9_HARDENING.md` (appeals UX, fraud explainability, risk engine HIGH-path test). Tag `v0.9-risk-security` unchanged. Staging k6 p95 certification → UAT (`docs/PERF.md`).
+- **Phase 8 admin** — `docs/PHASE_8_HARDENING.md`. Tag `v0.8-admin` unchanged.
 - **Phase 6 logistics** — `docs/PHASE_6_HARDENING.md`. Tag `v0.6-logistics-notifications` unchanged.
 - Phase 4 chat harden already on default branch (PR #18).

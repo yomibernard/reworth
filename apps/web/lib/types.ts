@@ -160,6 +160,8 @@ export type PublicListing = {
   instantBuyEligible?: boolean;
   /** Phase 3.2 — schedule circular hand-off after N unsold days. */
   donateIfUnsoldDays?: number | null;
+  /** Owner publish path — moderation rejection reasons. */
+  moderationReasons?: string[];
 };
 
 export type CategoryNode = {

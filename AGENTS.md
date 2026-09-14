@@ -29,8 +29,9 @@ Functional · UX · **mobile behaviour verified on iOS + Android; web parity del
 | Phase | **Post-launch complete through 3.3** · MVP tagged through `v0.9.0-rc` |
 | Last completed (post-launch) | **3.3** (`v2.2-monetization`) |
 | MVP Admin | **`v0.8-admin`** (+ harden — see `docs/PHASE_8_HARDENING.md`) |
+| MVP Risk / Security | **`v0.9-risk-security`** (+ harden — see `docs/PHASE_9_HARDENING.md`) |
 | Status | **Shipped** |
-| Next | Ops / city launches via `CITY_PLAYBOOK`; close `MOBILE_PARITY` Boost/Plus web gaps |
+| Next | Ops / city launches via `CITY_PLAYBOOK`; close `MOBILE_PARITY` Boost/Plus web gaps; staging k6 UAT |
 
 ## MVP / post-launch
 

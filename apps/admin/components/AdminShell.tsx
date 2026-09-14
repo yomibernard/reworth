@@ -23,6 +23,7 @@ const NAV: { href: string; label: string; roles: readonly string[] }[] = [
     roles: NAV_ROLES.verifications,
   },
   { href: "/reports", label: "Reports", roles: NAV_ROLES.reports },
+  { href: "/appeals", label: "Appeals", roles: NAV_ROLES.reports },
   { href: "/fraud", label: "Fraud", roles: NAV_ROLES.fraud },
   { href: "/support", label: "Support", roles: NAV_ROLES.support },
   { href: "/catalog", label: "Catalog", roles: NAV_ROLES.catalog },
