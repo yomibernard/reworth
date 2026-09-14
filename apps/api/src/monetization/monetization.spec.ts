@@ -292,7 +292,7 @@ describe('Phase 3.3 reconciliation + finance dashboard', () => {
     };
     const svc = new ReconciliationService(prisma, {
       get: () => 'false',
-    } as ConfigService);
+    } as unknown as ConfigService);
     const run = await svc.run({ injectMismatch: true });
     expect(run.mismatchCount).toBe(1);
     expect(alerts).toHaveLength(1);

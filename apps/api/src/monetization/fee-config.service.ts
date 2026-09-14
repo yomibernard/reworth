@@ -113,7 +113,7 @@ export class FeeConfigService implements OnModuleInit {
       action: 'FEE_CONFIG_PUBLISHED',
       entityType: 'FeeConfigVersion',
       entityId: created.id,
-      after: { version: created.version, note },
+      afterJson: { version: created.version, note },
     });
     return this.cached;
   }

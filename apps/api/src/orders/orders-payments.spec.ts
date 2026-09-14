@@ -310,6 +310,18 @@ describe('escrow happy path + webhook replay', () => {
       prisma as never,
       orders,
       notifications,
+      {
+        getActive: jest.fn().mockResolvedValue({
+          id: 'fee-1',
+          version: 1,
+          rates: {
+            protectionFeePct: 0.025,
+            protectionFeeCapKobo: 500_000,
+            deliveryMarginPct: 0.15,
+          },
+        }),
+      } as never,
+      { record: jest.fn().mockResolvedValue({}) } as never,
       psp,
     );
 
