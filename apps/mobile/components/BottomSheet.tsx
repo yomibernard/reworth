@@ -4,8 +4,8 @@ import {
   StyleSheet,
   Text,
   View,
-  type ReactNode,
 } from "react-native";
+import type { ReactNode } from "react";
 import { useColors } from "../theme/ThemeProvider";
 import { radius, space, type } from "../theme/tokens";
 

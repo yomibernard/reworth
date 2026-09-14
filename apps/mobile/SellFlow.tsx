@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -430,15 +429,38 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
       {step === "photos" ? (
         <View>
           <Text style={styles.copy}>
-            Add 2–6 photos. AI drafts title, price, and more.
+            Add up to 6 photos. Tap a slot or Analyze when ready.
           </Text>
+          <View style={styles.filmstrip}>
+            {Array.from({ length: 6 }).map((_, i) => {
+              const photo = photos[i];
+              return (
+                <Pressable
+                  key={i}
+                  style={[
+                    styles.filmSlot,
+                    photo ? styles.filmSlotFilled : null,
+                  ]}
+                  onPress={() => void addPhotos()}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    photo ? `Photo ${i + 1} of ${photos.length}` : `Add photo slot ${i + 1}`
+                  }
+                >
+                  <Text style={styles.filmSlotText}>
+                    {photo ? String(i + 1) : "+"}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <Text style={styles.meta}>{photos.length} / 6 photos</Text>
           <Pressable
             style={styles.primaryBtn}
             onPress={() => void addPhotos()}
             accessibilityRole="button"
           >
-            <Text style={styles.primaryBtnText}>Choose photos</Text>
+            <Text style={styles.primaryBtnText}>Add photos</Text>
           </Pressable>
           <Pressable
             style={styles.secondaryBtn}
@@ -449,13 +471,17 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
           </Pressable>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable
-            style={[styles.primaryBtn, (busy || photos.length < 2) && styles.btnDisabled]}
+            style={[
+              styles.primaryBtn,
+              (busy || photos.length < 2) && styles.btnDisabled,
+            ]}
             onPress={() => void continuePhotos()}
             disabled={busy || photos.length < 2}
             accessibilityRole="button"
+            accessibilityLabel="Analyze photos"
           >
             <Text style={styles.primaryBtnText}>
-              {busy ? "Uploading…" : "Continue"}
+              {busy ? "Uploading…" : "Analyze"}
             </Text>
           </Pressable>
         </View>
@@ -464,8 +490,10 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
       {step === "draft" ? (
         <View>
           {assistLoading ? (
-            <View style={styles.centerBlock}>
-              <ActivityIndicator color="#0E9F6E" />
+            <View style={styles.scanBlock} accessibilityLabel="Reading your photos">
+              <View style={styles.scanFrame}>
+                <View style={styles.scanLine} />
+              </View>
               <Text style={styles.copy}>Reading your photos…</Text>
             </View>
           ) : (
@@ -946,6 +974,42 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 10, marginTop: 8 },
   flex: { flex: 1 },
   centerBlock: { alignItems: "center", paddingVertical: 40, gap: 12 },
+  filmstrip: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 16,
+  },
+  filmSlot: {
+    width: 56,
+    height: 72,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#E5E1DA",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filmSlotFilled: {
+    backgroundColor: "#E6F6EF",
+    borderColor: "#0E9F6E",
+  },
+  filmSlotText: { fontSize: 16, fontWeight: "700", color: "#0E9F6E" },
+  scanBlock: { alignItems: "center", paddingVertical: 32, gap: 16 },
+  scanFrame: {
+    width: "100%",
+    height: 160,
+    borderRadius: 16,
+    backgroundColor: "#E6F6EF",
+    overflow: "hidden",
+    justifyContent: "center",
+  },
+  scanLine: {
+    height: 3,
+    width: "100%",
+    backgroundColor: "#0E9F6E",
+    opacity: 0.85,
+  },
   intel: {
     marginTop: 16,
     padding: 14,

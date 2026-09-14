@@ -789,16 +789,38 @@ export function OrderDetailModal({
                 ) : null}
 
                 <Text style={styles.section}>Timeline</Text>
-                {order.events.map((ev) => (
-                  <View key={ev.id} style={styles.event}>
-                    <Text style={styles.eventType}>
-                      {ev.type.replace(/_/g, " ")}
-                    </Text>
-                    <Text style={styles.muted}>
-                      {new Date(ev.createdAt).toLocaleString()}
-                    </Text>
-                  </View>
-                ))}
+                {order.events.map((ev, idx) => {
+                  const current = idx === order.events.length - 1;
+                  return (
+                    <View
+                      key={ev.id}
+                      style={[
+                        styles.event,
+                        current && styles.eventCurrent,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.eventDot,
+                          current && styles.eventDotCurrent,
+                        ]}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.eventType,
+                            current && styles.eventTypeCurrent,
+                          ]}
+                        >
+                          {ev.type.replace(/_/g, " ")}
+                        </Text>
+                        <Text style={styles.muted}>
+                          {new Date(ev.createdAt).toLocaleString()}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
 
                 <View style={styles.actionsCol}>
                   {isSeller && order.status === "FUNDED" ? (
@@ -1335,12 +1357,37 @@ const styles = StyleSheet.create({
   secondaryBtnText: { fontWeight: "600", color: "#1A1A1A" },
   disabled: { opacity: 0.5 },
   event: {
-    borderLeftWidth: 2,
-    borderLeftColor: "#0E9F6E",
-    paddingLeft: 10,
-    marginBottom: 8,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingVertical: 8,
+    borderLeftWidth: 0,
+    marginBottom: 4,
   },
-  eventType: { fontWeight: "600", textTransform: "capitalize" },
+  eventCurrent: {
+    backgroundColor: "#E6F6EF",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+  },
+  eventDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginTop: 4,
+    backgroundColor: "#E5E1DA",
+  },
+  eventDotCurrent: {
+    backgroundColor: "#0E9F6E",
+  },
+  eventType: {
+    fontWeight: "600",
+    textTransform: "capitalize",
+    fontSize: 15,
+    color: "#101418",
+  },
+  eventTypeCurrent: {
+    color: "#0E9F6E",
+  },
   actionsCol: { gap: 4, marginTop: 8 },
   disputeBox: {
     marginTop: 12,

@@ -54,13 +54,13 @@ No bounce, glass, confetti — celebrate only with publish checkmark.
 | Screen | Mobile | Web | Notes |
 | --- | --- | --- | --- |
 | Onboarding | ✓ foundation | ✓ method/email | Photo slides + OTP polish remaining |
-| Home | ✓ rails + card + skeleton | companion | Location pill + category snap |
-| Sell | ✓ success ✓ + haptics | n/a mobile-first | Camera module / scan-line remaining |
-| PDP | partial | companion | Sticky bar polish remaining |
-| Search | partial | companion | Filter sheet remaining |
-| Chat | partial | companion | Bubble tokens remaining |
-| Orders | partial | companion | Timeline pulse remaining |
-| Profile | partial | companion | Dark mode toggle remaining |
+| Home | ✓ | companion | Location pill + category snap |
+| Sell | ✓ filmstrip + scan + success | n/a mobile-first | Native Expo Camera module remaining |
+| PDP | ✓ gallery + sticky bar + offer sheet | companion | Pinch-zoom remaining |
+| Search | ✓ filter sheet + 2-col cards | companion | Price slider remaining |
+| Chat | ✓ bubble tokens | companion | Image attach polish remaining |
+| Orders | ✓ timeline current state | companion | Soft pulse animation remaining |
+| Profile | ✓ dark toggle | companion | Stats row polish remaining |
 | Notifications | partial | — | |
 
 ## Hex & contrast gates
