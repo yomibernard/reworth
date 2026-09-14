@@ -194,7 +194,7 @@ export default function AccountPage() {
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 60% 40% at 100% 0%, rgba(14,159,110,0.1), transparent 50%), linear-gradient(180deg, #FAF9F7, #F3F0EA)",
+            "radial-gradient(ellipse 60% 40% at 100% 0%, rgba(14,159,110,0.1), transparent 50%), linear-gradient(180deg, #FCFAF6, #F3F0EA)",
         }}
       />
 

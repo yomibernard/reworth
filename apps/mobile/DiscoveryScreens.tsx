@@ -546,7 +546,7 @@ export function FavouritesPanel({
         Saved items
       </Text>
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 24 }} color="#0E9F6E" />
+        <ActivityIndicator style={{ marginTop: 24 }} color="#D96A32" />
       ) : error ? (
         <Text style={styles.error}>{error}</Text>
       ) : items.length === 0 ? (
@@ -608,14 +608,14 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#101418",
+    color: "#172A3A",
     letterSpacing: -0.5,
   },
   hero: {
     marginTop: 8,
     fontSize: 18,
     fontWeight: "600",
-    color: "#101418",
+    color: "#172A3A",
   },
   cacheHint: {
     marginTop: 6,
@@ -649,24 +649,24 @@ const styles = StyleSheet.create({
   empty: { fontSize: 15, lineHeight: 22 },
   errorBox: { marginTop: 24, gap: 8 },
   error: { color: "#D64545", fontSize: 15 },
-  retry: { color: "#0E9F6E", fontWeight: "600", fontSize: 15 },
+  retry: { color: "#D96A32", fontWeight: "600", fontSize: 15 },
   searchHeader: { gap: 8, marginBottom: 8 },
-  back: { color: "#0E9F6E", fontWeight: "600", fontSize: 15 },
+  back: { color: "#D96A32", fontWeight: "600", fontSize: 15 },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#E5E1DA",
+    borderColor: "#E4DDD4",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 14,
     fontSize: 17,
     backgroundColor: "#FFFFFF",
-    color: "#101418",
+    color: "#172A3A",
     marginTop: 8,
   },
-  label: { marginTop: 16, fontSize: 13, color: "#5C6470", fontWeight: "500" },
+  label: { marginTop: 16, fontSize: 13, color: "#59636D", fontWeight: "500" },
   primaryBtn: {
     marginTop: 20,
-    backgroundColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
@@ -676,23 +676,23 @@ const styles = StyleSheet.create({
   secondaryBtn: {
     marginTop: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#E5E1DA",
+    borderColor: "#E4DDD4",
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
   },
-  secondaryBtnText: { color: "#101418", fontSize: 15, fontWeight: "600" },
-  metaCount: { marginTop: 16, fontSize: 13, color: "#5C6470" },
+  secondaryBtnText: { color: "#172A3A", fontSize: 15, fontWeight: "600" },
+  metaCount: { marginTop: 16, fontSize: 13, color: "#59636D" },
   listingRow: {
     marginTop: 12,
     padding: 14,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#E5E1DA",
+    borderColor: "#E4DDD4",
     backgroundColor: "#FFFFFF",
   },
-  tileTitle: { fontSize: 15, fontWeight: "500", color: "#101418" },
-  tileMeta: { marginTop: 4, fontSize: 13, color: "#5C6470" },
+  tileTitle: { fontSize: 15, fontWeight: "500", color: "#172A3A" },
+  tileMeta: { marginTop: 4, fontSize: 13, color: "#59636D" },
   tile: {},
   tilePrice: {},
   masonry: {

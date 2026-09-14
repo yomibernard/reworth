@@ -23,14 +23,22 @@ import {
 export type ColorTokens = {
   canvas: string;
   surface: string;
+  surfaceWarm: string;
   ink: string;
   muted: string;
   border: string;
+  navy: string;
+  navyDark: string;
+  orange: string;
+  orangePressed: string;
+  orangeWash: string;
+  beige: string;
   emerald: string;
   emeraldPressed: string;
   emeraldWash: string;
   gold: string;
   goldWash: string;
+  disabled: string;
   success: string;
   warning: string;
   error: string;

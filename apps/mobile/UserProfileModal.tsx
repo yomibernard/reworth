@@ -151,7 +151,7 @@ export function UserProfileModal({
 
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator color="#0E9F6E" />
+            <ActivityIndicator color="#D96A32" />
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.body}>
@@ -345,7 +345,7 @@ function ListingRow({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FAF9F7" },
+  safe: { flex: 1, backgroundColor: "#FCFAF6" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -354,31 +354,31 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
   },
-  brand: { fontSize: 20, fontWeight: "700", color: "#111315" },
-  close: { fontSize: 16, fontWeight: "600", color: "#0E9F6E" },
+  brand: { fontSize: 20, fontWeight: "700", color: "#172A3A" },
+  close: { fontSize: 16, fontWeight: "600", color: "#D96A32" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   body: { paddingHorizontal: 20, paddingBottom: 40 },
-  error: { color: "#DC2626", marginBottom: 12 },
+  error: { color: "#C94A3A", marginBottom: 12 },
   heroRow: { flexDirection: "row", gap: 14, alignItems: "center" },
   avatar: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#D1FAE5",
+    backgroundColor: "#E4F0EA",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
   avatarImg: { width: 64, height: 64 },
-  avatarLetter: { fontSize: 24, fontWeight: "700", color: "#0E9F6E" },
+  avatarLetter: { fontSize: 24, fontWeight: "700", color: "#D96A32" },
   heroText: { flex: 1 },
-  name: { fontSize: 26, fontWeight: "700", color: "#111315" },
-  muted: { marginTop: 4, fontSize: 14, color: "#5C636A" },
+  name: { fontSize: 26, fontWeight: "700", color: "#172A3A" },
+  muted: { marginTop: 4, fontSize: 14, color: "#59636D" },
   badge: {
     alignSelf: "flex-start",
     marginTop: 8,
     backgroundColor: "#F5EDD0",
-    color: "#111315",
+    color: "#172A3A",
     overflow: "hidden",
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   },
   followBtn: {
     marginTop: 16,
-    backgroundColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: "center",
@@ -396,46 +396,46 @@ const styles = StyleSheet.create({
   followBtnOn: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
   },
   followText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
-  followTextOn: { color: "#111315" },
+  followTextOn: { color: "#172A3A" },
   disabled: { opacity: 0.55 },
   verified: {
     marginTop: 16,
     fontSize: 15,
     fontWeight: "600",
-    color: "#0E9F6E",
+    color: "#D96A32",
   },
-  metaLine: { marginTop: 6, fontSize: 15, color: "#111315" },
+  metaLine: { marginTop: 6, fontSize: 15, color: "#172A3A" },
   section: {
     marginTop: 28,
     marginBottom: 10,
     fontSize: 17,
     fontWeight: "700",
-    color: "#111315",
+    color: "#172A3A",
   },
   listingRow: {
     flexDirection: "row",
     gap: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E2DC",
+    borderBottomColor: "#E4DDD4",
   },
   thumb: {
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: "#E5E2DC",
+    backgroundColor: "#E4DDD4",
   },
   thumbEmpty: {},
-  listingTitle: { fontSize: 15, fontWeight: "600", color: "#111315" },
+  listingTitle: { fontSize: 15, fontWeight: "600", color: "#172A3A" },
   reviewCard: {
     marginBottom: 12,
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     backgroundColor: "#FFFFFF",
   },
   reviewHead: {
@@ -443,36 +443,36 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 8,
   },
-  reviewer: { fontWeight: "700", color: "#111315", flex: 1 },
+  reviewer: { fontWeight: "700", color: "#172A3A", flex: 1 },
   stars: { color: "#C9A227", fontSize: 14 },
-  reviewBody: { marginTop: 8, fontSize: 14, lineHeight: 20, color: "#5C636A" },
+  reviewBody: { marginTop: 8, fontSize: 14, lineHeight: 20, color: "#59636D" },
   replyBox: {
     marginTop: 10,
     paddingLeft: 10,
     borderLeftWidth: 2,
-    borderLeftColor: "#0E9F6E",
+    borderLeftColor: "#D96A32",
   },
   replyLabel: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#5C636A",
+    color: "#59636D",
     textTransform: "uppercase",
   },
   replyForm: { marginTop: 10, gap: 8 },
   input: {
     borderWidth: 1,
-    borderColor: "#E5E2DC",
+    borderColor: "#E4DDD4",
     borderRadius: 12,
     padding: 12,
     minHeight: 64,
     textAlignVertical: "top",
-    backgroundColor: "#FAF9F7",
-    color: "#111315",
+    backgroundColor: "#FCFAF6",
+    color: "#172A3A",
   },
   toast: {
     marginTop: 16,
     textAlign: "center",
-    color: "#0E9F6E",
+    color: "#D96A32",
     fontWeight: "600",
   },
 });

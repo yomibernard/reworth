@@ -221,7 +221,7 @@ export function NotificationsModal({
 
         {tab === "inbox" ? (
           loading ? (
-            <ActivityIndicator color="#0E9F6E" style={{ marginTop: 24 }} />
+            <ActivityIndicator color="#D96A32" style={{ marginTop: 24 }} />
           ) : (
             <FlatList
               data={items}
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   brand: { fontSize: 17, fontWeight: "700", color: "#1A1D21" },
-  link: { color: "#0E9F6E", fontWeight: "600", fontSize: 15 },
+  link: { color: "#D96A32", fontWeight: "600", fontSize: 15 },
   tabs: { flexDirection: "row", gap: 8, paddingHorizontal: 16, marginBottom: 8 },
   tab: {
     paddingVertical: 8,
@@ -326,8 +326,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#E8EBE7",
   },
-  tabOn: { backgroundColor: "#0E9F6E" },
-  tabText: { fontWeight: "600", color: "#5C636A" },
+  tabOn: { backgroundColor: "#D96A32" },
+  tabText: { fontWeight: "600", color: "#59636D" },
   tabTextOn: { color: "#FFF" },
   pad: { padding: 16, paddingBottom: 48 },
   row: {
@@ -338,16 +338,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E4E7E2",
   },
-  rowUnread: { borderColor: "#0E9F6E" },
+  rowUnread: { borderColor: "#D96A32" },
   rowTitle: { fontWeight: "700", color: "#1A1D21", marginBottom: 4 },
   rowBody: { color: "#3D444B", fontSize: 14 },
   meta: { marginTop: 6, fontSize: 12, color: "#8A9198" },
-  muted: { color: "#5C636A", fontSize: 13, marginBottom: 10 },
+  muted: { color: "#59636D", fontSize: 13, marginBottom: 10 },
   error: { color: "#C0392B", paddingHorizontal: 16 },
   toast: {
     marginHorizontal: 16,
     marginBottom: 8,
-    color: "#0E9F6E",
+    color: "#D96A32",
     fontWeight: "600",
   },
   section: { fontWeight: "700", fontSize: 15, marginBottom: 6, color: "#1A1D21" },
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
   },
   saveBtn: {
-    backgroundColor: "#0E9F6E",
+    backgroundColor: "#D96A32",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -388,5 +388,5 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 4,
   },
-  prefCh: { color: "#5C636A", fontSize: 13 },
+  prefCh: { color: "#59636D", fontSize: 13 },
 });

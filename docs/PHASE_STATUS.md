@@ -13,13 +13,11 @@
 - Phone **or** email registration; profile customise
 - `docs/DESIGN.md` + token sync; contrast audit in CI
 
-### Completion track (this branch)
-- Mobile `ThemeProvider` (light/dark/system) + Profile appearance toggle
-- Shared mobile components: `ListingCard` (3:4), `BottomNav` (SELL FAB), `BottomSheet`, `Skeleton`, `EmptyState`
-- Home elevation: location pill, NL hint, category snap, rails + See all, skeletons
-- Sell: publish haptics + success checkmark + share
-- Web `ListingCard`: 3:4, price **700 ink** (not emerald)
-- `scripts/hex-audit.mjs` in CI (design-system paths)
+### Brand palette refresh (navy / orange / beige)
+- Tokens: Soft White `#FCFAF6`, Beige `#F2E7D5`, Navy `#172A3A`, Orange `#D96A32`, Slate `#59636D`
+- Primary CTA = Burnt Orange; Secondary = Midnight Navy; Chip selected = Beige
+- Chat: beige / soft-orange bubbles; contrast audit updated
+
 
 ### Still open vs full directive
 - Native camera filmstrip + scan-line; filter/offer bottom sheets on PDP/Search

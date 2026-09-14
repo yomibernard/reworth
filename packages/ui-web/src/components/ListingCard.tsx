@@ -35,7 +35,7 @@ export function ListingCard({
         .join(" ")}
       {...rest}
     >
-      <div className="relative aspect-[3/4] bg-[var(--rw-accent-muted)]">
+      <div className="relative aspect-[3/4] bg-[var(--rw-bg-warm)]">
         {imageSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
