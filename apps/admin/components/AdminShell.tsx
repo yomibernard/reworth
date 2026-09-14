@@ -36,6 +36,7 @@ const NAV: { href: string; label: string; roles: readonly string[] }[] = [
   { href: "/analytics", label: "Analytics", roles: NAV_ROLES.analytics },
   { href: "/finance", label: "Finance", roles: NAV_ROLES.finance },
   { href: "/audit", label: "Audit", roles: NAV_ROLES.audit },
+  { href: "/security", label: "Security", roles: NAV_ROLES.security },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {

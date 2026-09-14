@@ -71,7 +71,7 @@ Catalog “communities” tab remains for quick create; membership queue lives o
 | `POST /admin/users` | SUPER_ADMIN, OPERATIONS |
 | `GET /admin/users/:id` | SUPER_ADMIN, OPERATIONS, CUSTOMER_SUPPORT, RISK_FRAUD |
 | `POST /admin/users/:id/roles` | SUPER_ADMIN, OPERATIONS |
-| `GET /admin/finance/summary` | FINANCE, SUPER_ADMIN |
+| `GET /admin/finance/summary` | FINANCE, SUPER_ADMIN, OPERATIONS (real handler: monetization module) |
 
 ## Verification levels (users)
 

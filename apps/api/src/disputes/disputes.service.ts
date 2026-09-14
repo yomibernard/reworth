@@ -8,6 +8,7 @@ import {
   NotFoundException,
   Optional,
 } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service';
 import { NotificationCategory } from '../notifications/notification-categories';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OrderStateMachine } from '../orders/order-state.machine';
@@ -33,6 +34,7 @@ export class DisputesService {
     private readonly prisma: PrismaService,
     private readonly orders: OrdersService,
     private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
     @Inject(PAYMENT_PROVIDER) private readonly psp: PaymentProvider,
     @Optional()
     private readonly inspections?: VehicleInspectionsService,
@@ -355,6 +357,10 @@ export class DisputesService {
       });
     }
 
+    const before = {
+      status: dispute.status,
+      resolution: dispute.resolution,
+    };
     const updated = await this.prisma.dispute.update({
       where: { id: disputeId },
       data: {
@@ -362,6 +368,21 @@ export class DisputesService {
         resolution,
         resolutionNote: dto.note ?? null,
         resolvedAt: new Date(),
+      },
+    });
+
+    await this.audit.log({
+      actorUserId: adminUserId,
+      action: 'DISPUTE_RESOLVED',
+      entityType: 'Dispute',
+      entityId: disputeId,
+      beforeJson: before,
+      afterJson: {
+        status: 'RESOLVED',
+        resolution,
+        resolutionNote: dto.note ?? null,
+        amountKobo: dto.amountKobo ?? null,
+        orderId: order.id,
       },
     });
 

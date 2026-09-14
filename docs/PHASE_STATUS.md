@@ -21,5 +21,6 @@ City launches via `docs/CITY_PLAYBOOK.md` (config-only). Close remaining `MOBILE
 
 ## MVP residual harden (no retag)
 
-- **Phase 6 logistics** — `docs/PHASE_6_HARDENING.md` (Resend, notification centre, delivery quote/meet/disclose/shipment). Tag `v0.6-logistics-notifications` unchanged.
-- Phase 4 chat harden already on main (PR #18).
+- **Phase 8 admin** — `docs/PHASE_8_HARDENING.md` (JWT claims, page RoleGuard, TOTP UI, disputes resolve, fraud suspend, matrix tests). Tag `v0.8-admin` unchanged.
+- **Phase 6 logistics** — `docs/PHASE_6_HARDENING.md`. Tag `v0.6-logistics-notifications` unchanged.
+- Phase 4 chat harden already on default branch (PR #18).

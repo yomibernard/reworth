@@ -10,22 +10,28 @@ import {
   useAdminQuery,
 } from "../../components/AdminUi";
 
-type Res = {
-  items: {
-    id: string;
-    kind: string;
-    score: number | null;
-    reviewedAt: string | null;
-    listing?: { title?: string } | null;
-    user?: { profile?: { displayName?: string } | null } | null;
-  }[];
+type RiskItem = {
+  id: string;
+  kind: string;
+  score: number | null;
+  reviewedAt: string | null;
+  userId?: string | null;
+  listing?: { title?: string } | null;
+  user?: {
+    id?: string;
+    profile?: { displayName?: string } | null;
+  } | null;
 };
+
+type Res = { items: RiskItem[] };
 
 export default function FraudPage() {
   const { data, error, loading, reload } = useAdminQuery<Res>(
     "/admin/risk-events",
   );
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
   const rows =
     data?.items.map((e) => ({
       id: e.id,
@@ -34,16 +40,25 @@ export default function FraudPage() {
       reviewedAt: e.reviewedAt ?? "—",
       listing: e.listing?.title ?? "—",
       user: e.user?.profile?.displayName ?? "—",
+      userId: e.userId ?? e.user?.id ?? null,
     })) ?? [];
 
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader title="Fraud" description="Risk events queue." />
+      <PageHeader
+        title="Fraud"
+        description="Risk-event queue — review, suspend (revokes sessions + notify), or whitelist."
+      />
       <StatusLine
         loading={loading}
         error={error}
         empty={!loading && !error && !rows.length}
       />
+      {msg ? (
+        <p className="mb-3 text-sm text-[var(--rw-accent)]" role="status">
+          {msg}
+        </p>
+      ) : null}
       {rows.length ? (
         <SimpleTable
           columns={[
@@ -58,18 +73,55 @@ export default function FraudPage() {
           onRowClick={(row) =>
             setExpanded(expanded === String(row.id) ? null : String(row.id))
           }
-          renderExpanded={(row) => (
-            <ActionButton
-              label="Mark reviewed"
-              variant="primary"
-              onClick={async () => {
-                await adminFetch(`/admin/risk-events/${row.id}/review`, {
-                  method: "POST",
-                });
-                await reload();
-              }}
-            />
-          )}
+          renderExpanded={(row) => {
+            const userId = row.userId as string | null;
+            return (
+              <div className="flex flex-wrap gap-2">
+                <ActionButton
+                  label="Mark reviewed"
+                  variant="primary"
+                  onClick={async () => {
+                    await adminFetch(`/admin/risk-events/${row.id}/review`, {
+                      method: "POST",
+                    });
+                    setMsg("Marked reviewed");
+                    await reload();
+                  }}
+                />
+                {userId ? (
+                  <>
+                    <ActionButton
+                      label="Suspend user"
+                      onClick={async () => {
+                        await adminFetch(`/admin/risk-events/${row.id}/review`, {
+                          method: "POST",
+                        });
+                        await adminFetch(`/admin/users/${userId}/suspend`, {
+                          method: "POST",
+                          body: { reason: "Fraud alert review" },
+                        });
+                        setMsg(
+                          "User suspended — sessions revoked and notification queued",
+                        );
+                        await reload();
+                      }}
+                    />
+                    <ActionButton
+                      label="Whitelist user"
+                      onClick={async () => {
+                        await adminFetch(`/admin/users/${userId}/whitelist`, {
+                          method: "POST",
+                          body: { reason: "False positive" },
+                        });
+                        setMsg("User whitelisted");
+                        await reload();
+                      }}
+                    />
+                  </>
+                ) : null}
+              </div>
+            );
+          }}
         />
       ) : null}
     </div>
