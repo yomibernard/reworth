@@ -101,7 +101,11 @@ describe('MessagesService block + clientMsgId', () => {
     const scanProcessor = {
       processMessage: jest.fn(),
     } as unknown as ChatScanProcessor;
-    const service = new MessagesService(prisma as never, scanProcessor);
+    const service = new MessagesService(
+      prisma as never,
+      scanProcessor,
+      { log: jest.fn() } as never,
+    );
     await expect(
       service.createOrGetConversation('buyer-1', 'listing-1'),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -124,7 +128,12 @@ describe('MessagesService block + clientMsgId', () => {
     const scanProcessor = {
       processMessage: jest.fn(),
     } as unknown as ChatScanProcessor;
-    const service = new MessagesService(prisma as never, scanProcessor);
+    const notifications = { log: jest.fn() };
+    const service = new MessagesService(
+      prisma as never,
+      scanProcessor,
+      notifications as never,
+    );
     await expect(
       service.postMessage('conv-1', 'buyer-1', {
         type: MessageType.TEXT,
@@ -169,7 +178,12 @@ describe('MessagesService block + clientMsgId', () => {
     const scanProcessor = {
       processMessage: jest.fn(),
     } as unknown as ChatScanProcessor;
-    const service = new MessagesService(prisma as never, scanProcessor);
+    const notifications = { log: jest.fn() };
+    const service = new MessagesService(
+      prisma as never,
+      scanProcessor,
+      notifications as never,
+    );
     const first = await service.postMessage('conv-1', 'buyer-1', {
       type: MessageType.TEXT,
       body: 'hello',
@@ -183,6 +197,193 @@ describe('MessagesService block + clientMsgId', () => {
     expect(first.id).toBe('msg-existing');
     expect(second.id).toBe(first.id);
     expect(prisma.message.create).not.toHaveBeenCalled();
+  });
+
+  it('reconnect after disconnect: after= poll + clientMsgId yields zero duplicates', async () => {
+    const t0 = new Date('2026-01-01T00:00:00Z');
+    const t1 = new Date('2026-01-01T00:00:10Z'); // 10s later
+    const stored = new Map<string, any>();
+    const byClient = new Map<string, any>();
+
+    const mkMsg = (id: string, body: string, at: Date, clientId: string) => ({
+      id,
+      conversationId: 'conv-1',
+      senderId: 'buyer-1',
+      type: MessageType.TEXT,
+      body,
+      imageKey: null,
+      offerId: null,
+      listingCardId: null,
+      clientMsgId: clientId,
+      deliveredAt: null,
+      readAt: null,
+      scamWarning: false,
+      createdAt: at,
+      sender: { id: 'buyer-1', profile: { displayName: 'Buyer' } },
+    });
+
+    const prisma: any = {
+      conversation: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'conv-1',
+          listingId: 'listing-1',
+          buyerId: 'buyer-1',
+          sellerId: 'seller-1',
+        }),
+        update: jest.fn(),
+      },
+      userBlock: { findFirst: jest.fn().mockResolvedValue(null) },
+      userMute: { findFirst: jest.fn().mockResolvedValue(null) },
+      message: {
+        findUnique: jest.fn().mockImplementation(async ({ where }: any) => {
+          if (where?.id) return stored.get(where.id) ?? null;
+          if (where?.conversationId_clientMsgId) {
+            const key = `${where.conversationId_clientMsgId.conversationId}:${where.conversationId_clientMsgId.clientMsgId}`;
+            return byClient.get(key) ?? null;
+          }
+          return null;
+        }),
+        findMany: jest.fn().mockImplementation(async ({ where }: any) => {
+          let rows = [...stored.values()].filter(
+            (m) => m.conversationId === where.conversationId,
+          );
+          if (where.createdAt?.gt) {
+            rows = rows.filter((m) => m.createdAt > where.createdAt.gt);
+          }
+          return rows.sort(
+            (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+          );
+        }),
+        create: jest.fn().mockImplementation(async ({ data }: any) => {
+          const row = mkMsg(
+            `msg-${stored.size + 1}`,
+            data.body,
+            data.createdAt ?? new Date(),
+            data.clientMsgId,
+          );
+          Object.assign(row, data);
+          stored.set(row.id, row);
+          byClient.set(`${row.conversationId}:${row.clientMsgId}`, row);
+          return row;
+        }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+
+    const scanProcessor = {
+      processMessage: jest.fn().mockResolvedValue({ scamWarning: false }),
+    } as unknown as ChatScanProcessor;
+    const notifications = { log: jest.fn() };
+    const service = new MessagesService(
+      prisma,
+      scanProcessor,
+      notifications as never,
+    );
+
+    // Pre-disconnect send
+    const a = await service.postMessage('conv-1', 'buyer-1', {
+      type: MessageType.TEXT,
+      body: 'before drop',
+      clientMsgId: 'c-1',
+    });
+    stored.get(a.id)!.createdAt = t0;
+
+    // Simulated 10s network drop — client retries same clientMsgId
+    const retry = await service.postMessage('conv-1', 'buyer-1', {
+      type: MessageType.TEXT,
+      body: 'before drop',
+      clientMsgId: 'c-1',
+    });
+    expect(retry.id).toBe(a.id);
+
+    // Message arrived server-side during disconnect
+    const during = mkMsg('msg-during', 'during drop', t1, 'c-2');
+    stored.set(during.id, during);
+    byClient.set('conv-1:c-2', during);
+
+    const synced = await service.listMessages('conv-1', 'seller-1', {
+      after: a.id,
+    });
+    expect(synced.map((m) => m.id)).toEqual(['msg-during']);
+    expect(new Set(synced.map((m) => m.id)).size).toBe(synced.length);
+  });
+
+  it('markDelivered sets deliveredAt on inbound messages', async () => {
+    const prisma = {
+      conversation: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'conv-1',
+          buyerId: 'buyer-1',
+          sellerId: 'seller-1',
+        }),
+      },
+      message: {
+        updateMany: jest.fn().mockResolvedValue({ count: 2 }),
+      },
+    };
+    const service = new MessagesService(
+      prisma as never,
+      { processMessage: jest.fn() } as never,
+      { log: jest.fn() } as never,
+    );
+    const res = await service.markDelivered('conv-1', 'seller-1');
+    expect(res.count).toBe(2);
+    expect(prisma.message.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          senderId: { not: 'seller-1' },
+          deliveredAt: null,
+        }),
+      }),
+    );
+  });
+
+  it('mute suppresses message.new notification to recipient', async () => {
+    const created = {
+      id: 'msg-1',
+      conversationId: 'conv-1',
+      senderId: 'buyer-1',
+      type: MessageType.TEXT,
+      body: 'hi',
+      imageKey: null,
+      offerId: null,
+      listingCardId: null,
+      clientMsgId: null,
+      deliveredAt: null,
+      readAt: null,
+      scamWarning: false,
+      createdAt: new Date(),
+      sender: { id: 'buyer-1', profile: { displayName: 'Buyer' } },
+    };
+    const prisma = {
+      conversation: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'conv-1',
+          listingId: 'listing-1',
+          buyerId: 'buyer-1',
+          sellerId: 'seller-1',
+        }),
+        update: jest.fn(),
+      },
+      userBlock: { findFirst: jest.fn().mockResolvedValue(null) },
+      userMute: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'mute-1' }),
+      },
+      message: {
+        create: jest.fn().mockResolvedValue(created),
+      },
+    };
+    const notifications = { log: jest.fn() };
+    const service = new MessagesService(
+      prisma as never,
+      { processMessage: jest.fn().mockResolvedValue({ scamWarning: false }) } as never,
+      notifications as never,
+    );
+    await service.postMessage('conv-1', 'buyer-1', {
+      type: MessageType.TEXT,
+      body: 'hi',
+    });
+    expect(notifications.log).not.toHaveBeenCalled();
   });
 });
 

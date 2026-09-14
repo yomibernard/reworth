@@ -26,9 +26,11 @@ import {
   listMessages,
   listOffers,
   markConversationRead,
+  muteConversation,
   postMessage,
   rejectOffer,
   reportUser,
+  unmuteConversation,
   withdrawOffer,
   type ChatMessage,
   type ConversationListItem,
@@ -390,6 +392,34 @@ export default function ChatThreadPage() {
     }
   }
 
+  async function doMuteToggle() {
+    const token = getAccessToken();
+    if (!token || !meta) return;
+    setSafetyBusy(true);
+    try {
+      if (meta.muted) {
+        await unmuteConversation(token, meta.id);
+        setMeta({ ...meta, muted: false });
+        setToast({ message: "Unmuted", tone: "success" });
+      } else {
+        await muteConversation(token, meta.id);
+        setMeta({ ...meta, muted: true, unreadCount: 0 });
+        setToast({
+          message: "Muted — badges suppressed for this chat",
+          tone: "info",
+        });
+      }
+      setSafetyOpen(false);
+    } catch (err) {
+      setToast({
+        message: err instanceof ApiError ? err.message : "Mute failed",
+        tone: "error",
+      });
+    } finally {
+      setSafetyBusy(false);
+    }
+  }
+
   function renderOffer(offer: OfferDto) {
     if (!meId) return null;
     return (
@@ -609,7 +639,8 @@ export default function ChatThreadPage() {
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-[var(--rw-ink-muted)]">
-            Block stops new messages. Report flags the account for review.
+            Mute suppresses badges and push stubs. Block stops new messages.
+            Report flags the account for review.
           </p>
           <Input
             label="Report reason"
@@ -630,6 +661,13 @@ export default function ChatThreadPage() {
             onClick={() => void doReport()}
           >
             Report user
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={safetyBusy}
+            onClick={() => void doMuteToggle()}
+          >
+            {meta?.muted ? "Unmute conversation" : "Mute conversation"}
           </Button>
           <Button
             variant="danger"

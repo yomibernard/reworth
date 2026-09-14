@@ -28,13 +28,14 @@ import { MessagesService } from './messages.service';
  * - GET /conversations → ConversationListItem[]
  *   { id, listingId, listingTitle, listingThumb, buyerId, sellerId,
  *     counterpart:{id,displayName}, lastMessageAt, lastMessagePreview,
- *     unreadCount, activeOffer:{id,amountKobo,status}|null, createdAt }
+ *     unreadCount, muted, activeOffer:{id,amountKobo,status}|null, createdAt }
  * - POST /conversations → Conversation { id, listingId, buyerId, sellerId, ... }
- * - GET /conversations/:id/messages → MessageDto[]
+ * - GET /conversations/:id/messages → MessageDto[] (also marks delivery)
  *   { id, conversationId, senderId, type, body, imageKey, offerId,
  *     listingCardId, clientMsgId, deliveredAt, readAt, scamWarning, createdAt,
  *     sender?:{id,displayName} } — never phone/email
  * - POST /conversations/:id/messages → MessageDto (clientMsgId deduped)
+ * - POST /conversations/:id/read · POST /delivered · POST/DELETE mute
  */
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -85,6 +86,15 @@ export class ConversationsController {
     return this.messages.markRead(id, user.id, body?.messageIds);
   }
 
+  @Post('conversations/:id/delivered')
+  markDelivered(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: { messageIds?: string[] },
+  ) {
+    return this.messages.markDelivered(id, user.id, body?.messageIds);
+  }
+
   @Post('conversations/:id/mute')
   mute(
     @CurrentUser() user: AuthUser,
@@ -92,6 +102,11 @@ export class ConversationsController {
     @Body() dto: MuteConversationDto,
   ) {
     return this.messages.muteConversation(id, user.id, dto.mutedId);
+  }
+
+  @Delete('conversations/:id/mute')
+  unmute(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.messages.unmuteConversation(id, user.id);
   }
 
   @Post('users/:id/block')

@@ -31,6 +31,7 @@ export type ConversationListItem = {
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
   unreadCount: number;
+  muted?: boolean;
   activeOffer: {
     id: string;
     amountKobo: number;
@@ -175,6 +176,39 @@ export function markConversationRead(
     method: "POST",
     token,
     body: { messageIds },
+  });
+}
+
+export function markConversationDelivered(
+  token: string,
+  conversationId: string,
+  messageIds?: string[],
+): Promise<{ ok: boolean; count?: number } | unknown> {
+  return apiFetch(`/conversations/${conversationId}/delivered`, {
+    method: "POST",
+    token,
+    body: { messageIds },
+  });
+}
+
+export function muteConversation(
+  token: string,
+  conversationId: string,
+): Promise<unknown> {
+  return apiFetch(`/conversations/${conversationId}/mute`, {
+    method: "POST",
+    token,
+    body: {},
+  });
+}
+
+export function unmuteConversation(
+  token: string,
+  conversationId: string,
+): Promise<unknown> {
+  return apiFetch(`/conversations/${conversationId}/mute`, {
+    method: "DELETE",
+    token,
   });
 }
 
