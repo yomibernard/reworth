@@ -16,6 +16,12 @@ import { ReviewForm } from "../../../components/trust/ReviewForm";
 import { DiscoveryListingCard } from "../../../components/discovery/DiscoveryListingCard";
 import { ApiError, apiFetch } from "../../../lib/api";
 import { getAccessToken } from "../../../lib/auth";
+import {
+  discloseOrderAddress,
+  getOrderShipment,
+  shipmentStatusLabel,
+  type DeliveryShipment,
+} from "../../../lib/delivery";
 import { fetchRecommendations } from "../../../lib/intelligence";
 import {
   cancelOrder,
@@ -64,6 +70,9 @@ export default function OrderDetailPage() {
   );
   const [reviewBusy, setReviewBusy] = useState(false);
   const [alsoLike, setAlsoLike] = useState<PublicListing[]>([]);
+  const [shipment, setShipment] = useState<DeliveryShipment | null>(null);
+  const [discloseBusy, setDiscloseBusy] = useState(false);
+  const [disclosedAddress, setDisclosedAddress] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!orderId) return;
@@ -81,6 +90,16 @@ export default function OrderDetailPage() {
       ]);
       setMeId(me.id);
       setOrder(detail);
+      if (detail.fulfilmentMethod === "DELIVERY") {
+        try {
+          const ship = await getOrderShipment(token, detail.id);
+          setShipment(ship);
+        } catch {
+          setShipment(null);
+        }
+      } else {
+        setShipment(null);
+      }
       if (detail.status === "COMPLETED") {
         const counterpartId =
           me.id === detail.buyerId ? detail.sellerId : detail.buyerId;
@@ -317,6 +336,83 @@ export default function OrderDetailPage() {
               </p>
             ) : null}
           </aside>
+        ) : null}
+
+        {shipment ? (
+          <section
+            className="mt-4 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] p-4"
+            aria-labelledby="shipment-heading"
+          >
+            <h2 id="shipment-heading" className="text-base font-semibold">
+              Delivery tracking
+            </h2>
+            <p className="mt-1 text-sm font-medium text-[var(--rw-accent)]">
+              {shipmentStatusLabel(shipment.status)}
+            </p>
+            {shipment.events?.length ? (
+              <ol className="mt-3 space-y-2 text-sm text-[var(--rw-ink-muted)]">
+                {shipment.events.map((e) => (
+                  <li key={e.id}>
+                    {shipmentStatusLabel(e.status)} ·{" "}
+                    {new Date(e.createdAt).toLocaleString("en-NG")}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+          </section>
+        ) : null}
+
+        {isSeller &&
+        order.fulfilmentMethod === "PICKUP" &&
+        (order.status === "FUNDED" || order.status === "HANDED_OVER") ? (
+          <section
+            className="mt-4 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] p-4"
+            aria-labelledby="disclose-heading"
+          >
+            <h2 id="disclose-heading" className="text-base font-semibold">
+              Pickup address
+            </h2>
+            <p className="mt-1 text-sm text-[var(--rw-ink-muted)]">
+              Share your exact address only after payment. This cannot be
+              revoked.
+            </p>
+            {disclosedAddress ? (
+              <p className="mt-3 text-sm font-medium">{disclosedAddress}</p>
+            ) : (
+              <Button
+                className="mt-3"
+                variant="secondary"
+                disabled={discloseBusy}
+                onClick={() => {
+                  void (async () => {
+                    const token = getAccessToken();
+                    if (!token) return;
+                    setDiscloseBusy(true);
+                    try {
+                      const res = await discloseOrderAddress(token, order.id);
+                      setDisclosedAddress(res.addressSnapshot);
+                      setToast({
+                        message: "Address shared with buyer",
+                        tone: "success",
+                      });
+                    } catch (err) {
+                      setToast({
+                        message:
+                          err instanceof ApiError
+                            ? err.message
+                            : "Disclose failed",
+                        tone: "error",
+                      });
+                    } finally {
+                      setDiscloseBusy(false);
+                    }
+                  })();
+                }}
+              >
+                {discloseBusy ? "…" : "Disclose address to buyer"}
+              </Button>
+            )}
+          </section>
         ) : null}
 
         {disputeId ? (

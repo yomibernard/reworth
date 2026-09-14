@@ -14,6 +14,8 @@ export type MeProfile = {
   language: string;
   currency: string;
   showFullName: boolean;
+  quietHoursStart?: number | null;
+  quietHoursEnd?: number | null;
 };
 
 export type MeResponse = {

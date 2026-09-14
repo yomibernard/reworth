@@ -18,3 +18,8 @@
 ## Resume
 
 City launches via `docs/CITY_PLAYBOOK.md` (config-only). Close remaining `MOBILE_PARITY.md` rows. Cross-border remains design-only (ADR-007).
+
+## MVP residual harden (no retag)
+
+- **Phase 6 logistics** — `docs/PHASE_6_HARDENING.md` (Resend, notification centre, delivery quote/meet/disclose/shipment). Tag `v0.6-logistics-notifications` unchanged.
+- Phase 4 chat harden already on main (PR #18).

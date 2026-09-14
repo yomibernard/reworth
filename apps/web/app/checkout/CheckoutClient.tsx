@@ -13,6 +13,13 @@ import {
 } from "@reworth/ui-web";
 import { ApiError } from "../../lib/api";
 import { getAccessToken } from "../../lib/auth";
+import {
+  fallbackDeliveryDestination,
+  getDeliveryQuote,
+  listMeetPoints,
+  setOrderMeetPoint,
+  type MeetPoint,
+} from "../../lib/delivery";
 import { getListing, listingImageUrl } from "../../lib/listings";
 import {
   computeOrderTotalKobo,
@@ -43,6 +50,9 @@ export default function CheckoutPage() {
   const [payment, setPayment] = useState<PaymentDto | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(false);
+  const [meetPoints, setMeetPoints] = useState<MeetPoint[]>([]);
+  const [meetPointId, setMeetPointId] = useState<string | null>(null);
+  const [deliveryFeeKobo, setDeliveryFeeKobo] = useState(0);
   const [toast, setToast] = useState<{
     message: string;
     tone?: "info" | "success" | "warn" | "error";
@@ -82,6 +92,13 @@ export default function CheckoutPage() {
               : "MEET_POINT";
         setFulfilment(first);
       }
+      try {
+        const points = await listMeetPoints(token, data.community || undefined);
+        setMeetPoints(points);
+        setMeetPointId(points[0]?.id ?? null);
+      } catch {
+        setMeetPoints([]);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not load listing");
       setListing(null);
@@ -104,9 +121,9 @@ export default function CheckoutPage() {
       computeOrderTotalKobo({
         amountKobo,
         protectionFeeKobo,
-        deliveryFeeKobo: 0,
+        deliveryFeeKobo: fulfilment === "DELIVERY" ? deliveryFeeKobo : 0,
       }),
-    [amountKobo, protectionFeeKobo],
+    [amountKobo, protectionFeeKobo, fulfilment, deliveryFeeKobo],
   );
 
   const fulfilmentOptions = useMemo(() => {
@@ -143,6 +160,25 @@ export default function CheckoutPage() {
             : { buyNow: true }),
       });
       setOrderId(order.id);
+
+      if (fulfilment === "MEET_POINT" && meetPointId) {
+        await setOrderMeetPoint(token, order.id, meetPointId);
+      }
+
+      if (fulfilment === "DELIVERY") {
+        const dest = fallbackDeliveryDestination(
+          (listing as { geoLat?: number | null } | null)?.geoLat,
+          (listing as { geoLng?: number | null } | null)?.geoLng,
+        );
+        const quote = await getDeliveryQuote(
+          token,
+          order.id,
+          dest.toLat,
+          dest.toLng,
+        );
+        setDeliveryFeeKobo(quote.deliveryFeeKobo ?? quote.feeKobo);
+      }
+
       const pay = await initiatePayment(token, {
         orderId: order.id,
         idempotencyKey: newIdempotencyKey(),
@@ -299,6 +335,38 @@ export default function CheckoutPage() {
           </div>
         </section>
 
+        {fulfilment === "MEET_POINT" && meetPoints.length > 0 ? (
+          <section className="mt-6" aria-labelledby="meet-heading">
+            <h2 id="meet-heading" className="text-lg font-semibold">
+              Safe meet point
+            </h2>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {meetPoints.map((p) => (
+                <Chip
+                  key={p.id}
+                  selected={meetPointId === p.id}
+                  onClick={() => setMeetPointId(p.id)}
+                  disabled={Boolean(payment)}
+                >
+                  {p.name}
+                </Chip>
+              ))}
+            </div>
+            {meetPointId ? (
+              <p className="mt-2 text-sm text-[var(--rw-ink-muted)]">
+                {meetPoints.find((p) => p.id === meetPointId)?.landmark}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {fulfilment === "DELIVERY" ? (
+          <p className="mt-4 text-sm text-[var(--rw-ink-muted)]">
+            Delivery quote (₦1,500 + ₦150/km) is calculated when you pay and added
+            to the total.
+          </p>
+        ) : null}
+
         <section
           className="mt-8 space-y-2 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] p-4"
           aria-label="Price breakdown"
@@ -311,6 +379,12 @@ export default function CheckoutPage() {
             <span className="text-[var(--rw-ink-muted)]">Protection fee</span>
             <span>{formatNgn({ amountKobo: protectionFeeKobo })}</span>
           </div>
+          {fulfilment === "DELIVERY" && deliveryFeeKobo > 0 ? (
+            <div className="flex justify-between text-sm">
+              <span className="text-[var(--rw-ink-muted)]">Delivery</span>
+              <span>{formatNgn({ amountKobo: deliveryFeeKobo })}</span>
+            </div>
+          ) : null}
           <div className="flex justify-between border-t border-[var(--rw-border)] pt-2 text-base font-semibold">
             <span>Total</span>
             <span>{formatNgn({ amountKobo: totalKobo })}</span>

@@ -33,8 +33,8 @@ Companion column notes web’s intended role when mobile is primary.
 | Disputes | **full** | **full** | `DisputeModal` vs `/disputes/[id]` |
 | Public seller profile | **full** | **full** | `UserProfileModal` vs `/users/[id]` · `/u/[handle]` |
 | Privacy / account delete | **full** | **full** | `PrivacySettings` vs `/settings/privacy` |
-| Notification preferences | **partial** | **full** | Mobile privacy covers channels lightly; web `/settings/notifications` richer |
-| In-app notification centre | **missing** | **full** | Web `/notifications`; mobile push register only |
+| Notification preferences | **full** | **full** | Mobile centre + §29 prefs + quiet hours; web `/settings/notifications` |
+| In-app notification centre | **full** | **full** | Mobile `NotificationsScreens`; web `/notifications` |
 | OAuth Google / Apple | **missing** | **missing*** | *API supports; neither consumer UI complete — track together, mobile first |
 
 ---
@@ -99,7 +99,7 @@ These are **expected** on web even when mobile leads; keep parity **full** or do
 | --- | ---: | ---: | ---: |
 | Mobile | ~16 | ~14 | ~14 |
 
-Exact rows: see tables. **Priority close order (mobile-first):** communities → moving sales → notifications centre → seller analytics → Ask/Scan depth → corporate (if Persona C on-device) → referrals/pro · web Boost/Plus companion.
+Exact rows: see tables. **Priority close order (mobile-first):** communities → moving sales → seller analytics → Ask/Scan depth → corporate (if Persona C on-device) → referrals/pro · web Boost/Plus companion.
 
 ---
 

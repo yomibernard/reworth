@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -10,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { parseDeepLink } from "./lib/notifications";
 import { ChatsPanel } from "./ChatScreens";
 import { ListingDetailModal } from "./ListingDetailModal";
 import {
@@ -26,6 +28,7 @@ import {
 } from "./DiscoveryScreens";
 import { UserProfileModal } from "./UserProfileModal";
 import { PrivacySettings } from "./PrivacySettings";
+import { NotificationsModal } from "./NotificationsScreens";
 import {
   PlatformToolsModal,
   type PlatformTool,
@@ -91,6 +94,23 @@ export default function App() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [disputeId, setDisputeId] = useState<string | null>(null);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  useEffect(() => {
+    function handleUrl(url: string | null) {
+      if (!url) return;
+      const parsed = parseDeepLink(url);
+      if (parsed?.kind === "order" && parsed.id) setOrderId(parsed.id);
+      else if (parsed?.kind === "dispute" && parsed.id) setDisputeId(parsed.id);
+      else if (parsed?.kind === "chat" && parsed.id) {
+        setOpenChatId(parsed.id);
+        setActive("chats");
+      } else if (parsed?.kind === "listing" && parsed.id) setDetailId(parsed.id);
+    }
+    void Linking.getInitialURL().then(handleUrl);
+    const sub = Linking.addEventListener("url", (e) => handleUrl(e.url));
+    return () => sub.remove();
+  }, []);
 
   const refreshMe = useCallback(async () => {
     const token = await getAccessToken();
@@ -515,6 +535,15 @@ export default function App() {
                     : ""}
                 </Text>
 
+                <Pressable
+                  style={styles.secondaryBtn}
+                  onPress={() => setNotificationsOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open notifications"
+                >
+                  <Text style={styles.secondaryBtnText}>Notifications</Text>
+                </Pressable>
+
                 <Text style={styles.sectionLabel}>Verification</Text>
                 <View style={styles.badges}>
                   <Badge
@@ -666,6 +695,28 @@ export default function App() {
         onOpenListing={(listingId) => {
           setProfileUserId(null);
           setDetailId(listingId);
+        }}
+      />
+
+      <NotificationsModal
+        visible={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+        onOpenOrder={(id) => {
+          setNotificationsOpen(false);
+          setOrderId(id);
+        }}
+        onOpenDispute={(id) => {
+          setNotificationsOpen(false);
+          setDisputeId(id);
+        }}
+        onOpenChat={(id) => {
+          setNotificationsOpen(false);
+          setOpenChatId(id);
+          setActive("chats");
+        }}
+        onOpenListing={(id) => {
+          setNotificationsOpen(false);
+          setDetailId(id);
         }}
       />
 
