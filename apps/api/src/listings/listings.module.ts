@@ -2,7 +2,9 @@ import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MediaModule } from '../media/media.module';
 import { AuthModule } from '../auth/auth.module';
+import { CommunitiesModule } from '../communities/communities.module';
 import { FavouritesModule } from '../favourites/favourites.module';
+import { IntelligenceModule } from '../intelligence/intelligence.module';
 import { ModerationModule } from '../moderation/moderation.module';
 import { RiskModule } from '../risk/risk.module';
 import {
@@ -13,6 +15,7 @@ import {
   GEOCODING_PROVIDER,
   MockGeocodingProvider,
 } from '../providers/geocoding.provider';
+import { RegionConfigService } from '../region/region-config.service';
 import { AnalyticsService } from './analytics.service';
 import { FraudRulesService } from './fraud-rules.service';
 import { ListingAssistService } from './listing-assist.service';
@@ -26,7 +29,9 @@ import { PriceIntelligenceService } from './price-intelligence.service';
     ConfigModule,
     MediaModule,
     AuthModule,
+    CommunitiesModule,
     forwardRef(() => FavouritesModule),
+    forwardRef(() => IntelligenceModule),
     forwardRef(() => RiskModule),
     ModerationModule,
   ],
@@ -50,7 +55,9 @@ import { PriceIntelligenceService } from './price-intelligence.service';
     },
     {
       provide: GEOCODING_PROVIDER,
-      useClass: MockGeocodingProvider,
+      useFactory: (regions: RegionConfigService) =>
+        new MockGeocodingProvider(regions),
+      inject: [RegionConfigService],
     },
   ],
   exports: [ListingsService, FraudRulesService, ListingExpiryScheduler],

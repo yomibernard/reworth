@@ -1,0 +1,130 @@
+/**
+ * Phase 6 — Mobile notification helpers.
+ */
+
+import { apiFetch } from "./api";
+
+export const NOTIFICATION_CATEGORIES = [
+  "NEW_MESSAGE",
+  "NEW_OFFER",
+  "COUNTEROFFER",
+  "OFFER_ACCEPTED",
+  "OFFER_REJECTED",
+  "ITEM_SOLD",
+  "ITEM_SAVED",
+  "PRICE_DROP",
+  "SAVED_SEARCH_MATCH",
+  "PAYMENT_RECEIVED",
+  "PAYMENT_RELEASED",
+  "DELIVERY_UPDATE",
+  "VERIFICATION_UPDATE",
+  "DISPUTE_UPDATE",
+] as const;
+
+export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
+export type NotificationChannel = "IN_APP" | "PUSH" | "EMAIL";
+
+export const NOTIFICATION_CHANNELS: NotificationChannel[] = [
+  "IN_APP",
+  "PUSH",
+  "EMAIL",
+];
+
+export const CRITICAL_CATEGORIES = new Set<string>([
+  "PAYMENT_RECEIVED",
+  "PAYMENT_RELEASED",
+  "DELIVERY_UPDATE",
+  "DISPUTE_UPDATE",
+]);
+
+export function isCriticalCategory(category: string): boolean {
+  return (
+    CRITICAL_CATEGORIES.has(category) || category.startsWith("PAYMENT_")
+  );
+}
+
+export type AppNotification = {
+  id: string;
+  category: string;
+  channel: string;
+  title: string;
+  body: string;
+  deepLink: string | null;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type NotificationPreference = {
+  id: string;
+  category: string;
+  channel: string;
+  enabled: boolean;
+};
+
+export function categoryLabel(category: string): string {
+  return category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Parse reworth:// or path deep links for in-app routing. */
+export function parseDeepLink(
+  deepLink: string | null | undefined,
+): { kind: "order" | "dispute" | "chat" | "listing" | "other"; id?: string } | null {
+  if (!deepLink) return null;
+  let path = deepLink.trim();
+  if (path.startsWith("reworth://")) {
+    path = "/" + path.slice("reworth://".length).replace(/^\/+/, "");
+  }
+  const m =
+    path.match(/^\/orders\/([\w-]+)/i) ||
+    path.match(/^\/disputes\/([\w-]+)/i) ||
+    path.match(/^\/chats\/([\w-]+)/i) ||
+    path.match(/^\/listings\/([\w-]+)/i);
+  if (!m) return { kind: "other" };
+  if (/orders/i.test(path)) return { kind: "order", id: m[1] };
+  if (/disputes/i.test(path)) return { kind: "dispute", id: m[1] };
+  if (/chats/i.test(path)) return { kind: "chat", id: m[1] };
+  if (/listings/i.test(path)) return { kind: "listing", id: m[1] };
+  return { kind: "other" };
+}
+
+export function listNotifications(
+  token: string,
+  opts?: { category?: string; unread?: boolean },
+): Promise<AppNotification[]> {
+  const q = new URLSearchParams();
+  if (opts?.category) q.set("category", opts.category);
+  if (opts?.unread === true) q.set("unread", "true");
+  if (opts?.unread === false) q.set("unread", "false");
+  const qs = q.toString();
+  return apiFetch(`/notifications${qs ? `?${qs}` : ""}`, { token });
+}
+
+export function markNotificationRead(
+  token: string,
+  id: string,
+): Promise<AppNotification> {
+  return apiFetch(`/notifications/${id}/read`, { method: "POST", token });
+}
+
+export function markAllNotificationsRead(
+  token: string,
+): Promise<{ updated: number }> {
+  return apiFetch(`/notifications/read-all`, { method: "POST", token });
+}
+
+export function getNotificationPreferences(
+  token: string,
+): Promise<NotificationPreference[]> {
+  return apiFetch(`/notifications/preferences`, { token });
+}
+
+export function patchNotificationPreference(
+  token: string,
+  body: { category: string; channel: NotificationChannel; enabled: boolean },
+): Promise<NotificationPreference> {
+  return apiFetch(`/notifications/preferences`, {
+    method: "PATCH",
+    token,
+    body,
+  });
+}

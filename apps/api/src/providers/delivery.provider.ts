@@ -3,6 +3,8 @@ export type DeliveryQuoteInput = {
   fromLng: number;
   toLat: number;
   toLng: number;
+  /** Region city key — rates from RegionConfigService (default Lagos). */
+  city?: string;
 };
 
 export type DeliveryQuoteResult = {
@@ -49,12 +51,25 @@ export interface DeliveryProvider {
 
 export const DELIVERY_PROVIDER = Symbol('DELIVERY_PROVIDER');
 
+export type DeliveryRateParams = {
+  baseFeeKobo: number;
+  perKmKobo: number;
+};
+
+/** Lagos defaults: ₦1,500 base + ₦150/km (ceil), in kobo. */
+export const DEFAULT_DELIVERY_RATES: DeliveryRateParams = {
+  baseFeeKobo: 150_000,
+  perKmKobo: 15_000,
+};
+
 /**
- * ₦1,500 base + ₦150/km (ceil), in kobo.
- * feeKobo = 150_000 + 15_000 * ceil(km)
+ * feeKobo = baseFeeKobo + perKmKobo * ceil(km)
  */
-export function computeDeliveryFeeKobo(distanceKm: number): number {
+export function computeDeliveryFeeKobo(
+  distanceKm: number,
+  rates: DeliveryRateParams = DEFAULT_DELIVERY_RATES,
+): number {
   const km = Math.max(0, distanceKm);
   const ceilKm = Math.ceil(km);
-  return 150_000 + 15_000 * ceilKm;
+  return rates.baseFeeKobo + rates.perKmKobo * ceilKm;
 }

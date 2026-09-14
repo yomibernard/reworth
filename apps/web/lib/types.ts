@@ -14,6 +14,8 @@ export type MeProfile = {
   language: string;
   currency: string;
   showFullName: boolean;
+  quietHoursStart?: number | null;
+  quietHoursEnd?: number | null;
 };
 
 export type MeResponse = {
@@ -84,6 +86,36 @@ export type ItemConditionValue =
   | "FAIR"
   | "FOR_PARTS";
 
+export type PublicListingCommunityChip = {
+  id: string;
+  slug: string;
+  name: string;
+  privacy: string;
+};
+
+export type PublicListingMovingSale = {
+  id: string;
+  title: string;
+  deadline: string;
+  status: string;
+};
+
+/** Phase 2.4 — luxury authentication status on public listings. */
+export type AuthenticationStatusValue =
+  | "NOT_REQUIRED"
+  | "REQUIRED"
+  | "PENDING"
+  | "PASSED"
+  | "FAILED"
+  | "OPTED_OUT"
+  | string;
+
+export type InspectedBadge = {
+  inspected: boolean;
+  completedAt?: string | null;
+  inspectionId?: string | null;
+};
+
 export type PublicListing = {
   id: string;
   title: string;
@@ -97,6 +129,12 @@ export type PublicListing = {
   sellingMode: SellingModeValue | string;
   status: string;
   community: string;
+  /** City scope for matching / comps (default Lagos). */
+  city?: string | null;
+  communityId?: string | null;
+  communityOnly?: boolean;
+  communityChip?: PublicListingCommunityChip | null;
+  movingSale?: PublicListingMovingSale | null;
   geoLat: number | null;
   geoLng: number | null;
   distanceKm?: number | null;
@@ -109,6 +147,19 @@ export type PublicListing = {
   createdAt: string;
   publishedAt: string | null;
   vehicle?: Record<string, unknown> | null;
+  /** Phase 2.4 — vehicle inspection public badge (object or boolean). */
+  inspectedBadge?: InspectedBadge | boolean | null;
+  inspectedAt?: string | null;
+  inspectionId?: string | null;
+  /** Phase 2.4 — luxury: require authentication before sale. */
+  authRequired?: boolean;
+  authenticationStatus?: AuthenticationStatusValue | null;
+  certificateId?: string | null;
+  authenticatedAt?: string | null;
+  /** Phase 3.1 — Instant Buy (platform-fulfilled BIN). */
+  instantBuyEligible?: boolean;
+  /** Phase 3.2 — schedule circular hand-off after N unsold days. */
+  donateIfUnsoldDays?: number | null;
 };
 
 export type CategoryNode = {
@@ -135,7 +186,71 @@ export type PriceIntelligence = {
   estimatedLowNaira: number;
   estimatedHighNaira: number;
   recommendedNaira: number;
+  /** sold_data | live_listings_fallback | rule_based_mock */
   basis: string;
+  quickSaleKobo?: number;
+  maxValueKobo?: number;
+  quickSaleNaira?: number;
+  maxValueNaira?: number;
+  /** e.g. "Based on 24 similar sold items" */
+  confidenceLabel?: string;
+  sampleCount?: number;
+  city?: string;
+};
+
+/** Phase 2.3 — Recommendations */
+
+export type RecommendationSurface = "home" | "similar" | "post_checkout";
+
+export type Recommendation = {
+  listing: PublicListing;
+  score?: number;
+  reason?: string;
+};
+
+export type RecommendationsResponse = {
+  items: PublicListing[];
+  surface?: RecommendationSurface | string;
+  experimentKey?: string;
+  variant?: string;
+  city?: string;
+};
+
+/** Phase 2.3 — Seller analytics (never includes buyer PII). */
+
+export type SellerListingMetrics = {
+  listingId: string;
+  title: string;
+  status: string;
+  views: number;
+  saves: number;
+  offers: number;
+  offerToSaleConversion: number;
+  timeToSaleHours: number | null;
+  priceCompetitiveness: number | null;
+  askingKobo: number;
+  marketMidKobo?: number | null;
+  revenueKobo?: number;
+  city?: string;
+};
+
+export type SellerAnalyticsAggregate = {
+  views: number;
+  saves: number;
+  offers: number;
+  offerToSaleConversion: number;
+  medianTimeToSaleHours: number | null;
+  responseMinutes?: number | null;
+  revenue30dKobo: number;
+  revenue90dKobo: number;
+};
+
+export type SellerAnalytics = {
+  city?: string;
+  aggregate: SellerAnalyticsAggregate;
+  listings: SellerListingMetrics[];
+  bestPerformers: SellerListingMetrics[];
+  worstPerformers: SellerListingMetrics[];
 };
 
 export type AiListingDraft = {
@@ -170,9 +285,20 @@ export type CreateListingBody = {
   negotiable?: boolean;
   sellingMode?: SellingModeValue | string;
   community?: string;
+  communityId?: string | null;
+  communityOnly?: boolean;
+  movingSaleId?: string | null;
   fulfilmentPickup?: boolean;
   fulfilmentMeet?: boolean;
   fulfilmentDelivery?: boolean;
+  /** Phase 2.4 — vehicle attributes (VIN stripped server-side on public DTO). */
+  vehicle?: Record<string, unknown> | null;
+  /** Phase 2.4 — luxury authentication gate. */
+  authRequired?: boolean;
+  /** Phase 3.2 — city key from GET /regions (config-driven). */
+  city?: string;
+  /** Phase 3.2 — donate / circular hand-off after N unsold days (null = off). */
+  donateIfUnsoldDays?: number | null;
 };
 
 export type UpdateListingBody = CreateListingBody;
@@ -226,11 +352,22 @@ export type NlSearchResponse = {
   results: SearchResult;
 };
 
+export type HomeMovingSaleRailItem = {
+  id: string;
+  title: string;
+  itemCount: number;
+  combinedPriceKobo: number;
+  deadline: string;
+  community: string;
+  coverListingId?: string;
+};
+
 export type HomeRail = {
   id: string;
   title: string;
   items: PublicListing[];
   emptyMessage?: string;
+  movingSales?: HomeMovingSaleRailItem[];
 };
 
 export type HomeResponse = {
@@ -261,6 +398,10 @@ export type SavedSearch = {
   filters: Record<string, unknown>;
   newMatchesCount: number;
   lastCheckedAt: string | null;
+  /** Pause alert evaluation without deleting. */
+  paused?: boolean;
+  /** Opt-in daily digest (9am WAT). */
+  digestEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -269,4 +410,283 @@ export type MeFavouritesResponse = {
   items: FavouriteItem[];
   sellers: FollowedSeller[];
   searches: SavedSearch[];
+};
+
+/* ─── Phase 3.1 — AI & Platform Services ─────────────────────────────── */
+
+export type AssistantMessageRole =
+  | "USER"
+  | "ASSISTANT"
+  | "SYSTEM"
+  | "TOOL";
+
+export type AssistantSession = {
+  id: string;
+  userId: string;
+  city: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AssistantToolSearchResult = {
+  type: "search";
+  listings: PublicListing[];
+  query?: string;
+};
+
+export type AssistantToolBundleResult = {
+  type: "bundle";
+  brief: string;
+  budgetKobo: number;
+  totalKobo: number;
+  listings: PublicListing[];
+  shareToken?: string | null;
+  /** Present when saving the bundle requires explicit confirm. */
+  actionId?: string;
+  confirmToken?: string;
+};
+
+export type AssistantToolValuationResult = {
+  type: "valuation";
+  result: ValuationCard;
+  listingId?: string | null;
+};
+
+export type AssistantToolMutationPending = {
+  type: "mutation_pending";
+  actionId: string;
+  confirmToken: string;
+  toolName: string;
+  summary: string;
+};
+
+export type AssistantToolResult =
+  | AssistantToolSearchResult
+  | AssistantToolBundleResult
+  | AssistantToolValuationResult
+  | AssistantToolMutationPending
+  | { type: string; [key: string]: unknown };
+
+export type AssistantMessage = {
+  id: string;
+  sessionId: string;
+  role: AssistantMessageRole | string;
+  content: string;
+  toolName?: string | null;
+  toolPayload?: AssistantToolResult | AssistantToolResult[] | Record<string, unknown> | null;
+  createdAt: string;
+};
+
+export type AssistantSessionDetail = AssistantSession & {
+  messages: AssistantMessage[];
+};
+
+export type AssistantSendMessageResponse = {
+  userMessage: AssistantMessage;
+  assistantMessage: AssistantMessage;
+  toolResults?: AssistantToolResult[];
+};
+
+export type AssistantConfirmResponse = {
+  ok: boolean;
+  actionId: string;
+  result?: unknown;
+  message?: string;
+};
+
+export type SavedBundle = {
+  id: string;
+  userId?: string;
+  city: string;
+  brief: string;
+  budgetKobo: number;
+  listingIds: string[];
+  totalKobo: number;
+  shareToken: string;
+  createdAt: string;
+  /** Full PublicListing or lightweight share preview rows from BundleService. */
+  listings?: Array<
+    | PublicListing
+    | {
+        id: string;
+        title: string;
+        priceKobo: number;
+        city?: string;
+        status?: string;
+      }
+  >;
+};
+
+export type RoomScanStatusValue =
+  | "UPLOADED"
+  | "DETECTING"
+  | "READY"
+  | "DRAFTS_CREATED"
+  | "FAILED"
+  | "CANCELLED"
+  | string;
+
+export type RoomScanItem = {
+  id: string;
+  roomScanId: string;
+  label: string;
+  brandHint?: string | null;
+  categoryHint?: string | null;
+  cropKey?: string | null;
+  bbox?: unknown;
+  selected: boolean;
+  condition: string;
+  sortOrder: number;
+};
+
+export type RoomScanDraft = {
+  id: string;
+  roomScanId: string;
+  listingId: string;
+  itemLabel: string;
+  listing?: PublicListing | null;
+};
+
+export type RoomScan = {
+  id: string;
+  userId: string;
+  city: string;
+  status: RoomScanStatusValue;
+  photoKeys: string[];
+  detections?: unknown;
+  draftBatchId?: string | null;
+  errorMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items?: RoomScanItem[];
+  drafts?: RoomScanDraft[];
+};
+
+export type RoomScanDraftBatchAction =
+  | "publish"
+  | "edit"
+  | "discard";
+
+export type ValuationCard = {
+  currency?: string;
+  estimatedLowKobo: number;
+  estimatedHighKobo: number;
+  recommendedKobo: number;
+  quickSaleKobo?: number;
+  maxValueKobo?: number;
+  confidenceLabel?: string;
+  sampleCount?: number;
+  city?: string;
+  label?: string;
+  categoryHint?: string | null;
+  brandHint?: string | null;
+  basis?: string;
+};
+
+export type ValuationResponse = {
+  id?: string;
+  source: string;
+  city: string;
+  photoKey?: string | null;
+  listingId?: string | null;
+  result: ValuationCard;
+  createdAt?: string;
+};
+
+export type InstantBuyFulfilmentStatusValue =
+  | "PENDING_PICKUP"
+  | "PICKED_UP"
+  | "IN_TRANSIT"
+  | "DELIVERED"
+  | "CONFIRMED"
+  | "SLA_BREACHED"
+  | "REFUNDED"
+  | "CANCELLED"
+  | string;
+
+export type InstantBuyFulfilment = {
+  id: string;
+  orderId: string;
+  listingId: string;
+  status: InstantBuyFulfilmentStatusValue;
+  slaDeadlineAt: string;
+  pickedUpAt?: string | null;
+  deliveredAt?: string | null;
+  confirmedAt?: string | null;
+  refundedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ConsignmentStatusValue =
+  | "INTAKE"
+  | "LISTED"
+  | "SOLD"
+  | "RETURNED"
+  | "EXPIRED"
+  | "CANCELLED"
+  | string;
+
+export type Consignment = {
+  id: string;
+  consignorId: string;
+  listingId?: string | null;
+  status: ConsignmentStatusValue;
+  city: string;
+  title: string;
+  floorPriceKobo: number;
+  askingPriceKobo: number;
+  feeBps: number;
+  soldPriceKobo?: number | null;
+  feeKobo?: number | null;
+  netPayoutKobo?: number | null;
+  listedAt?: string | null;
+  soldAt?: string | null;
+  returnBy?: string | null;
+  returnedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  listing?: PublicListing | null;
+};
+
+export type ConsignmentEarnings = {
+  currency: string;
+  listedCount: number;
+  soldCount: number;
+  pendingPayoutKobo: number;
+  paidOutKobo: number;
+  totalFeesKobo: number;
+  items: Consignment[];
+};
+
+export type ManagedPickupStatusValue =
+  | "BOOKED"
+  | "ASSIGNED"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "NO_SHOW"
+  | string;
+
+export type ManagedPickupSlot = {
+  slotStartAt: string;
+  slotEndAt: string;
+  label?: string;
+  available?: boolean;
+};
+
+export type ManagedPickup = {
+  id: string;
+  userId: string;
+  city: string;
+  status: ManagedPickupStatusValue;
+  slotStartAt: string;
+  slotEndAt: string;
+  addressLine: string;
+  photoAddon: boolean;
+  photoKeys: string[];
+  partnerRef?: string | null;
+  roomScanId?: string | null;
+  createdAt: string;
+  updatedAt: string;
 };

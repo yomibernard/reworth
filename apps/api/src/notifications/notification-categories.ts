@@ -15,7 +15,14 @@ export const NotificationCategory = {
   VERIFICATION_UPDATE: 'VERIFICATION_UPDATE',
   DISPUTE_UPDATE: 'DISPUTE_UPDATE',
   REVIEW_RECEIVED: 'REVIEW_RECEIVED',
+  COMMUNITY_NEW_LISTING: 'COMMUNITY_NEW_LISTING',
+  MOVING_SALE_UPDATE: 'MOVING_SALE_UPDATE',
 } as const;
+
+/** Categories enabled by default when the user has no preference row. */
+export const DEFAULT_ON_CATEGORIES: ReadonlySet<string> = new Set([
+  NotificationCategory.COMMUNITY_NEW_LISTING,
+]);
 
 export type NotificationCategory =
   (typeof NotificationCategory)[keyof typeof NotificationCategory];

@@ -2,19 +2,24 @@
 
 | Field | Value |
 | --- | --- |
-| Current phase | **2.1 — Swap & Give-Away** |
-| Prompt | Post-launch 2.1 |
-| Target tag | `v1.0-swap` |
-| Branch | `phase-2.1-swap` |
-| Status | **Complete (pending PR merge)** |
-| Last updated | 2026-09-13 |
+| Current | **Post-launch complete through 3.3** |
+| Last completed phase | **3.3 — Monetization** `v2.2-monetization` |
+| Status | **Shipped** |
+| Last updated | 2026-09-14 |
 
-## What exists
-- SwapProposal + GiveawayClaim + Order.transactionType / dual legs (ADR-003)
-- API: proposals, claims, order leg hand-over/confirm/fail
-- Web: PDP Swap + Claim CTAs, proposal modal, seller claims page
-- Mobile: Swap sheet (live listing picker + cash) + Claim CTA
-- Tests: `swap.spec.ts` (pure swap zero payments, cash, counter, giveaway race, expiry)
+## Phase 3.3 summary
+
+- RevenueLine ledger + versioned FeeConfig + reconciliation → Finance alerts
+- Seller self-serve (mobile-first): Boost / Featured / Seller Plus
+- Admin `/finance` dashboard (streams × city, take rate, MRR, recon)
+- Docs: `METRICS.md`, `BUYER_JOURNEY_AUDIT.md`, ADR-009
+- Web Boost/Plus companion tracked in `MOBILE_PARITY.md`
 
 ## Resume
-Next: Prompt 2.2 Moving Sales + Estate Communities (`v1.1`).
+
+City launches via `docs/CITY_PLAYBOOK.md` (config-only). Close remaining `MOBILE_PARITY.md` rows. Cross-border remains design-only (ADR-007).
+
+## MVP residual harden (no retag)
+
+- **Phase 6 logistics** — `docs/PHASE_6_HARDENING.md` (Resend, notification centre, delivery quote/meet/disclose/shipment). Tag `v0.6-logistics-notifications` unchanged.
+- Phase 4 chat harden already on main (PR #18).

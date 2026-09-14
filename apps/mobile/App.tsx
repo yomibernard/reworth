@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -10,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { parseDeepLink } from "./lib/notifications";
 import { ChatsPanel } from "./ChatScreens";
 import { ListingDetailModal } from "./ListingDetailModal";
 import {
@@ -26,6 +28,11 @@ import {
 } from "./DiscoveryScreens";
 import { UserProfileModal } from "./UserProfileModal";
 import { PrivacySettings } from "./PrivacySettings";
+import { NotificationsModal } from "./NotificationsScreens";
+import {
+  PlatformToolsModal,
+  type PlatformTool,
+} from "./PlatformTools";
 import { apiFetch, ApiError } from "./lib/api";
 import {
   clearTokens,
@@ -37,6 +44,8 @@ import {
   setOnboardingPhone,
   setTokens,
 } from "./lib/auth";
+import { registerDevicePushToken } from "./lib/push";
+import { listRegions } from "./lib/region";
 import {
   COMMUNITIES,
   type Community,
@@ -71,6 +80,8 @@ export default function App() {
   const [debugHint, setDebugHint] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [homeSearchOpen, setHomeSearchOpen] = useState(false);
+  const [platformTool, setPlatformTool] = useState<PlatformTool>(null);
+  const [cityLabel, setCityLabel] = useState("Lagos");
   const [profileSubtab, setProfileSubtab] = useState<
     "account" | "saved" | "orders"
   >("account");
@@ -83,6 +94,23 @@ export default function App() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [disputeId, setDisputeId] = useState<string | null>(null);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  useEffect(() => {
+    function handleUrl(url: string | null) {
+      if (!url) return;
+      const parsed = parseDeepLink(url);
+      if (parsed?.kind === "order" && parsed.id) setOrderId(parsed.id);
+      else if (parsed?.kind === "dispute" && parsed.id) setDisputeId(parsed.id);
+      else if (parsed?.kind === "chat" && parsed.id) {
+        setOpenChatId(parsed.id);
+        setActive("chats");
+      } else if (parsed?.kind === "listing" && parsed.id) setDetailId(parsed.id);
+    }
+    void Linking.getInitialURL().then(handleUrl);
+    const sub = Linking.addEventListener("url", (e) => handleUrl(e.url));
+    return () => sub.remove();
+  }, []);
 
   const refreshMe = useCallback(async () => {
     const token = await getAccessToken();
@@ -118,6 +146,29 @@ export default function App() {
       setBooting(false);
     })();
   }, [refreshMe]);
+
+  useEffect(() => {
+    void listRegions()
+      .then((items) => {
+        const lagos = items.find((c) => c.city === "lagos");
+        if (lagos) setCityLabel(lagos.displayName);
+        else if (items[0]) setCityLabel(items[0].displayName);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (!authed) return;
+    void (async () => {
+      const token = await getAccessToken();
+      if (!token) return;
+      try {
+        await registerDevicePushToken(token);
+      } catch {
+        /* push optional until store credentials exist */
+      }
+    })();
+  }, [authed]);
 
   useEffect(() => {
     if (active !== "home") setHomeSearchOpen(false);
@@ -484,6 +535,15 @@ export default function App() {
                     : ""}
                 </Text>
 
+                <Pressable
+                  style={styles.secondaryBtn}
+                  onPress={() => setNotificationsOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open notifications"
+                >
+                  <Text style={styles.secondaryBtnText}>Notifications</Text>
+                </Pressable>
+
                 <Text style={styles.sectionLabel}>Verification</Text>
                 <View style={styles.badges}>
                   <Badge
@@ -537,8 +597,10 @@ export default function App() {
               community={
                 me?.profile?.preferredCommunity || community || undefined
               }
+              cityLabel={cityLabel}
               onOpenSearch={() => setHomeSearchOpen(true)}
               onOpenListing={(id) => setDetailId(id)}
+              onOpenTool={(tool) => setPlatformTool(tool)}
             />
           )
         ) : active === "discover" ? (
@@ -616,6 +678,16 @@ export default function App() {
         }}
       />
 
+      <PlatformToolsModal
+        tool={platformTool}
+        city={cityLabel}
+        onClose={() => setPlatformTool(null)}
+        onOpenListing={(id) => {
+          setPlatformTool(null);
+          setDetailId(id);
+        }}
+      />
+
       <UserProfileModal
         userId={profileUserId}
         meId={me?.id ?? null}
@@ -623,6 +695,28 @@ export default function App() {
         onOpenListing={(listingId) => {
           setProfileUserId(null);
           setDetailId(listingId);
+        }}
+      />
+
+      <NotificationsModal
+        visible={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+        onOpenOrder={(id) => {
+          setNotificationsOpen(false);
+          setOrderId(id);
+        }}
+        onOpenDispute={(id) => {
+          setNotificationsOpen(false);
+          setDisputeId(id);
+        }}
+        onOpenChat={(id) => {
+          setNotificationsOpen(false);
+          setOpenChatId(id);
+          setActive("chats");
+        }}
+        onOpenListing={(id) => {
+          setNotificationsOpen(false);
+          setDetailId(id);
         }}
       />
 

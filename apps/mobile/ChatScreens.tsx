@@ -24,11 +24,13 @@ import {
   listMessages,
   listOffers,
   markConversationRead,
+  muteConversation,
   nairaToKobo,
   offerStatusLabel,
   postMessage,
   rejectOffer,
   reportUser,
+  unmuteConversation,
   withdrawOffer,
   type ChatMessage,
   type ConversationListItem,
@@ -175,6 +177,8 @@ export function ChatsPanel({
                           {c.unreadCount > 99 ? "99+" : c.unreadCount}
                         </Text>
                       </View>
+                    ) : c.muted ? (
+                      <Text style={styles.mutedChip}>Muted</Text>
                     ) : null}
                   </View>
                   <Text style={styles.rowPreview} numberOfLines={1}>
@@ -503,6 +507,28 @@ function ChatThread({
     }
   }
 
+  async function doMuteToggle() {
+    const token = await getAccessToken();
+    if (!token || !meta) return;
+    setBusy(true);
+    try {
+      if (meta.muted) {
+        await unmuteConversation(token, meta.id);
+        setMeta({ ...meta, muted: false });
+        setToast("Unmuted");
+      } else {
+        await muteConversation(token, meta.id);
+        setMeta({ ...meta, muted: true, unreadCount: 0 });
+        setToast("Muted — no badges for new messages");
+      }
+      setSafetyOpen(false);
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "Mute failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function renderOfferCard(offer: OfferDto) {
     const isSeller = meId === offer.sellerId;
     const isBuyer = meId === offer.buyerId;
@@ -779,6 +805,16 @@ function ChatThread({
               <Text style={styles.secondaryBtnText}>Report user</Text>
             </Pressable>
             <Pressable
+              style={[styles.secondaryBtn, busy && styles.disabled]}
+              disabled={busy}
+              onPress={() => void doMuteToggle()}
+              accessibilityLabel={meta?.muted ? "Unmute conversation" : "Mute conversation"}
+            >
+              <Text style={styles.secondaryBtnText}>
+                {meta?.muted ? "Unmute conversation" : "Mute conversation"}
+              </Text>
+            </Pressable>
+            <Pressable
               style={[styles.dangerBtn, busy && styles.disabled]}
               disabled={busy}
               onPress={() => void doBlock()}
@@ -887,6 +923,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   badgeText: { color: "#FFF", fontSize: 11, fontWeight: "700" },
+  mutedChip: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#5C636A",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
   emptyTitle: { fontSize: 17, fontWeight: "700", color: "#111315" },
   muted: { fontSize: 14, color: "#5C636A" },
   error: { color: "#DC2626", fontSize: 15 },

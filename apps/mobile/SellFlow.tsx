@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -21,6 +21,13 @@ import {
   presignMedia,
   publishListing,
 } from "./lib/listings";
+import {
+  cancelSellerPlus,
+  getSellerPlan,
+  newIdempotencyKey,
+  upgradeSellerPlus,
+  type SellerPlan,
+} from "./lib/monetization";
 import {
   COMMUNITIES,
   formatNgnFromKobo,
@@ -130,12 +137,72 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
   const [fulfilmentMeet, setFulfilmentMeet] = useState(true);
   const [fulfilmentDelivery, setFulfilmentDelivery] = useState(false);
   const [published, setPublished] = useState<PublicListing | null>(null);
+  const [sellerPlan, setSellerPlan] = useState<SellerPlan | null>(null);
+  const [planBusy, setPlanBusy] = useState(false);
+  const [planToast, setPlanToast] = useState<string | null>(null);
 
   const tokenOrThrow = useCallback(async () => {
     const token = await getAccessToken();
     if (!token) throw new Error("Not signed in");
     return token;
   }, []);
+
+  const loadSellerPlan = useCallback(async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        setSellerPlan(null);
+        return;
+      }
+      const plan = await getSellerPlan(token);
+      setSellerPlan(plan);
+    } catch {
+      // Plan load failure must not block listing creation
+      setSellerPlan(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSellerPlan();
+  }, [loadSellerPlan]);
+
+  async function onUpgradePlus() {
+    setPlanBusy(true);
+    setPlanToast(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        setPlanToast("Sign in to upgrade");
+        return;
+      }
+      await upgradeSellerPlus(token, newIdempotencyKey("seller_plus"));
+      await loadSellerPlan();
+      setPlanToast("Seller Plus active");
+    } catch {
+      setPlanToast("Upgrade failed — try again or contact support");
+    } finally {
+      setPlanBusy(false);
+    }
+  }
+
+  async function onCancelPlus() {
+    setPlanBusy(true);
+    setPlanToast(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        setPlanToast("Sign in to manage plan");
+        return;
+      }
+      await cancelSellerPlus(token);
+      await loadSellerPlan();
+      setPlanToast("Plus cancelled at period end");
+    } catch {
+      setPlanToast("Cancel failed — try again or contact support");
+    } finally {
+      setPlanBusy(false);
+    }
+  }
 
   async function ensureDraft(token: string) {
     if (listingId) return listingId;
@@ -309,6 +376,47 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
         Sell
       </Text>
       <Text style={styles.stepHint}>{stepLabel(step)}</Text>
+
+      <View style={styles.planCard}>
+        <Text style={styles.planTitle}>
+          Seller plan · {sellerPlan?.tier === "PLUS" ? "Plus" : "Starter"}
+        </Text>
+        <Text style={styles.planCopy}>
+          {sellerPlan?.tier === "PLUS"
+            ? `Up to ${sellerPlan.maxActiveListings} listings · featured slots & analytics`
+            : "Upgrade for more live listings, a featured slot, and analytics."}
+        </Text>
+        {sellerPlan?.tier === "PLUS" ? (
+          <Pressable
+            style={[styles.planBtn, planBusy && styles.btnDisabled]}
+            disabled={planBusy}
+            onPress={() => void onCancelPlus()}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel Seller Plus"
+          >
+            <Text style={styles.planBtnText}>
+              {planBusy ? "…" : "Cancel Plus"}
+            </Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={[styles.planBtnPrimary, planBusy && styles.btnDisabled]}
+            disabled={planBusy}
+            onPress={() => void onUpgradePlus()}
+            accessibilityRole="button"
+            accessibilityLabel="Upgrade to Seller Plus"
+          >
+            <Text style={styles.planBtnPrimaryText}>
+              {planBusy ? "…" : "Upgrade to Plus"}
+            </Text>
+          </Pressable>
+        )}
+        {planToast ? (
+          <Pressable onPress={() => setPlanToast(null)}>
+            <Text style={styles.planToast}>{planToast}</Text>
+          </Pressable>
+        ) : null}
+      </View>
 
       {step === "photos" ? (
         <View>
@@ -780,5 +888,43 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: "#111315",
+  },
+  planCard: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E2DC",
+    backgroundColor: "#FFFFFF",
+  },
+  planTitle: { fontSize: 15, fontWeight: "700", color: "#111315" },
+  planCopy: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#5C636A",
+  },
+  planBtn: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#E5E2DC",
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  planBtnText: { fontSize: 14, fontWeight: "600", color: "#111315" },
+  planBtnPrimary: {
+    marginTop: 12,
+    backgroundColor: "#0E9F6E",
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  planBtnPrimaryText: { fontSize: 14, fontWeight: "700", color: "#FFFFFF" },
+  planToast: {
+    marginTop: 10,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0E9F6E",
   },
 });

@@ -15,6 +15,7 @@ import {
 } from '../providers/geocoding.provider';
 import { MediaService } from '../media/media.service';
 import { FavouritesService } from '../favourites/favourites.service';
+import { CommunityVisibilityService } from '../communities/community-visibility.service';
 import { ModerationService } from '../moderation/moderation.service';
 import { RiskEngineService } from '../risk/risk-engine.service';
 import { AnalyticsService } from './analytics.service';
@@ -22,6 +23,7 @@ import { ListingAssistService } from './listing-assist.service';
 import { ListingStateMachine } from './listing-state.machine';
 import { PriceIntelligenceService } from './price-intelligence.service';
 import { toPublicListing } from './public-listing.mapper';
+import { FeatureStoreService } from '../intelligence/feature-store.service';
 import type {
   AttachImagesDto,
   BrowseListingsQueryDto,
@@ -36,11 +38,19 @@ const listingInclude = {
   category: true,
   subcategory: true,
   images: { orderBy: { sortOrder: 'asc' as const } },
+  estateCommunity: true,
+  movingSale: true,
+  vehicleInspections: {
+    where: { status: { in: ['COMPLETED', 'EXPIRED'] as const } },
+    orderBy: { completedAt: 'desc' as const },
+    take: 1,
+  },
   seller: {
     include: {
       profile: true,
       verifications: true,
       trustScore: true,
+      proAccount: true,
       _count: {
         select: {
           reviewsReceived: { where: { status: 'PUBLISHED' as const } },
@@ -63,9 +73,11 @@ export class ListingsService {
     private readonly priceIntel: PriceIntelligenceService,
     private readonly media: MediaService,
     @Inject(GEOCODING_PROVIDER) private readonly geo: GeocodingProvider,
+    private readonly visibility: CommunityVisibilityService,
     @Optional()
     @Inject(forwardRef(() => FavouritesService))
     private readonly favourites?: FavouritesService,
+    @Optional() private readonly features?: FeatureStoreService,
   ) {}
 
   async listCategories() {
@@ -120,6 +132,10 @@ export class ListingsService {
         sellingMode: dto.sellingMode ?? 'SELL',
         status: 'DRAFT',
         community: dto.community ?? '',
+        communityId: dto.communityId,
+        communityOnly: dto.communityOnly ?? false,
+        movingSaleId: dto.movingSaleId,
+        city: dto.city?.trim() || 'Lagos',
         geoLat,
         geoLng,
         addressPrivate: dto.addressPrivate,
@@ -127,6 +143,8 @@ export class ListingsService {
         fulfilmentMeet: dto.fulfilmentMeet ?? true,
         fulfilmentDelivery: dto.fulfilmentDelivery ?? false,
         vehicle: dto.vehicle ? (dto.vehicle as Prisma.InputJsonValue) : undefined,
+        instantBuyEligible: dto.instantBuyEligible ?? false,
+        ...(await this.luxuryAuthDefaults(dto.categoryId)),
       },
       include: listingInclude,
     });
@@ -143,12 +161,15 @@ export class ListingsService {
     const status = (query.status as ListingStatus) || 'LIVE';
     const where: Prisma.ListingWhereInput = {
       status: status === 'LIVE' ? { in: PUBLIC_STATUSES } : status,
+      AND: [this.visibility.visibleListingWhere(viewerId)],
     };
     if (query.community) where.community = query.community;
+    if (query.city) where.city = query.city;
     if (query.categoryId) where.categoryId = query.categoryId;
     if (query.mine === '1' && viewerId) {
       where.sellerId = viewerId;
       where.status = status;
+      delete where.AND;
     }
 
     const rows = await this.prisma.listing.findMany({
@@ -174,9 +195,61 @@ export class ListingsService {
       });
     }
 
-    return filtered.map((r) =>
-      toPublicListing(r, { viewerLat: query.lat, viewerLng: query.lng }),
-    );
+    const now = new Date();
+    const promoRows = await this.prisma.promotion.findMany({
+      where: {
+        listingId: { in: filtered.map((r) => r.id) },
+        paymentStatus: 'SUCCESS',
+        startsAt: { lte: now },
+        endsAt: { gt: now },
+        kind: { in: ['BOOST', 'FEATURED', 'PROMOTED'] },
+      },
+    });
+    const promoByListing = new Map<
+      string,
+      { boosted: boolean; featured: boolean; boostedUntil: Date | null; featuredUntil: Date | null; rank: number }
+    >();
+    for (const p of promoRows) {
+      const cur = promoByListing.get(p.listingId) ?? {
+        boosted: false,
+        featured: false,
+        boostedUntil: null,
+        featuredUntil: null,
+        rank: 0,
+      };
+      if (p.kind === 'FEATURED' || p.kind === 'PROMOTED') {
+        cur.featured = true;
+        cur.featuredUntil = p.endsAt;
+        cur.rank = Math.max(cur.rank, 2);
+      }
+      if (p.kind === 'BOOST') {
+        cur.boosted = true;
+        cur.boostedUntil = p.endsAt;
+        cur.rank = Math.max(cur.rank, 1);
+      }
+      promoByListing.set(p.listingId, cur);
+    }
+
+    filtered = [...filtered].sort((a, b) => {
+      const ra = promoByListing.get(a.id)?.rank ?? 0;
+      const rb = promoByListing.get(b.id)?.rank ?? 0;
+      if (rb !== ra) return rb - ra;
+      const ta = a.publishedAt?.getTime() ?? 0;
+      const tb = b.publishedAt?.getTime() ?? 0;
+      return tb - ta;
+    });
+
+    return filtered.map((r) => {
+      const promo = promoByListing.get(r.id);
+      return toPublicListing(r, {
+        viewerLat: query.lat,
+        viewerLng: query.lng,
+        boosted: promo?.boosted,
+        featured: promo?.featured,
+        boostedUntil: promo?.boostedUntil ?? null,
+        featuredUntil: promo?.featuredUntil ?? null,
+      });
+    });
   }
 
   async getById(id: string, viewerId?: string | null) {
@@ -192,6 +265,11 @@ export class ListingsService {
       throw new NotFoundException('Listing not found');
     }
 
+    const canView = await this.visibility.canViewListing(listing, viewerId);
+    if (!canView) {
+      throw new NotFoundException('Listing not found');
+    }
+
     if (isPublic) {
       await this.prisma.listing.update({
         where: { id },
@@ -204,9 +282,49 @@ export class ListingsService {
           actorUserId: viewerId ?? null,
         },
       });
+      if (this.features) {
+        void this.features
+          .recordListingEvent({
+            listingId: id,
+            city: listing.city,
+            kind: 'view',
+          })
+          .catch(() => undefined);
+        if (viewerId) {
+          void this.features
+            .recordUserEvent({
+              userId: viewerId,
+              city: listing.city,
+              categoryId: listing.categoryId,
+              brand: listing.brand,
+              community: listing.community,
+              priceKobo: listing.priceKobo,
+              kind: 'view',
+            })
+            .catch(() => undefined);
+        }
+      }
     }
 
-    return toPublicListing(listing);
+    const now = new Date();
+    const activePromos = await this.prisma.promotion.findMany({
+      where: {
+        listingId: id,
+        paymentStatus: 'SUCCESS',
+        startsAt: { lte: now },
+        endsAt: { gt: now },
+        kind: { in: ['BOOST', 'FEATURED'] },
+      },
+    });
+    const boost = activePromos.find((p) => p.kind === 'BOOST');
+    const featured = activePromos.find((p) => p.kind === 'FEATURED');
+
+    return toPublicListing(listing, {
+      boosted: Boolean(boost),
+      featured: Boolean(featured),
+      boostedUntil: boost?.endsAt ?? null,
+      featuredUntil: featured?.endsAt ?? null,
+    });
   }
 
   async update(id: string, sellerId: string, dto: UpdateListingDto) {
@@ -238,6 +356,18 @@ export class ListingsService {
           ? { sellingMode: dto.sellingMode }
           : {}),
         ...(dto.community !== undefined ? { community: dto.community } : {}),
+        ...(dto.communityId !== undefined
+          ? { communityId: dto.communityId }
+          : {}),
+        ...(dto.communityOnly !== undefined
+          ? { communityOnly: dto.communityOnly }
+          : {}),
+        ...(dto.movingSaleId !== undefined
+          ? { movingSaleId: dto.movingSaleId }
+          : {}),
+        ...(dto.city !== undefined
+          ? { city: dto.city.trim() || 'Lagos' }
+          : {}),
         ...(dto.geoLat !== undefined ? { geoLat: dto.geoLat } : {}),
         ...(dto.geoLng !== undefined ? { geoLng: dto.geoLng } : {}),
         ...(dto.addressPrivate !== undefined
@@ -254,6 +384,20 @@ export class ListingsService {
           : {}),
         ...(dto.vehicle !== undefined
           ? { vehicle: dto.vehicle as Prisma.InputJsonValue }
+          : {}),
+        ...(dto.authRequired !== undefined
+          ? {
+              authRequired: dto.authRequired,
+              authenticationStatus: dto.authRequired
+                ? ('REQUIRED' as const)
+                : ('OPTED_OUT' as const),
+            }
+          : {}),
+        ...(dto.instantBuyEligible !== undefined
+          ? { instantBuyEligible: dto.instantBuyEligible }
+          : {}),
+        ...(dto.categoryId !== undefined
+          ? await this.luxuryAuthDefaults(dto.categoryId, dto.authRequired)
           : {}),
       },
       include: listingInclude,
@@ -428,6 +572,32 @@ export class ListingsService {
       throw new ForbiddenException('Not the listing owner');
     }
     return listing;
+  }
+
+  /** Luxury category defaults authRequired=true / REQUIRED unless seller opted out. */
+  private async luxuryAuthDefaults(
+    categoryId?: string | null,
+    authRequiredOverride?: boolean,
+  ): Promise<{
+    authRequired?: boolean;
+    authenticationStatus?: 'REQUIRED' | 'OPTED_OUT' | 'NOT_REQUIRED';
+  }> {
+    if (!categoryId) return {};
+    const category = await this.prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { slug: true },
+    });
+    if (!category || category.slug !== 'luxury') {
+      if (authRequiredOverride === undefined) return {};
+      return {
+        authRequired: authRequiredOverride,
+        authenticationStatus: authRequiredOverride ? 'REQUIRED' : 'OPTED_OUT',
+      };
+    }
+    if (authRequiredOverride === false) {
+      return { authRequired: false, authenticationStatus: 'OPTED_OUT' };
+    }
+    return { authRequired: true, authenticationStatus: 'REQUIRED' };
   }
 
   private async emitStatus(

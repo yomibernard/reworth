@@ -11,6 +11,7 @@ import { ListingStateMachine } from '../listings/listing-state.machine';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatGateway } from '../chat/chat.gateway';
 import { NotificationStub } from '../chat/notification.stub';
+import { FeatureStoreService } from '../intelligence/feature-store.service';
 import type { CounterOfferDto, CreateOfferDto } from './dto/offers.dto';
 
 export type OfferDto = {
@@ -65,6 +66,7 @@ export class OffersService {
     private readonly config: ConfigService,
     private readonly notifications: NotificationStub,
     @Optional() private readonly gateway?: ChatGateway,
+    @Optional() private readonly features?: FeatureStoreService,
   ) {}
 
   private expiryHours(): number {
@@ -142,6 +144,26 @@ export class OffersService {
 
     const mapped = toOfferDto(offer);
     this.gateway?.emitOfferUpdated(offer.conversationId, mapped);
+    if (this.features) {
+      void this.features
+        .recordUserEvent({
+          userId: buyerId,
+          city: listing.city,
+          categoryId: listing.categoryId,
+          brand: listing.brand,
+          community: listing.community,
+          priceKobo: listing.priceKobo,
+          kind: 'offer',
+        })
+        .catch(() => undefined);
+      void this.features
+        .recordListingEvent({
+          listingId,
+          city: listing.city,
+          kind: 'offer',
+        })
+        .catch(() => undefined);
+    }
     return mapped;
   }
 

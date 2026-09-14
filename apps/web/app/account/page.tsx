@@ -11,6 +11,7 @@ import {
   getRefreshToken,
 } from "../../lib/auth";
 import { COMMUNITIES, type Community } from "../../lib/communities";
+import { listRegions, type RegionCity } from "../../lib/region";
 import type { DeviceRow, MeResponse } from "../../lib/types";
 
 function VerificationBadges({
@@ -57,6 +58,8 @@ export default function AccountPage() {
   const [devices, setDevices] = useState<DeviceRow[] | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [community, setCommunity] = useState<Community | "">("");
+  const [cities, setCities] = useState<RegionCity[]>([]);
+  const [city, setCity] = useState("Lagos");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState(false);
@@ -73,9 +76,10 @@ export default function AccountPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [profile, deviceRes] = await Promise.all([
+      const [profile, deviceRes, regions] = await Promise.all([
         apiFetch<MeResponse>("/me", { token }),
         apiFetch<{ devices: DeviceRow[] }>("/me/devices", { token }),
+        listRegions().catch(() => [] as RegionCity[]),
       ]);
       setMe(profile);
       setDisplayName(profile.profile?.displayName ?? "");
@@ -86,6 +90,11 @@ export default function AccountPage() {
           : "",
       );
       setDevices(deviceRes.devices);
+      setCities(regions);
+      const profileCity =
+        (profile.profile as { preferredCity?: string } | null)?.preferredCity;
+      if (profileCity) setCity(profileCity);
+      else if (regions.length) setCity(regions[0].key);
     } catch (err) {
       setLoadError(
         err instanceof ApiError ? err.message : "Could not load account.",
@@ -121,7 +130,11 @@ export default function AccountPage() {
       const updated = await apiFetch<MeResponse>("/me", {
         method: "PATCH",
         token,
-        body: { displayName: name, preferredCommunity: community },
+        body: {
+          displayName: name,
+          preferredCommunity: community,
+          ...(cities.length ? { preferredCity: city } : {}),
+        },
       });
       setMe(updated);
       setSaveOk(true);
@@ -193,7 +206,73 @@ export default function AccountPage() {
           >
             ReWorth
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+            <Link
+              href="/ask"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Ask ReWorth
+            </Link>
+            <Link
+              href="/room-scan"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Room scan
+            </Link>
+            <Link
+              href="/worth"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Worth
+            </Link>
+            <Link
+              href="/consign"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Consign
+            </Link>
+            <Link
+              href="/pickup"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Pickup
+            </Link>
+            <Link
+              href="/account/communities"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Communities
+            </Link>
+            <Link
+              href="/sell/analytics"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Seller analytics
+            </Link>
+            <Link
+              href="/pro"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Pro seller
+            </Link>
+            <Link
+              href="/corporate"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Corporate
+            </Link>
+            <Link
+              href="/partner"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Partner
+            </Link>
+            <Link
+              href="/referrals"
+              className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Referrals
+            </Link>
             <Link
               href="/orders"
               className="text-sm font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
@@ -257,6 +336,23 @@ export default function AccountPage() {
                   disabled={saving}
                   required
                 />
+                {cities.length > 0 ? (
+                  <label className="flex flex-col gap-1.5 text-sm font-medium">
+                    City
+                    <select
+                      className="rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg)] px-3 py-2.5 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      disabled={saving}
+                    >
+                      {cities.map((c) => (
+                        <option key={c.key} value={c.key}>
+                          {c.displayName || c.key}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 <fieldset>
                   <legend className="mb-3 text-sm font-medium">
                     Preferred community

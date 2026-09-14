@@ -87,6 +87,7 @@ export class DeliveryService {
       fromLng: listing.geoLng,
       toLat,
       toLng,
+      city: listing.city,
     });
 
     const deliveryFeeKobo = quote.feeKobo;

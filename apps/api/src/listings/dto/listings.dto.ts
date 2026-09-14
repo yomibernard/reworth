@@ -74,6 +74,23 @@ export class CreateListingDto {
   community?: string;
 
   @IsOptional()
+  @IsUUID()
+  communityId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  communityOnly?: boolean;
+
+  @IsOptional()
+  @IsUUID()
+  movingSaleId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  city?: string;
+
+  @IsOptional()
   @IsNumber()
   geoLat?: number;
 
@@ -100,6 +117,10 @@ export class CreateListingDto {
   @IsOptional()
   @IsObject()
   vehicle?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsBoolean()
+  instantBuyEligible?: boolean;
 }
 
 export class UpdateListingDto {
@@ -160,6 +181,23 @@ export class UpdateListingDto {
   community?: string;
 
   @IsOptional()
+  @IsUUID()
+  communityId?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  communityOnly?: boolean;
+
+  @IsOptional()
+  @IsUUID()
+  movingSaleId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  city?: string;
+
+  @IsOptional()
   @IsNumber()
   geoLat?: number;
 
@@ -186,6 +224,15 @@ export class UpdateListingDto {
   @IsOptional()
   @IsObject()
   vehicle?: Record<string, unknown>;
+
+  /** Luxury: seller can set false → OPTED_OUT / Unauthenticated. */
+  @IsOptional()
+  @IsBoolean()
+  authRequired?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  instantBuyEligible?: boolean;
 }
 
 export class AssistListingDto {
@@ -232,6 +279,10 @@ export class BrowseListingsQueryDto {
   @IsOptional()
   @IsString()
   community?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
 
   @IsOptional()
   @Type(() => Number)

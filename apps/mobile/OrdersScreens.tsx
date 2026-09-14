@@ -11,6 +11,17 @@ import {
 } from "react-native";
 import { ApiError, apiFetch } from "./lib/api";
 import { getAccessToken } from "./lib/auth";
+import {
+  discloseOrderAddress,
+  fallbackDeliveryDestination,
+  getDeliveryQuote,
+  getOrderShipment,
+  listMeetPoints,
+  setOrderMeetPoint,
+  shipmentStatusLabel,
+  type DeliveryShipment,
+  type MeetPoint,
+} from "./lib/delivery";
 import { getListing } from "./lib/listings";
 import {
   addDisputeEvidence,
@@ -176,12 +187,19 @@ export function CheckoutModal({
   const [payment, setPayment] = useState<PaymentDto | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(false);
+  const [meetPoints, setMeetPoints] = useState<MeetPoint[]>([]);
+  const [meetPointId, setMeetPointId] = useState<string | null>(null);
+  const [deliveryFeeKobo, setDeliveryFeeKobo] = useState(0);
+  const [quoteBusy, setQuoteBusy] = useState(false);
 
   useEffect(() => {
     if (!listingId) {
       setListing(null);
       setPayment(null);
       setOrderId(null);
+      setMeetPoints([]);
+      setMeetPointId(null);
+      setDeliveryFeeKobo(0);
       return;
     }
     let cancelled = false;
@@ -190,6 +208,7 @@ export function CheckoutModal({
       setError(null);
       setPayment(null);
       setOrderId(null);
+      setDeliveryFeeKobo(0);
       try {
         const token = await getAccessToken();
         const data = await getListing(listingId, token);
@@ -204,6 +223,20 @@ export function CheckoutModal({
                 ? "DELIVERY"
                 : "MEET_POINT",
         );
+        if (token && data.fulfilmentMeet !== false) {
+          try {
+            const points = await listMeetPoints(
+              token,
+              data.community || undefined,
+            );
+            if (!cancelled) {
+              setMeetPoints(points);
+              setMeetPointId(points[0]?.id ?? null);
+            }
+          } catch {
+            if (!cancelled) setMeetPoints([]);
+          }
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof ApiError ? err.message : "Load failed");
@@ -224,8 +257,9 @@ export function CheckoutModal({
       computeOrderTotalKobo({
         amountKobo,
         protectionFeeKobo: fee,
+        deliveryFeeKobo: fulfilment === "DELIVERY" ? deliveryFeeKobo : 0,
       }),
-    [amountKobo, fee],
+    [amountKobo, fee, fulfilment, deliveryFeeKobo],
   );
 
   async function placeAndPay() {
@@ -244,6 +278,27 @@ export function CheckoutModal({
             : { buyNow: true }),
       });
       setOrderId(order.id);
+
+      if (fulfilment === "MEET_POINT" && meetPointId) {
+        await setOrderMeetPoint(token, order.id, meetPointId);
+      }
+
+      if (fulfilment === "DELIVERY") {
+        setQuoteBusy(true);
+        const dest = fallbackDeliveryDestination(
+          (listing as { geoLat?: number | null })?.geoLat,
+          (listing as { geoLng?: number | null })?.geoLng,
+        );
+        const quote = await getDeliveryQuote(
+          token,
+          order.id,
+          dest.toLat,
+          dest.toLng,
+        );
+        setDeliveryFeeKobo(quote.deliveryFeeKobo ?? quote.feeKobo);
+        setQuoteBusy(false);
+      }
+
       const pay = await initiatePayment(token, {
         orderId: order.id,
         idempotencyKey: newIdempotencyKey(),
@@ -253,6 +308,7 @@ export function CheckoutModal({
       setError(err instanceof ApiError ? err.message : "Checkout failed");
     } finally {
       setBusy(false);
+      setQuoteBusy(false);
     }
   }
 
@@ -359,9 +415,56 @@ export function CheckoutModal({
                     ))}
                 </View>
 
+                {fulfilment === "MEET_POINT" && meetPoints.length > 0 ? (
+                  <>
+                    <Text style={styles.section}>Safe meet point</Text>
+                    <View style={styles.rowWrap}>
+                      {meetPoints.map((p) => (
+                        <Pressable
+                          key={p.id}
+                          style={[
+                            styles.chip,
+                            meetPointId === p.id && styles.chipOn,
+                          ]}
+                          onPress={() => setMeetPointId(p.id)}
+                          disabled={Boolean(payment)}
+                        >
+                          <Text
+                            style={[
+                              styles.chipText,
+                              meetPointId === p.id && styles.chipTextOn,
+                            ]}
+                          >
+                            {p.name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    {meetPointId ? (
+                      <Text style={styles.muted}>
+                        {meetPoints.find((p) => p.id === meetPointId)?.landmark}
+                      </Text>
+                    ) : null}
+                  </>
+                ) : null}
+
+                {fulfilment === "DELIVERY" ? (
+                  <Text style={styles.muted}>
+                    Delivery quote is calculated after you create the order
+                    (₦1,500 + ₦150/km). Fee joins the total before payment.
+                    {quoteBusy ? " Quoting…" : ""}
+                  </Text>
+                ) : null}
+
                 <View style={styles.breakdown}>
                   <Row label="Item" value={formatNgnFromKobo(amountKobo)} />
                   <Row label="Protection fee" value={formatNgnFromKobo(fee)} />
+                  {fulfilment === "DELIVERY" && deliveryFeeKobo > 0 ? (
+                    <Row
+                      label="Delivery"
+                      value={formatNgnFromKobo(deliveryFeeKobo)}
+                    />
+                  ) : null}
                   <Row
                     label="Total"
                     value={formatNgnFromKobo(total)}
@@ -443,6 +546,9 @@ export function OrderDetailModal({
   const [punctuality, setPunctuality] = useState(5);
   const [experience, setExperience] = useState(5);
   const [reviewBody, setReviewBody] = useState("");
+  const [shipment, setShipment] = useState<DeliveryShipment | null>(null);
+  const [discloseBusy, setDiscloseBusy] = useState(false);
+  const [disclosedAddress, setDisclosedAddress] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!orderId) return;
@@ -453,6 +559,16 @@ export function OrderDetailModal({
     try {
       const detail = await getOrder(token, orderId);
       setOrder(detail);
+      if (detail.fulfilmentMethod === "DELIVERY") {
+        try {
+          const ship = await getOrderShipment(token, orderId);
+          setShipment(ship);
+        } catch {
+          setShipment(null);
+        }
+      } else {
+        setShipment(null);
+      }
       if (detail.status === "COMPLETED" && meId) {
         const counterpartId =
           meId === detail.buyerId ? detail.sellerId : detail.buyerId;
@@ -594,7 +710,74 @@ export function OrderDetailModal({
                     label="Protection fee"
                     value={formatNgnFromKobo(order.protectionFeeKobo)}
                   />
+                  {order.deliveryFeeKobo > 0 ? (
+                    <Row
+                      label="Delivery"
+                      value={formatNgnFromKobo(order.deliveryFeeKobo)}
+                    />
+                  ) : null}
                 </View>
+
+                {shipment ? (
+                  <View style={styles.protect}>
+                    <Text style={styles.protectTitle}>Delivery tracking</Text>
+                    <Text style={styles.badge}>
+                      {shipmentStatusLabel(shipment.status)}
+                    </Text>
+                    {shipment.events?.map((e) => (
+                      <Text key={e.id} style={styles.muted}>
+                        {shipmentStatusLabel(e.status)} ·{" "}
+                        {new Date(e.createdAt).toLocaleString()}
+                      </Text>
+                    ))}
+                  </View>
+                ) : null}
+
+                {isSeller &&
+                order.fulfilmentMethod === "PICKUP" &&
+                ["FUNDED", "HANDED_OVER"].includes(String(order.status)) ? (
+                  <View style={styles.protect}>
+                    <Text style={styles.protectTitle}>Pickup address</Text>
+                    <Text style={styles.muted}>
+                      Share your exact address only after payment. This cannot
+                      be revoked.
+                    </Text>
+                    {disclosedAddress ? (
+                      <Text style={styles.cardTitle}>{disclosedAddress}</Text>
+                    ) : (
+                      <Pressable
+                        style={[styles.secondaryBtn, discloseBusy && styles.disabled]}
+                        disabled={discloseBusy}
+                        onPress={() =>
+                          void (async () => {
+                            const token = await getAccessToken();
+                            if (!token || !orderId) return;
+                            setDiscloseBusy(true);
+                            try {
+                              const res = await discloseOrderAddress(
+                                token,
+                                orderId,
+                              );
+                              setDisclosedAddress(res.addressSnapshot);
+                            } catch (err) {
+                              setError(
+                                err instanceof ApiError
+                                  ? err.message
+                                  : "Disclose failed",
+                              );
+                            } finally {
+                              setDiscloseBusy(false);
+                            }
+                          })()
+                        }
+                      >
+                        <Text style={styles.secondaryBtnText}>
+                          {discloseBusy ? "…" : "Disclose address to buyer"}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ) : null}
 
                 {disputeId ? (
                   <Pressable

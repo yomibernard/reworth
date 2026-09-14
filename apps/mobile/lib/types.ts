@@ -48,6 +48,21 @@ export type PublicListing = {
   sellingMode: string;
   status: string;
   community: string;
+  city?: string | null;
+  communityId?: string | null;
+  communityOnly?: boolean;
+  communityChip?: {
+    id: string;
+    slug: string;
+    name: string;
+    privacy: string;
+  } | null;
+  movingSale?: {
+    id: string;
+    title: string;
+    deadline: string;
+    status: string;
+  } | null;
   images: PublicListingImage[];
   seller: {
     id: string;
@@ -63,12 +78,43 @@ export type PublicListing = {
   buyerProtection: true;
   createdAt: string;
   publishedAt: string | null;
+  vehicle?: Record<string, unknown> | null;
+  inspectedBadge?:
+    | boolean
+    | {
+        inspected: boolean;
+        completedAt?: string | null;
+        inspectionId?: string | null;
+      }
+    | null;
+  inspectedAt?: string | null;
+  authRequired?: boolean;
+  authenticationStatus?: string | null;
+  certificateId?: string | null;
+  /** Phase 3.1 — Instant Buy eligible. */
+  instantBuyEligible?: boolean;
+  /** Phase 3.3 — seller promotions */
+  boosted?: boolean;
+  featured?: boolean;
+  boostedUntil?: string | null;
+  featuredUntil?: string | null;
 };
 
 export type PriceIntelligence = {
+  listingId?: string;
+  currency?: string;
   estimatedLowKobo: number;
   estimatedHighKobo: number;
   recommendedKobo: number;
+  estimatedLowNaira?: number;
+  estimatedHighNaira?: number;
+  recommendedNaira?: number;
+  basis?: string;
+  quickSaleKobo?: number;
+  maxValueKobo?: number;
+  confidenceLabel?: string;
+  sampleCount?: number;
+  city?: string;
 };
 
 export type SellingModeValue = "SELL" | "SWAP" | "GIVE_AWAY";

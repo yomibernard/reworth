@@ -6,6 +6,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { NotificationCategory } from '../notifications/notification-categories';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -16,6 +17,7 @@ import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
 } from '../providers/payment.provider';
+import { VehicleInspectionsService } from '../verticals/vehicle-inspections.service';
 import {
   DisputeEvidenceDto,
   OpenDisputeDto,
@@ -32,6 +34,8 @@ export class DisputesService {
     private readonly orders: OrdersService,
     private readonly notifications: NotificationsService,
     @Inject(PAYMENT_PROVIDER) private readonly psp: PaymentProvider,
+    @Optional()
+    private readonly inspections?: VehicleInspectionsService,
   ) {}
 
   async open(
@@ -69,6 +73,11 @@ export class DisputesService {
     OrderStateMachine.assertTransition(order.status, 'DISPUTE_HOLD');
     const sellerRespondBy = new Date(Date.now() + 72 * 60 * 60 * 1000);
 
+    // Attach latest vehicle inspection id on dispute evidence context when present.
+    const inspectionId =
+      (await this.inspections?.latestInspectionIdForListing(order.listingId)) ??
+      null;
+
     const dispute = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.order.updateMany({
         where: {
@@ -83,12 +92,16 @@ export class DisputesService {
         );
       }
 
+      const inspectionNote = inspectionId
+        ? `\n[inspectionId=${inspectionId}]`
+        : '';
+
       const d = await tx.dispute.create({
         data: {
           orderId,
           openerId,
           reason: dto.reason,
-          detail: dto.detail ?? null,
+          detail: `${dto.detail ?? ''}${inspectionNote}`.trim() || null,
           status: 'AWAITING_SELLER',
           sellerRespondBy,
         },
@@ -99,7 +112,11 @@ export class DisputesService {
           orderId,
           type: 'DISPUTE_OPENED',
           actorUserId: openerId,
-          payload: { disputeId: d.id, reason: dto.reason },
+          payload: {
+            disputeId: d.id,
+            reason: dto.reason,
+            inspectionId,
+          },
         },
       });
 

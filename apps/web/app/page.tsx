@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button, Chip, EmptyState, Skeleton } from "@reworth/ui-web";
 import { DiscoveryListingCard } from "../components/discovery/DiscoveryListingCard";
 import { ApiError } from "../lib/api";
+import { getAccessToken } from "../lib/auth";
 import { COMMUNITIES } from "../lib/communities";
 import {
   RADIUS_OPTIONS,
@@ -16,6 +17,7 @@ import {
   saveDiscoveryLocation,
   type DiscoveryLocation,
 } from "../lib/discovery";
+import { formatNgn } from "@reworth/shared";
 import type { CategoryNode, HomeRail, RadiusKm } from "../lib/types";
 
 export default function HomePage() {
@@ -44,10 +46,13 @@ export default function HomePage() {
           ? undefined
           : (location.radiusKm as RadiusKm);
       const [home, cats] = await Promise.all([
-        fetchHome({
-          community: location.community || undefined,
-          radiusKm,
-        }),
+        fetchHome(
+          {
+            community: location.community || undefined,
+            radiusKm,
+          },
+          getAccessToken(),
+        ),
         fetchCategories().catch(() => [] as CategoryNode[]),
       ]);
       setRails(home.rails ?? []);
@@ -133,6 +138,12 @@ export default function HomePage() {
           <Link href="/my" className="hidden text-sm font-medium text-[var(--rw-ink-muted)] hover:text-[var(--rw-ink)] sm:inline">
             Saved
           </Link>
+          <Link
+            href="/ask"
+            className="hidden text-sm font-medium text-[var(--rw-ink-muted)] hover:text-[var(--rw-ink)] md:inline"
+          >
+            Ask
+          </Link>
           <Link href="/sell">
             <Button variant="sell" size="sm" aria-label="Start selling">
               SELL
@@ -149,6 +160,35 @@ export default function HomePage() {
           <p className="mt-2 max-w-xl text-[var(--rw-ink-muted)]">
             Lagos, your unused things are worth something.
           </p>
+          <nav
+            aria-label="AI & platform tools"
+            className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium"
+          >
+            <Link
+              href="/ask"
+              className="text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Ask ReWorth
+            </Link>
+            <Link
+              href="/room-scan"
+              className="text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Room scan
+            </Link>
+            <Link
+              href="/worth"
+              className="text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              What&apos;s it worth
+            </Link>
+            <Link
+              href="/consign"
+              className="text-[var(--rw-accent)] underline-offset-2 hover:underline"
+            >
+              Consign
+            </Link>
+          </nav>
         </section>
 
         <section
@@ -239,29 +279,72 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="mt-10 space-y-12">
-            {rails.map((rail) => (
-              <section key={rail.id} aria-labelledby={`rail-${rail.id}`}>
-                <h2
-                  id={`rail-${rail.id}`}
-                  className="text-xl font-semibold tracking-tight"
-                >
-                  {rail.title}
-                </h2>
-                {rail.items.length === 0 ? (
-                  <p className="mt-3 text-sm text-[var(--rw-ink-muted)]">
-                    {rail.emptyMessage ?? "Nothing here yet."}
-                  </p>
-                ) : (
-                  <ul className="mt-4 flex gap-3 overflow-x-auto pb-2">
-                    {rail.items.map((item) => (
-                      <li key={item.id} className="w-44 shrink-0 sm:w-52">
-                        <DiscoveryListingCard listing={item} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ))}
+            {rails.map((rail) => {
+              const isMovingSales = rail.id === "moving_sales";
+              const movingSales = rail.movingSales ?? [];
+              const hasMoving = isMovingSales && movingSales.length > 0;
+              const hasListings = rail.items.length > 0;
+              const empty = isMovingSales
+                ? !hasMoving && !hasListings
+                : !hasListings;
+
+              return (
+                <section key={rail.id} aria-labelledby={`rail-${rail.id}`}>
+                  <h2
+                    id={`rail-${rail.id}`}
+                    className="text-xl font-semibold tracking-tight"
+                  >
+                    {rail.title}
+                  </h2>
+                  {empty ? (
+                    <p className="mt-3 text-sm text-[var(--rw-ink-muted)]">
+                      {rail.emptyMessage ?? "Nothing here yet."}
+                    </p>
+                  ) : (
+                    <>
+                      {hasMoving ? (
+                        <ul className="mt-4 flex gap-3 overflow-x-auto pb-2">
+                          {movingSales.map((ms) => (
+                            <li key={ms.id} className="w-52 shrink-0 sm:w-60">
+                              <Link
+                                href={`/moving-sales/${ms.id}`}
+                                className="block rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+                              >
+                                <p className="line-clamp-2 font-semibold leading-snug">
+                                  {ms.title}
+                                </p>
+                                <p className="mt-2 text-sm text-[var(--rw-ink-muted)]">
+                                  {ms.itemCount} item
+                                  {ms.itemCount === 1 ? "" : "s"} ·{" "}
+                                  {formatNgn({
+                                    amountKobo: ms.combinedPriceKobo,
+                                  })}{" "}
+                                  combined
+                                </p>
+                                {ms.community ? (
+                                  <p className="mt-1 text-xs text-[var(--rw-ink-muted)]">
+                                    {ms.community}
+                                  </p>
+                                ) : null}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {hasListings ? (
+                        <ul className="mt-4 flex gap-3 overflow-x-auto pb-2">
+                          {rail.items.map((item) => (
+                            <li key={item.id} className="w-44 shrink-0 sm:w-52">
+                              <DiscoveryListingCard listing={item} />
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </>
+                  )}
+                </section>
+              );
+            })}
             {rails.length === 0 ? (
               <EmptyState
                 title="No listings nearby"

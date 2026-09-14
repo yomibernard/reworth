@@ -16,6 +16,11 @@ import { ApiError } from "../../lib/api";
 import { getAccessToken } from "../../lib/auth";
 import { COMMUNITIES, type Community } from "../../lib/communities";
 import {
+  listEstateCommunities,
+  listMyCommunities,
+  type EstateCommunity,
+} from "../../lib/estate-communities";
+import {
   assistListing,
   attachListingImages,
   CONDITIONS,
@@ -27,6 +32,7 @@ import {
   publishListing,
   uploadListingPhoto,
 } from "../../lib/listings";
+import { listRegions, type RegionCity } from "../../lib/region";
 import type {
   PriceIntelligence,
   PublicListing,
@@ -90,13 +96,27 @@ export default function SellPage() {
   const [brand, setBrand] = useState("");
   const [priceNaira, setPriceNaira] = useState("");
   const [priceIntel, setPriceIntel] = useState<PriceIntelligence | null>(null);
+  const [vehicleYear, setVehicleYear] = useState("");
+  const [vehicleMake, setVehicleMake] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+  const [vehicleMileage, setVehicleMileage] = useState("");
+  const [authRequired, setAuthRequired] = useState(false);
 
   const [sellingMode, setSellingMode] = useState<SellingModeValue>("SELL");
   const [negotiable, setNegotiable] = useState(true);
   const [community, setCommunity] = useState<Community | "">("");
+  const [estateCommunities, setEstateCommunities] = useState<EstateCommunity[]>(
+    [],
+  );
+  const [estateCommunityId, setEstateCommunityId] = useState("");
+  const [communityOnly, setCommunityOnly] = useState(false);
   const [fulfilmentPickup, setFulfilmentPickup] = useState(true);
   const [fulfilmentMeet, setFulfilmentMeet] = useState(true);
   const [fulfilmentDelivery, setFulfilmentDelivery] = useState(false);
+  const [donateIfUnsold, setDonateIfUnsold] = useState(false);
+  const [donateIfUnsoldDays, setDonateIfUnsoldDays] = useState(30);
+  const [cities, setCities] = useState<RegionCity[]>([]);
+  const [city, setCity] = useState("Lagos");
 
   const [published, setPublished] = useState<PublicListing | null>(null);
 
@@ -107,6 +127,35 @@ export default function SellPage() {
       return;
     }
     setReady(true);
+    void (async () => {
+      try {
+        const [all, mine, regions] = await Promise.all([
+          listEstateCommunities({ limit: 50 }, token),
+          listMyCommunities(token).catch(() => ({ items: [] })),
+          listRegions().catch(() => [] as RegionCity[]),
+        ]);
+        const memberIds = new Set(
+          mine.items
+            .filter((m) =>
+              ["MEMBER", "APPROVED"].includes(m.status),
+            )
+            .map((m) => m.community.id),
+        );
+        const preferred = [
+          ...all.items.filter((c) => memberIds.has(c.id)),
+          ...all.items.filter((c) => !memberIds.has(c.id)),
+        ];
+        setEstateCommunities(preferred);
+        setCities(regions);
+        if (regions.length) {
+          setCity((prev) =>
+            regions.some((r) => r.key === prev) ? prev : regions[0].key,
+          );
+        }
+      } catch {
+        setEstateCommunities([]);
+      }
+    })();
   }, [router]);
 
   const tokenOrThrow = useCallback(() => {
@@ -147,9 +196,38 @@ export default function SellPage() {
     if (l.community && (COMMUNITIES as readonly string[]).includes(l.community)) {
       setCommunity(l.community as Community);
     }
+    if (l.communityId) setEstateCommunityId(l.communityId);
+    setCommunityOnly(Boolean(l.communityOnly));
     setFulfilmentPickup(l.fulfilmentPickup);
     setFulfilmentMeet(l.fulfilmentMeet);
     setFulfilmentDelivery(l.fulfilmentDelivery);
+    setAuthRequired(Boolean(l.authRequired));
+    if (l.city) setCity(l.city);
+    if (l.donateIfUnsoldDays != null && l.donateIfUnsoldDays > 0) {
+      setDonateIfUnsold(true);
+      setDonateIfUnsoldDays(l.donateIfUnsoldDays);
+    } else {
+      setDonateIfUnsold(false);
+    }
+    const v = l.vehicle;
+    if (v && typeof v === "object") {
+      setVehicleYear(v.year != null ? String(v.year) : "");
+      setVehicleMake(
+        typeof v.make === "string"
+          ? v.make
+          : typeof v.brand === "string"
+            ? v.brand
+            : "",
+      );
+      setVehicleModel(typeof v.model === "string" ? v.model : "");
+      setVehicleMileage(
+        v.mileage != null
+          ? String(v.mileage)
+          : v.mileageKm != null
+            ? String(v.mileageKm)
+            : "",
+      );
+    }
   }
 
   function onPickFiles(e: ChangeEvent<HTMLInputElement>) {
@@ -246,7 +324,13 @@ export default function SellPage() {
     if (!listingId) return;
     const token = tokenOrThrow();
     const naira = Number(priceNaira.replace(/,/g, ""));
-    const body = {
+    const catLower = categoryName.trim().toLowerCase();
+    const isVehicleCat =
+      catLower.includes("vehicle") ||
+      catLower.includes("car") ||
+      catLower === "cars";
+    const isLuxuryCat = catLower.includes("luxury");
+    const body: Parameters<typeof patchListing>[2] = {
       title: title.trim(),
       description: description.trim(),
       brand: brand.trim() || undefined,
@@ -255,10 +339,27 @@ export default function SellPage() {
       negotiable,
       sellingMode,
       community: community || undefined,
+      communityId: estateCommunityId || null,
+      communityOnly,
       fulfilmentPickup,
       fulfilmentMeet,
       fulfilmentDelivery,
+      city: city || undefined,
+      donateIfUnsoldDays: donateIfUnsold ? donateIfUnsoldDays : null,
     };
+    if (isVehicleCat || vehicleYear || vehicleMake || vehicleMileage) {
+      body.vehicle = {
+        year: vehicleYear ? Number(vehicleYear) : undefined,
+        make: vehicleMake.trim() || undefined,
+        model: vehicleModel.trim() || brand.trim() || undefined,
+        mileageKm: vehicleMileage
+          ? Number(vehicleMileage.replace(/,/g, ""))
+          : undefined,
+      };
+    }
+    if (isLuxuryCat || authRequired) {
+      body.authRequired = authRequired || isLuxuryCat;
+    }
     const updated = await patchListing(listingId, token, body);
     syncFromListing(updated);
     return updated;
@@ -376,11 +477,19 @@ export default function SellPage() {
           >
             ReWorth
           </Link>
-          {step !== "done" ? (
-            <p className="text-sm text-[var(--rw-ink-muted)]">
-              {STEP_LABELS[step]} · {Math.max(stepIndex, 0) + 1}/{STEPS.length}
-            </p>
-          ) : null}
+          <div className="flex items-center gap-3">
+            <Link
+              href="/sell/analytics"
+              className="text-sm font-medium text-[var(--rw-ink-muted)] underline-offset-2 hover:underline"
+            >
+              Analytics
+            </Link>
+            {step !== "done" ? (
+              <p className="text-sm text-[var(--rw-ink-muted)]">
+                {STEP_LABELS[step]} · {Math.max(stepIndex, 0) + 1}/{STEPS.length}
+              </p>
+            ) : null}
+          </div>
         </header>
 
         {step !== "done" ? (
@@ -543,6 +652,78 @@ export default function SellPage() {
                     onChange={(e) => setCategoryName(e.target.value)}
                     hint="Suggested by AI — edit freely"
                   />
+                  {(() => {
+                    const catLower = categoryName.trim().toLowerCase();
+                    const showVehicle =
+                      catLower.includes("vehicle") ||
+                      catLower.includes("car") ||
+                      Boolean(listing?.vehicle);
+                    const showLuxury =
+                      catLower.includes("luxury") ||
+                      Boolean(listing?.authRequired);
+                    return (
+                      <>
+                        {showVehicle ? (
+                          <fieldset className="rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] p-4">
+                            <legend className="px-1 text-sm font-semibold">
+                              Vehicle details
+                            </legend>
+                            <div className="mt-3 flex flex-col gap-4">
+                              <Input
+                                label="Year"
+                                inputMode="numeric"
+                                value={vehicleYear}
+                                onChange={(e) =>
+                                  setVehicleYear(
+                                    e.target.value.replace(/[^\d]/g, "").slice(0, 4),
+                                  )
+                                }
+                              />
+                              <Input
+                                label="Make"
+                                value={vehicleMake}
+                                onChange={(e) => setVehicleMake(e.target.value)}
+                              />
+                              <Input
+                                label="Model"
+                                value={vehicleModel}
+                                onChange={(e) => setVehicleModel(e.target.value)}
+                              />
+                              <Input
+                                label="Mileage (km)"
+                                inputMode="numeric"
+                                value={vehicleMileage}
+                                onChange={(e) =>
+                                  setVehicleMileage(
+                                    e.target.value.replace(/[^\d]/g, ""),
+                                  )
+                                }
+                              />
+                            </div>
+                          </fieldset>
+                        ) : null}
+                        {showLuxury ? (
+                          <label className="flex items-start gap-3 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] p-4">
+                            <input
+                              type="checkbox"
+                              className="mt-1 h-4 w-4"
+                              checked={authRequired}
+                              onChange={(e) => setAuthRequired(e.target.checked)}
+                            />
+                            <span>
+                              <span className="block text-sm font-semibold">
+                                Require authentication
+                              </span>
+                              <span className="mt-1 block text-sm text-[var(--rw-ink-muted)]">
+                                Luxury items ship through auth before handover
+                                (order status IN_AUTHENTICATION).
+                              </span>
+                            </span>
+                          </label>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                   <Input
                     label="Brand"
                     value={brand}
@@ -584,7 +765,7 @@ export default function SellPage() {
                       aria-label="Price intelligence"
                     >
                       <p className="text-sm font-semibold text-[var(--rw-ink)]">
-                        Lagos price sense
+                        {priceIntel.city ?? "Lagos"} price sense
                       </p>
                       <p className="mt-1 text-sm text-[var(--rw-ink-muted)]">
                         Suggested range{" "}
@@ -602,6 +783,22 @@ export default function SellPage() {
                           amountKobo: priceIntel.recommendedKobo,
                         })}
                       </p>
+                      {priceIntel.quickSaleKobo != null ? (
+                        <p className="mt-1 text-sm text-[var(--rw-ink-muted)]">
+                          Quick sale{" "}
+                          {formatNgn({
+                            amountKobo: priceIntel.quickSaleKobo,
+                          })}
+                          {priceIntel.maxValueKobo != null
+                            ? ` · Max value ${formatNgn({ amountKobo: priceIntel.maxValueKobo })}`
+                            : ""}
+                        </p>
+                      ) : null}
+                      {priceIntel.confidenceLabel ? (
+                        <p className="mt-2 text-xs text-[var(--rw-ink-muted)]">
+                          {priceIntel.confidenceLabel}
+                        </p>
+                      ) : null}
                     </aside>
                   ) : null}
                 </div>
@@ -680,6 +877,40 @@ export default function SellPage() {
                 />
                 Price is negotiable
               </label>
+              <div className="mt-6 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] p-4">
+                <label className="flex items-start gap-3 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={donateIfUnsold}
+                    onChange={(e) => setDonateIfUnsold(e.target.checked)}
+                    className="mt-1 h-4 w-4 accent-[var(--rw-accent)]"
+                  />
+                  <span>
+                    Donate if unsold
+                    <span className="mt-0.5 block font-normal text-[var(--rw-ink-muted)]">
+                      After the waiting period, route to a verified charity or
+                      recycler with your consent.
+                    </span>
+                  </span>
+                </label>
+                {donateIfUnsold ? (
+                  <label className="mt-4 block text-sm font-medium">
+                    Days before hand-off
+                    <input
+                      type="number"
+                      min={7}
+                      max={180}
+                      value={donateIfUnsoldDays}
+                      onChange={(e) =>
+                        setDonateIfUnsoldDays(
+                          Math.max(7, Math.min(180, Number(e.target.value) || 30)),
+                        )
+                      }
+                      className="mt-2 w-full rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg)] px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+                    />
+                  </label>
+                ) : null}
+              </div>
               {error ? (
                 <p className="mt-4 text-sm text-[var(--rw-error)]" role="alert">
                   {error}
@@ -717,6 +948,23 @@ export default function SellPage() {
               <p className="mt-3 text-[var(--rw-ink-muted)]">
                 Buyers see your community — never your street address.
               </p>
+              {cities.length > 0 ? (
+                <label className="mt-6 block text-sm font-medium">
+                  City
+                  <select
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="mt-2 w-full rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+                    disabled={busy}
+                  >
+                    {cities.map((c) => (
+                      <option key={c.key} value={c.key}>
+                        {c.displayName || c.key}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
               <div className="mt-8 flex flex-wrap gap-2">
                 {COMMUNITIES.map((c) => (
                   <Chip
@@ -728,6 +976,37 @@ export default function SellPage() {
                   </Chip>
                 ))}
               </div>
+              {estateCommunities.length > 0 ? (
+                <div className="mt-8 space-y-3">
+                  <label className="block text-sm font-medium">
+                    Estate community (optional)
+                    <select
+                      value={estateCommunityId}
+                      onChange={(e) => setEstateCommunityId(e.target.value)}
+                      className="mt-2 w-full rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+                      disabled={busy}
+                    >
+                      <option value="">None — public Lagos listing</option>
+                      {estateCommunities.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                          {c.verified ? " ✓" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-3 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={communityOnly}
+                      onChange={(e) => setCommunityOnly(e.target.checked)}
+                      disabled={busy || !estateCommunityId}
+                      className="h-4 w-4 accent-[var(--rw-accent)]"
+                    />
+                    Show only to community members
+                  </label>
+                </div>
+              ) : null}
               {error ? (
                 <p className="mt-4 text-sm text-[var(--rw-error)]" role="alert">
                   {error}

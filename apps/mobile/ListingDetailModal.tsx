@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { ApiError } from "./lib/api";
+import { ApiError, apiFetch } from "./lib/api";
 import { getAccessToken } from "./lib/auth";
 import {
   createConversation,
@@ -23,6 +23,17 @@ import {
   unfavouriteListing,
 } from "./lib/discovery";
 import { getListing } from "./lib/listings";
+import { fetchRecommendations } from "./lib/intelligence";
+import {
+  BOOST_DURATIONS_HOURS,
+  newIdempotencyKey,
+  purchaseBoost,
+  purchaseFeatured,
+  quoteBoost,
+  quoteFeatured,
+  type BoostQuote,
+  type FeaturedQuote,
+} from "./lib/monetization";
 import {
   createGiveawayClaim,
   createSwapProposal,
@@ -32,6 +43,7 @@ import { formatResponseShort } from "./lib/trust";
 import {
   formatNgnFromKobo,
   listingImageUrl,
+  type MeResponse,
   type PublicListing,
 } from "./lib/types";
 
@@ -66,11 +78,28 @@ export function ListingDetailModal({
   const [swapCashNaira, setSwapCashNaira] = useState("0");
   const [swapBusy, setSwapBusy] = useState(false);
   const [claimBusy, setClaimBusy] = useState(false);
+  const [similar, setSimilar] = useState<PublicListing[]>([]);
+  const [meId, setMeId] = useState<string | null>(null);
+  const [boostOpen, setBoostOpen] = useState(false);
+  const [boostHours, setBoostHours] = useState<(typeof BOOST_DURATIONS_HOURS)[number]>(24);
+  const [boostQuote, setBoostQuote] = useState<BoostQuote | null>(null);
+  const [featuredQuote, setFeaturedQuote] = useState<FeaturedQuote | null>(null);
+  const [boostBusy, setBoostBusy] = useState(false);
+  const [quoteBusy, setQuoteBusy] = useState(false);
+
+  async function reloadListing(id: string, token?: string | null) {
+    const data = await getListing(id, token);
+    setListing(data);
+    return data;
+  }
 
   useEffect(() => {
     if (!listingId) {
       setListing(null);
       setSaved(false);
+      setSimilar([]);
+      setMeId(null);
+      setBoostOpen(false);
       return;
     }
     let cancelled = false;
@@ -81,7 +110,30 @@ export function ListingDetailModal({
         const token = await getAccessToken();
         const data = await getListing(listingId, token);
         if (!cancelled) setListing(data);
+        if (!cancelled) {
+          void fetchRecommendations(
+            {
+              surface: "similar",
+              listingId,
+              city: data.city ?? undefined,
+              limit: 6,
+            },
+            token,
+          )
+            .then((res) => {
+              if (!cancelled) setSimilar(res.items ?? []);
+            })
+            .catch(() => {
+              if (!cancelled) setSimilar([]);
+            });
+        }
         if (token && !cancelled) {
+          try {
+            const me = await apiFetch<MeResponse>("/me", { token });
+            if (!cancelled) setMeId(me.id);
+          } catch {
+            if (!cancelled) setMeId(null);
+          }
           try {
             const favs = await getMeFavourites(token);
             if (!cancelled) {
@@ -103,6 +155,36 @@ export function ListingDetailModal({
       cancelled = true;
     };
   }, [listingId]);
+
+  useEffect(() => {
+    if (!boostOpen) return;
+    let cancelled = false;
+    (async () => {
+      const token = await getAccessToken();
+      if (!token) return;
+      setQuoteBusy(true);
+      try {
+        const [bq, fq] = await Promise.all([
+          quoteBoost(token, boostHours),
+          quoteFeatured(token),
+        ]);
+        if (!cancelled) {
+          setBoostQuote(bq);
+          setFeaturedQuote(fq);
+        }
+      } catch {
+        if (!cancelled) {
+          setBoostQuote(null);
+          setFeaturedQuote(null);
+        }
+      } finally {
+        if (!cancelled) setQuoteBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [boostOpen, boostHours]);
 
   async function toggleSave() {
     const token = await getAccessToken();
@@ -240,9 +322,57 @@ export function ListingDetailModal({
     }
   }
 
+  async function confirmBoost() {
+    if (!listingId) return;
+    const token = await getAccessToken();
+    if (!token) {
+      setToast("Sign in to boost");
+      return;
+    }
+    setBoostBusy(true);
+    try {
+      await purchaseBoost(token, {
+        listingId,
+        hours: boostHours,
+        idempotencyKey: newIdempotencyKey("boost"),
+      });
+      await reloadListing(listingId, token);
+      setBoostOpen(false);
+      setToast("Boost active");
+    } catch {
+      setToast("Boost failed — try again or contact support");
+    } finally {
+      setBoostBusy(false);
+    }
+  }
+
+  async function confirmFeatured() {
+    if (!listingId) return;
+    const token = await getAccessToken();
+    if (!token) {
+      setToast("Sign in to feature");
+      return;
+    }
+    setBoostBusy(true);
+    try {
+      await purchaseFeatured(token, {
+        listingId,
+        idempotencyKey: newIdempotencyKey("featured"),
+      });
+      await reloadListing(listingId, token);
+      setBoostOpen(false);
+      setToast("Featured active");
+    } catch {
+      setToast("Feature failed — try again or contact support");
+    } finally {
+      setBoostBusy(false);
+    }
+  }
+
   const isSwap =
     listing?.sellingMode === "SWAP" || listing?.sellingMode === "SWAP_CASH";
   const isGiveAway = listing?.sellingMode === "GIVE_AWAY";
+  const isOwner = Boolean(meId && listing?.seller.id === meId);
   const hero = listing
     ? listingImageUrl(
         [...listing.images].sort((a, b) => a.sortOrder - b.sortOrder)[0],
@@ -301,6 +431,75 @@ export function ListingDetailModal({
             <Text style={styles.meta}>
               {listing.condition} · {listing.community || "Lagos"}
             </Text>
+            {(() => {
+              const badge = listing.inspectedBadge;
+              const inspected =
+                badge === true ||
+                (badge &&
+                  typeof badge === "object" &&
+                  Boolean(badge.inspected));
+              const auth =
+                listing.authenticationStatus === "PASSED"
+                  ? "Authentic ✓"
+                  : listing.authRequired ||
+                      (listing.authenticationStatus &&
+                        listing.authenticationStatus !== "NOT_REQUIRED")
+                    ? "Unauthenticated"
+                    : null;
+              const promo =
+                listing.boosted ||
+                listing.featured ||
+                listing.instantBuyEligible ||
+                inspected ||
+                auth ||
+                listing.certificateId;
+              if (!promo) return null;
+              return (
+                <View style={styles.badgeRow}>
+                  {listing.boosted ? (
+                    <Text style={styles.promoBadge}>Boosted</Text>
+                  ) : null}
+                  {listing.featured ? (
+                    <Text style={styles.promoBadgeFeatured}>Featured</Text>
+                  ) : null}
+                  {listing.instantBuyEligible ? (
+                    <Text style={styles.instantBuyBadge}>Instant Buy</Text>
+                  ) : null}
+                  {inspected ? (
+                    <Text style={styles.verticalBadge}>Inspected ✓</Text>
+                  ) : null}
+                  {auth ? (
+                    <Text
+                      style={
+                        auth === "Authentic ✓"
+                          ? styles.verticalBadge
+                          : styles.verticalBadgeMuted
+                      }
+                    >
+                      {auth}
+                    </Text>
+                  ) : null}
+                  {listing.certificateId ? (
+                    <Text style={styles.verticalBadgeMuted}>
+                      Cert {listing.certificateId}
+                    </Text>
+                  ) : null}
+                </View>
+              );
+            })()}
+            {listing.movingSale ? (
+              <Text style={styles.chip}>
+                Moving sale: {listing.movingSale.title}
+              </Text>
+            ) : null}
+            {listing.communityChip ? (
+              <Text style={styles.chip}>
+                {listing.communityChip.name}
+                {listing.communityChip.privacy !== "PUBLIC"
+                  ? " · members"
+                  : ""}
+              </Text>
+            ) : null}
 
             <Pressable
               style={styles.seller}
@@ -359,11 +558,54 @@ export function ListingDetailModal({
               </Text>
             ) : null}
 
+            {similar.length > 0 ? (
+              <View style={styles.similarBlock}>
+                <Text style={styles.section}>Similar items</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.similarScroll}
+                >
+                  {similar.map((item) => {
+                    const imgs = [...item.images].sort(
+                      (a, b) => a.sortOrder - b.sortOrder,
+                    );
+                    const src = listingImageUrl(imgs[0]);
+                    return (
+                      <View key={item.id} style={styles.similarCard}>
+                        {src ? (
+                          <Image
+                            source={{ uri: src }}
+                            style={styles.similarImg}
+                          />
+                        ) : (
+                          <View style={[styles.similarImg, styles.similarPh]} />
+                        )}
+                        <Text numberOfLines={2} style={styles.similarTitle}>
+                          {item.title || "Untitled"}
+                        </Text>
+                        <Text style={styles.similarPrice}>
+                          {formatNgnFromKobo(item.priceKobo)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            ) : null}
+
             <View style={styles.actions}>
+              {isOwner ? (
+                <Action
+                  label="Boost listing"
+                  primary
+                  onPress={() => setBoostOpen(true)}
+                />
+              ) : null}
               {isSwap ? (
                 <Action
                   label={swapBusy ? "Loading…" : "Swap"}
-                  primary
+                  primary={!isOwner}
                   onPress={() => {
                     if (!swapBusy) void openSwapSheet();
                   }}
@@ -371,12 +613,12 @@ export function ListingDetailModal({
               ) : isGiveAway ? (
                 <Action
                   label={claimBusy ? "Claiming…" : "Claim this item"}
-                  primary
+                  primary={!isOwner}
                   onPress={() => {
                     if (!claimBusy) void claimGiveaway();
                   }}
                 />
-              ) : (
+              ) : !isOwner ? (
                 <>
                   <Action
                     label="Make offer"
@@ -391,13 +633,15 @@ export function ListingDetailModal({
                     }}
                   />
                 </>
-              )}
-              <Action
-                label={chatBusy ? "Opening…" : "Chat"}
-                onPress={() => {
-                  if (!chatBusy) void startChat();
-                }}
-              />
+              ) : null}
+              {!isOwner ? (
+                <Action
+                  label={chatBusy ? "Opening…" : "Chat"}
+                  onPress={() => {
+                    if (!chatBusy) void startChat();
+                  }}
+                />
+              ) : null}
               <Action
                 label={saved ? "Saved ♥" : "Save"}
                 onPress={() => {
@@ -501,6 +745,75 @@ export function ListingDetailModal({
             </View>
           </View>
         </Modal>
+
+        <Modal visible={boostOpen} animationType="slide" transparent>
+          <View style={styles.sheetBackdrop}>
+            <View style={styles.sheet}>
+              <Text style={styles.sheetTitle}>Boost listing</Text>
+              <Text style={styles.muted}>
+                More visibility in discovery for a short window.
+              </Text>
+              <Text style={styles.label}>Duration</Text>
+              <View style={styles.durationRow}>
+                {BOOST_DURATIONS_HOURS.map((h) => (
+                  <Pressable
+                    key={h}
+                    style={[
+                      styles.durationChip,
+                      boostHours === h && styles.durationChipActive,
+                    ]}
+                    onPress={() => setBoostHours(h)}
+                  >
+                    <Text
+                      style={[
+                        styles.durationChipText,
+                        boostHours === h && styles.durationChipTextActive,
+                      ]}
+                    >
+                      {h === 168 ? "7 days" : `${h}h`}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.copy}>
+                {quoteBusy
+                  ? "Getting price…"
+                  : boostQuote
+                    ? `Price: ${formatNgnFromKobo(boostQuote.priceKobo)}`
+                    : "Price unavailable"}
+              </Text>
+              <Pressable
+                style={[
+                  styles.primaryBtn,
+                  (boostBusy || quoteBusy || !boostQuote) && styles.disabled,
+                ]}
+                disabled={boostBusy || quoteBusy || !boostQuote}
+                onPress={() => void confirmBoost()}
+              >
+                <Text style={styles.primaryBtnText}>
+                  {boostBusy ? "Paying…" : "Confirm & pay"}
+                </Text>
+              </Pressable>
+              {featuredQuote ? (
+                <Pressable
+                  style={[
+                    styles.secondarySheetBtn,
+                    boostBusy && styles.disabled,
+                  ]}
+                  disabled={boostBusy}
+                  onPress={() => void confirmFeatured()}
+                >
+                  <Text style={styles.secondarySheetBtnText}>
+                    Feature instead · {formatNgnFromKobo(featuredQuote.priceKobo)}
+                  </Text>
+                </Pressable>
+              ) : null}
+              <Pressable onPress={() => setBoostOpen(false)}>
+                <Text style={styles.cancel}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </View>
     </Modal>
   );
@@ -561,6 +874,75 @@ const styles = StyleSheet.create({
     color: "#111315",
   },
   meta: { marginTop: 8, fontSize: 14, color: "#5C636A" },
+  badgeRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  verticalBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#D1FAE5",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#047857",
+  },
+  instantBuyBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#D1FAE5",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#0E9F6E",
+  },
+  promoBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#FEF3C7",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#92400E",
+  },
+  promoBadgeFeatured: {
+    alignSelf: "flex-start",
+    backgroundColor: "#E0E7FF",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#3730A3",
+  },
+  verticalBadgeMuted: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "#E5E2DC",
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#5C636A",
+  },
+  chip: {
+    marginTop: 8,
+    alignSelf: "flex-start",
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#0E9F6E",
+  },
   seller: {
     marginTop: 20,
     padding: 14,
@@ -603,6 +985,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#D1FAE5",
   },
   protectTitle: { fontSize: 14, fontWeight: "700", color: "#0E9F6E" },
+  similarBlock: { marginTop: 24 },
+  similarScroll: { marginTop: 10 },
+  similarCard: { width: 132, marginRight: 10 },
+  similarImg: {
+    width: 132,
+    height: 100,
+    borderRadius: 12,
+    backgroundColor: "#E5E2DC",
+  },
+  similarPh: { backgroundColor: "#E5E2DC" },
+  similarTitle: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#111315",
+  },
+  similarPrice: { marginTop: 2, fontSize: 12, color: "#5C636A" },
   centerText: { textAlign: "center", marginTop: 16 },
   actions: { marginTop: 24, gap: 10 },
   actionBtn: {
@@ -684,4 +1083,38 @@ const styles = StyleSheet.create({
     backgroundColor: "#ECFDF5",
   },
   pickTitle: { fontSize: 15, fontWeight: "600", color: "#111315" },
+  durationRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  durationChip: {
+    borderWidth: 1,
+    borderColor: "#E5E2DC",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
+  },
+  durationChipActive: {
+    borderColor: "#0E9F6E",
+    backgroundColor: "#ECFDF5",
+  },
+  durationChipText: { fontSize: 14, fontWeight: "600", color: "#111315" },
+  durationChipTextActive: { color: "#047857" },
+  secondarySheetBtn: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#E5E2DC",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  secondarySheetBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111315",
+  },
 });

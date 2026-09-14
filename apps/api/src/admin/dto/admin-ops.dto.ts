@@ -7,9 +7,11 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Min,
   MinLength,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ChatScanKind } from '@prisma/client';
 
 export class AdminLoginDto {
@@ -222,6 +224,80 @@ export class AdminCommunityDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @IsOptional()
+  @IsString()
+  privacy?: string;
+
+  @IsOptional()
+  @IsString()
+  about?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  verified?: boolean;
+}
+
+export class AdminPatchCommunityDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @IsOptional()
+  @IsString()
+  privacy?: string;
+
+  @IsOptional()
+  @IsString()
+  coverUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  about?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  verified?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+
+  @IsOptional()
+  geoLat?: number | null;
+
+  @IsOptional()
+  geoLng?: number | null;
+
+  /** PRD §34 premium community — off by default. */
+  @IsOptional()
+  @IsBoolean()
+  premium?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  membershipFeeKobo?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  listingFeeKobo?: number;
+}
+
+export class AdminAddCommunityManagerDto {
+  @IsUUID()
+  userId!: string;
 }
 
 export class AdminAppealResolveDto {

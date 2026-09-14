@@ -8,6 +8,7 @@ import { MessageType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatGateway } from './chat.gateway';
 import { ChatScanProcessor } from './chat-scan.processor';
+import { NotificationStub } from './notification.stub';
 import { toMessageDto, type MessageDto } from './message.mapper';
 import { redactPhoneEmail } from './pii.util';
 import type { PostMessageDto } from './dto/chat.dto';
@@ -23,6 +24,8 @@ export type ConversationListItem = {
   lastMessageAt: Date | null;
   lastMessagePreview: string | null;
   unreadCount: number;
+  /** Viewer muted counterpart for this thread — suppress push/badge. */
+  muted: boolean;
   activeOffer: {
     id: string;
     amountKobo: number;
@@ -36,6 +39,7 @@ export class MessagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scanProcessor: ChatScanProcessor,
+    private readonly notifications: NotificationStub,
     @Optional() private readonly gateway?: ChatGateway,
   ) {}
 
@@ -49,6 +53,25 @@ export class MessagesService {
       },
     });
     return !!block;
+  }
+
+  /** True when muter muted mutedId (optionally scoped to conversation). */
+  async isMuted(
+    muterId: string,
+    mutedId: string,
+    conversationId?: string,
+  ): Promise<boolean> {
+    const row = await this.prisma.userMute.findFirst({
+      where: {
+        muterId,
+        mutedId,
+        OR: [
+          { conversationId: null },
+          ...(conversationId ? [{ conversationId }] : []),
+        ],
+      },
+    });
+    return !!row;
   }
 
   async listConversations(userId: string): Promise<ConversationListItem[]> {
@@ -94,13 +117,17 @@ export class MessagesService {
               displayName: c.buyer.profile?.displayName ?? 'Buyer',
             };
 
-      const unreadCount = await this.prisma.message.count({
-        where: {
-          conversationId: c.id,
-          senderId: { not: userId },
-          readAt: null,
-        },
-      });
+      const muted = await this.isMuted(userId, counterpart.id, c.id);
+
+      const unreadCount = muted
+        ? 0
+        : await this.prisma.message.count({
+            where: {
+              conversationId: c.id,
+              senderId: { not: userId },
+              readAt: null,
+            },
+          });
 
       const thumb = c.listing.images[0];
       const variants = (thumb?.variants ?? {}) as Record<string, string>;
@@ -122,6 +149,7 @@ export class MessagesService {
             ? `[${last.type}]`
             : null,
         unreadCount,
+        muted,
         activeOffer: offer
           ? { id: offer.id, amountKobo: offer.amountKobo, status: offer.status }
           : null,
@@ -202,6 +230,10 @@ export class MessagesService {
         sender: { include: { profile: true } },
       },
     });
+
+    // Polling / reconnect resync also acts as delivery receipt.
+    await this.markDelivered(conversationId, userId);
+
     return rows.map(toMessageDto);
   }
 
@@ -267,6 +299,20 @@ export class MessagesService {
 
     const mapped = toMessageDto(message);
     this.gateway?.emitToConversation(conversationId, 'message.new', mapped);
+
+    const recipientMuted = await this.isMuted(
+      counterpartId,
+      userId,
+      conversationId,
+    );
+    if (!recipientMuted) {
+      this.notifications.log('message.new', {
+        conversationId,
+        messageId: mapped.id,
+        recipientId: counterpartId,
+        senderId: userId,
+      });
+    }
 
     if (userId === conversation.sellerId) {
       void this.trackSellerFirstReply(conversation, userId, created.createdAt);
@@ -342,6 +388,37 @@ export class MessagesService {
     return { ok: true };
   }
 
+  /**
+   * Delivery receipts — set deliveredAt on inbound messages missing it.
+   * Called on poll/resync and explicit POST /delivered.
+   */
+  async markDelivered(
+    conversationId: string,
+    userId: string,
+    messageIds?: string[],
+  ) {
+    await this.requireParticipant(conversationId, userId);
+    const now = new Date();
+    const result = await this.prisma.message.updateMany({
+      where: {
+        conversationId,
+        senderId: { not: userId },
+        deliveredAt: null,
+        ...(messageIds?.length ? { id: { in: messageIds } } : {}),
+      },
+      data: { deliveredAt: now },
+    });
+    if (result.count > 0) {
+      this.gateway?.emitToConversation(conversationId, 'message.delivered', {
+        conversationId,
+        recipientId: userId,
+        deliveredAt: now,
+        count: result.count,
+      });
+    }
+    return { ok: true, count: result.count };
+  }
+
   async blockUser(blockerId: string, blockedId: string) {
     if (blockerId === blockedId) {
       throw new ForbiddenException('Cannot block yourself');
@@ -395,6 +472,10 @@ export class MessagesService {
     const c = await this.requireParticipant(conversationId, muterId);
     const target =
       mutedId ?? (c.buyerId === muterId ? c.sellerId : c.buyerId);
+    const existing = await this.prisma.userMute.findFirst({
+      where: { muterId, mutedId: target, conversationId },
+    });
+    if (existing) return existing;
     return this.prisma.userMute.create({
       data: {
         muterId,
@@ -402,5 +483,13 @@ export class MessagesService {
         conversationId,
       },
     });
+  }
+
+  async unmuteConversation(conversationId: string, muterId: string) {
+    await this.requireParticipant(conversationId, muterId);
+    await this.prisma.userMute.deleteMany({
+      where: { muterId, conversationId },
+    });
+    return { ok: true };
   }
 }

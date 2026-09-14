@@ -41,11 +41,20 @@ describe('HomeService price drops rail', () => {
       set: jest.fn().mockResolvedValue(undefined),
     };
 
+    const movingSales = {
+      topForHome: jest.fn().mockResolvedValue([]),
+    };
+    const visibility = {
+      visibleListingWhere: jest.fn().mockReturnValue({}),
+    };
+
     const service = new HomeService(
       prisma as never,
       cache as never,
       new RecommendationService(),
       new DiscoveryAnalyticsService(),
+      movingSales as never,
+      visibility as never,
     );
 
     const ids = await service.priceDropListingIds(5);
@@ -58,7 +67,7 @@ describe('HomeService price drops rail', () => {
     expect(rail).toBeDefined();
     expect(rail!.items.map((i) => i.id)).toEqual(['drop-ok']);
     expect(home.rails.find((r) => r.id === 'moving_sales')?.emptyMessage).toBe(
-      'Moving sales launch soon',
+      'No active moving sales nearby',
     );
   });
 });

@@ -16,6 +16,12 @@ import {
   PAYMENT_PROVIDER,
   type PaymentProvider,
 } from '../providers/payment.provider';
+import { FeeConfigService } from '../monetization/fee-config.service';
+import { RevenueLedgerService } from '../monetization/revenue-ledger.service';
+import {
+  computeDeliveryMarginKobo,
+  computeProtectionFeeKoboFromRates,
+} from '../monetization/fee-rates';
 import { InitiatePaymentDto } from './dto/payments.dto';
 
 export type PaymentDto = {
@@ -38,6 +44,8 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly orders: OrdersService,
     private readonly notifications: NotificationsService,
+    private readonly fees: FeeConfigService,
+    private readonly ledger: RevenueLedgerService,
     @Inject(PAYMENT_PROVIDER) private readonly psp: PaymentProvider,
   ) {}
 
@@ -194,6 +202,7 @@ export class PaymentsService {
       });
 
       await this.orders.markFunded(payment.orderId, payment.reference);
+      await this.recordOrderRevenue(payment.orderId, payment.reference);
       this.notifications.log('payment.success', {
         paymentId: payment.id,
         orderId: payment.orderId,
@@ -211,6 +220,60 @@ export class PaymentsService {
     }
 
     return { ok: true, orderId: payment.orderId };
+  }
+
+  /** One RevenueLine per fee stream on successful capture. */
+  private async recordOrderRevenue(orderId: string, pspReference: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { listing: { select: { city: true, categoryId: true } } },
+    });
+    if (!order) return;
+    const { rates, id: feeConfigVersionId } = await this.fees.getActive();
+    const city = order.listing?.city ?? 'Lagos';
+    const categoryId = order.listing?.categoryId ?? undefined;
+
+    if (order.protectionFeeKobo > 0) {
+      const expected = computeProtectionFeeKoboFromRates(
+        order.amountKobo,
+        rates,
+      );
+      await this.ledger.record({
+        stream: 'PROTECTION_FEE',
+        grossKobo: order.protectionFeeKobo,
+        netKobo: order.protectionFeeKobo,
+        orderId: order.id,
+        listingId: order.listingId,
+        sellerId: order.sellerId,
+        city,
+        categoryId,
+        pspReference,
+        feeConfigVersionId,
+        referenceType: 'Order',
+        referenceId: `${order.id}:protection`,
+        meta: { expectedKobo: expected },
+      });
+    }
+
+    if (order.deliveryFeeKobo > 0) {
+      const margin = computeDeliveryMarginKobo(order.deliveryFeeKobo, rates);
+      if (margin > 0) {
+        await this.ledger.record({
+          stream: 'DELIVERY_MARGIN',
+          grossKobo: order.deliveryFeeKobo,
+          netKobo: margin,
+          orderId: order.id,
+          listingId: order.listingId,
+          sellerId: order.sellerId,
+          city,
+          categoryId,
+          pspReference,
+          feeConfigVersionId,
+          referenceType: 'Order',
+          referenceId: `${order.id}:delivery_margin`,
+        });
+      }
+    }
   }
 
   private toDto(p: Payment, checkoutUrl?: string): PaymentDto {

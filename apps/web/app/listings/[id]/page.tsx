@@ -14,7 +14,7 @@ import {
 } from "@reworth/ui-web";
 import { MakeOfferModal } from "../../../components/chat/MakeOfferModal";
 import { SwapProposalModal } from "../../../components/swap/SwapProposalModal";
-import { ApiError } from "../../../lib/api";
+import { apiFetch, ApiError } from "../../../lib/api";
 import { getAccessToken } from "../../../lib/auth";
 import {
   createConversation,
@@ -25,16 +25,34 @@ import {
   getMeFavourites,
   unfavouriteListing,
 } from "../../../lib/discovery";
+import { fetchRecommendations } from "../../../lib/intelligence";
 import {
   CONDITION_LABELS,
   formatPostedAt,
   getListing,
+  getPriceIntelligence,
   listingImageUrl,
   reportListing,
 } from "../../../lib/listings";
 import { createGiveawayClaim } from "../../../lib/swap";
 import { formatResponseShort } from "../../../lib/trust";
-import type { PublicListing } from "../../../lib/types";
+import {
+  formatInspectedDate,
+  getInspectionReport,
+  getListingInspectionReport,
+  isLuxuryListing,
+  isVehicleListing,
+  luxuryAuthLabel,
+  requestInspection,
+  resolveInspectedBadge,
+  type InspectionReport,
+} from "../../../lib/verticals";
+import type {
+  MeResponse,
+  PriceIntelligence,
+  PublicListing,
+} from "../../../lib/types";
+import { DiscoveryListingCard } from "../../../components/discovery/DiscoveryListingCard";
 
 export default function ListingPdpPage() {
   const params = useParams<{ id: string }>();
@@ -60,6 +78,14 @@ export default function ListingPdpPage() {
   const [offerBusy, setOfferBusy] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
   const [claimBusy, setClaimBusy] = useState(false);
+  const [meId, setMeId] = useState<string | null>(null);
+  const [similar, setSimilar] = useState<PublicListing[]>([]);
+  const [priceIntel, setPriceIntel] = useState<PriceIntelligence | null>(null);
+  const [reportViewerOpen, setReportViewerOpen] = useState(false);
+  const [inspectionReport, setInspectionReport] =
+    useState<InspectionReport | null>(null);
+  const [inspectionBusy, setInspectionBusy] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -70,7 +96,30 @@ export default function ListingPdpPage() {
       const data = await getListing(id, token);
       setListing(data);
       setActiveImage(0);
+
+      void fetchRecommendations(
+        {
+          surface: "similar",
+          listingId: id,
+          city: data.city ?? undefined,
+          limit: 8,
+        },
+        token,
+      )
+        .then((res) => setSimilar(res.items ?? []))
+        .catch(() => setSimilar([]));
+
+      void getPriceIntelligence(id)
+        .then((intel) => setPriceIntel(intel))
+        .catch(() => setPriceIntel(null));
+
       if (token) {
+        try {
+          const me = await apiFetch<MeResponse>("/me", { token });
+          setMeId(me.id);
+        } catch {
+          setMeId(null);
+        }
         try {
           const favs = await getMeFavourites(token);
           setSaved(favs.items.some((i) => i.listing.id === id));
@@ -78,6 +127,7 @@ export default function ListingPdpPage() {
           setSaved(false);
         }
       } else {
+        setMeId(null);
         setSaved(false);
       }
     } catch (err) {
@@ -145,10 +195,12 @@ export default function ListingPdpPage() {
     }
   }
 
-  function buyNow() {
+  function buyNow(opts?: { instantBuy?: boolean }) {
     if (!id) return;
     if (!requireAuth()) return;
-    router.push(`/checkout?listingId=${id}`);
+    const qs = new URLSearchParams({ listingId: id });
+    if (opts?.instantBuy) qs.set("instantBuy", "1");
+    router.push(`/checkout?${qs.toString()}`);
   }
 
   async function toggleSave() {
@@ -228,6 +280,57 @@ export default function ListingPdpPage() {
     }
   }
 
+  async function openInspectionReport() {
+    if (!listing) return;
+    const badge = resolveInspectedBadge(listing);
+    setReportViewerOpen(true);
+    setReportLoading(true);
+    setInspectionReport(null);
+    try {
+      const token = getAccessToken();
+      if (badge.inspectionId) {
+        const report = await getInspectionReport(badge.inspectionId, token);
+        setInspectionReport(report);
+      } else {
+        const report = await getListingInspectionReport(listing.id, token);
+        setInspectionReport(report);
+      }
+    } catch (err) {
+      setToast({
+        message:
+          err instanceof ApiError
+            ? err.message
+            : "Inspection report unavailable",
+        tone: "error",
+      });
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
+  async function onRequestInspection() {
+    if (!id) return;
+    const token = requireAuth();
+    if (!token) return;
+    setInspectionBusy(true);
+    try {
+      await requestInspection(id, token);
+      setToast({
+        message: "Inspection requested — pay & schedule next",
+        tone: "success",
+      });
+      await load();
+    } catch (err) {
+      setToast({
+        message:
+          err instanceof ApiError ? err.message : "Could not request inspection",
+        tone: "error",
+      });
+    } finally {
+      setInspectionBusy(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="min-h-[100dvh] bg-[var(--rw-bg)] px-4 py-8 sm:px-8">
@@ -268,6 +371,11 @@ export default function ListingPdpPage() {
   if (listing.fulfilmentPickup) fulfilment.push("Pickup");
   if (listing.fulfilmentMeet) fulfilment.push("Meet point");
   if (listing.fulfilmentDelivery) fulfilment.push("Delivery (quote at checkout)");
+
+  const inspected = resolveInspectedBadge(listing);
+  const authLabel = luxuryAuthLabel(listing);
+  const vehicleListing = isVehicleListing(listing);
+  const luxuryListing = isLuxuryListing(listing);
 
   return (
     <main className="relative min-h-[100dvh] bg-[var(--rw-bg)] text-[var(--rw-ink)]">
@@ -364,17 +472,126 @@ export default function ListingPdpPage() {
           <h1 className="mt-3 text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
             {listing.title || "Untitled listing"}
           </h1>
+          {(inspected.inspected ||
+            authLabel ||
+            listing.certificateId ||
+            listing.instantBuyEligible) && (
+            <ul
+              className="mt-3 flex flex-wrap gap-2"
+              aria-label="Trust badges"
+            >
+              {listing.instantBuyEligible ? (
+                <li>
+                  <span className="inline-flex items-center rounded-[var(--rw-radius)] bg-[var(--rw-accent-muted)] px-3 py-1.5 text-sm font-semibold text-[var(--rw-accent)]">
+                    Instant Buy
+                  </span>
+                </li>
+              ) : null}
+              {inspected.inspected ? (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => void openInspectionReport()}
+                    className="inline-flex items-center rounded-[var(--rw-radius)] bg-[var(--rw-success-muted)] px-3 py-1.5 text-sm font-semibold text-[var(--rw-success)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+                  >
+                    Inspected ✓
+                    {inspected.completedAt
+                      ? ` · ${formatInspectedDate(inspected.completedAt)}`
+                      : ""}
+                  </button>
+                </li>
+              ) : null}
+              {authLabel ? (
+                <li>
+                  <span
+                    className={[
+                      "inline-flex items-center rounded-[var(--rw-radius)] px-3 py-1.5 text-sm font-semibold",
+                      authLabel === "Authentic ✓"
+                        ? "bg-[var(--rw-success-muted)] text-[var(--rw-success)]"
+                        : "border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] text-[var(--rw-ink-muted)]",
+                    ].join(" ")}
+                  >
+                    {authLabel}
+                  </span>
+                </li>
+              ) : null}
+              {listing.certificateId ? (
+                <li>
+                  <span className="inline-flex items-center rounded-[var(--rw-radius)] border border-[var(--rw-border)] px-3 py-1.5 font-mono text-xs text-[var(--rw-ink-muted)]">
+                    Cert {listing.certificateId}
+                  </span>
+                </li>
+              ) : null}
+            </ul>
+          )}
+          {vehicleListing && !inspected.inspected ? (
+            <p className="mt-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={inspectionBusy}
+                onClick={() => void onRequestInspection()}
+              >
+                {inspectionBusy ? "Requesting…" : "Request inspection"}
+              </Button>
+            </p>
+          ) : null}
+          {luxuryListing && listing.authRequired ? (
+            <p className="mt-2 text-xs text-[var(--rw-ink-muted)]">
+              Luxury authentication required before sale completes.
+            </p>
+          ) : null}
           <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-sm text-[var(--rw-ink-muted)]">
             <span>
               {CONDITION_LABELS[listing.condition] ?? listing.condition}
             </span>
             <span aria-hidden>·</span>
-            <span>{listing.community || "Lagos"}</span>
+            <span>
+              {listing.community || listing.city || "Lagos"}
+            </span>
             <span aria-hidden>·</span>
             <time dateTime={listing.publishedAt ?? listing.createdAt}>
               {posted}
             </time>
           </p>
+          {priceIntel?.confidenceLabel ? (
+            <p className="mt-2 text-sm text-[var(--rw-ink-muted)]">
+              {priceIntel.confidenceLabel}
+            </p>
+          ) : null}
+          {listing.movingSale ? (
+            <p className="mt-3">
+              <Link
+                href={`/moving-sales/${listing.movingSale.id}`}
+                className="inline-flex items-center rounded-[var(--rw-radius)] bg-[var(--rw-accent-muted)] px-3 py-1.5 text-sm font-medium text-[var(--rw-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+              >
+                Moving sale: {listing.movingSale.title} →
+              </Link>
+            </p>
+          ) : null}
+          {listing.communityChip ? (
+            <p className="mt-2">
+              <Link
+                href={`/communities/${listing.communityChip.slug}`}
+                className="inline-flex items-center rounded-full border border-[var(--rw-border)] px-3 py-1 text-xs font-medium text-[var(--rw-ink-muted)] hover:text-[var(--rw-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+              >
+                {listing.communityChip.name}
+                {listing.communityChip.privacy !== "PUBLIC"
+                  ? " · members"
+                  : ""}
+              </Link>
+            </p>
+          ) : null}
+          {meId && meId === listing.seller.id && !listing.movingSale ? (
+            <p className="mt-3 text-sm">
+              <Link
+                href={`/moving-sales/new?listingId=${listing.id}`}
+                className="font-medium text-[var(--rw-accent)] underline-offset-2 hover:underline"
+              >
+                Add to moving sale?
+              </Link>
+            </p>
+          ) : null}
         </section>
 
         <section
@@ -472,6 +689,21 @@ export default function ListingPdpPage() {
             Interested in swapping? Chat with the seller
           </p>
         ) : null}
+
+        {similar.length > 0 ? (
+          <section className="mt-12" aria-labelledby="similar-heading">
+            <h2 id="similar-heading" className="text-lg font-semibold">
+              Similar items
+            </h2>
+            <ul className="mt-4 flex gap-3 overflow-x-auto pb-2">
+              {similar.map((item) => (
+                <li key={item.id} className="w-40 shrink-0 sm:w-44">
+                  <DiscoveryListingCard listing={item} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--rw-border)] bg-[var(--rw-bg-elevated)]/95 backdrop-blur-md">
@@ -540,6 +772,15 @@ export default function ListingPdpPage() {
             </>
           ) : (
             <>
+              {listing.instantBuyEligible ? (
+                <Button
+                  variant="primary"
+                  className="flex-1"
+                  onClick={() => buyNow({ instantBuy: true })}
+                >
+                  Instant Buy
+                </Button>
+              ) : null}
               <Button
                 variant="secondary"
                 className="flex-1"
@@ -551,7 +792,7 @@ export default function ListingPdpPage() {
                 Make offer
               </Button>
               <Button
-                variant="primary"
+                variant={listing.instantBuyEligible ? "ghost" : "primary"}
                 className="flex-1"
                 onClick={() => buyNow()}
               >
@@ -640,6 +881,73 @@ export default function ListingPdpPage() {
             {reporting ? "Sending…" : "Submit report"}
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        open={reportViewerOpen}
+        onClose={() => setReportViewerOpen(false)}
+        title="Inspection report"
+      >
+        {reportLoading ? (
+          <div className="space-y-3" aria-busy="true">
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ) : inspectionReport ? (
+          <div className="flex flex-col gap-3 text-sm">
+            <p>
+              <span className="text-[var(--rw-ink-muted)]">Status · </span>
+              <span className="font-medium">{inspectionReport.status}</span>
+            </p>
+            {inspectionReport.conditionScore != null ? (
+              <p>
+                <span className="text-[var(--rw-ink-muted)]">
+                  Condition score ·{" "}
+                </span>
+                <span className="font-medium">
+                  {inspectionReport.conditionScore}
+                </span>
+              </p>
+            ) : null}
+            {inspectionReport.verifiedMileage != null ? (
+              <p>
+                <span className="text-[var(--rw-ink-muted)]">Mileage · </span>
+                <span className="font-medium">
+                  {inspectionReport.verifiedMileage.toLocaleString("en-NG")} km
+                </span>
+              </p>
+            ) : null}
+            {inspectionReport.registrationOk != null ? (
+              <p>
+                Registration{" "}
+                {inspectionReport.registrationOk ? "verified ✓" : "issue noted"}
+              </p>
+            ) : null}
+            {inspectionReport.accidentNotes ? (
+              <p className="text-[var(--rw-ink-muted)]">
+                {inspectionReport.accidentNotes}
+              </p>
+            ) : null}
+            {inspectionReport.tyreBatteryNotes ? (
+              <p className="text-[var(--rw-ink-muted)]">
+                {inspectionReport.tyreBatteryNotes}
+              </p>
+            ) : null}
+            {inspectionReport.completedAt ? (
+              <time
+                className="text-xs text-[var(--rw-ink-muted)]"
+                dateTime={inspectionReport.completedAt}
+              >
+                Completed{" "}
+                {formatInspectedDate(inspectionReport.completedAt)}
+              </time>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--rw-ink-muted)]">
+            Report not available.
+          </p>
+        )}
       </Modal>
 
       {toast ? (
