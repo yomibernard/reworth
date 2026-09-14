@@ -47,7 +47,7 @@ import {
   type Community,
   type MeResponse,
 } from "./lib/types";
-import { colors, space } from "./theme/tokens";
+import { colors } from "./theme/tokens";
 
 type Tab = "home" | "discover" | "sell" | "chats" | "profile";
 
