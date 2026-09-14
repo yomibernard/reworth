@@ -33,16 +33,12 @@ import {
   PlatformToolsModal,
   type PlatformTool,
 } from "./PlatformTools";
+import { OnboardingFlow } from "./OnboardingFlow";
 import { apiFetch, ApiError } from "./lib/api";
 import {
   clearTokens,
   getAccessToken,
-  getOnboardingPhone,
   getRefreshToken,
-  isValidNgPhone,
-  normalizeNgPhone,
-  setOnboardingPhone,
-  setTokens,
 } from "./lib/auth";
 import { registerDevicePushToken } from "./lib/push";
 import { listRegions } from "./lib/region";
@@ -51,9 +47,9 @@ import {
   type Community,
   type MeResponse,
 } from "./lib/types";
+import { colors } from "./theme/tokens";
 
 type Tab = "home" | "discover" | "sell" | "chats" | "profile";
-type OnboardingStep = "welcome" | "phone" | "otp" | "profile";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "home", label: "Home" },
@@ -67,17 +63,14 @@ export default function App() {
   const [booting, setBooting] = useState(true);
   const [authed, setAuthed] = useState(false);
   const [active, setActive] = useState<Tab>("home");
-  const [onboarding, setOnboarding] = useState<OnboardingStep>("welcome");
 
-  const [phone, setPhone] = useState("+234");
-  const [otp, setOtp] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [community, setCommunity] = useState<Community | "">("");
+  const [bio, setBio] = useState("");
   const [me, setMe] = useState<MeResponse | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [debugHint, setDebugHint] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [homeSearchOpen, setHomeSearchOpen] = useState(false);
   const [platformTool, setPlatformTool] = useState<PlatformTool>(null);
@@ -126,6 +119,7 @@ export default function App() {
       if (profile.profile?.displayName) {
         setDisplayName(profile.profile.displayName);
       }
+      if (profile.profile?.bio) setBio(profile.profile.bio);
       const pref = profile.profile?.preferredCommunity;
       if (pref && (COMMUNITIES as readonly string[]).includes(pref)) {
         setCommunity(pref as Community);
@@ -174,77 +168,6 @@ export default function App() {
     if (active !== "home") setHomeSearchOpen(false);
   }, [active]);
 
-  async function requestOtp() {
-    setError(null);
-    setDebugHint(null);
-    const normalized = normalizeNgPhone(phone);
-    if (!isValidNgPhone(normalized)) {
-      setError("Enter a valid NG number (+234…)");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await apiFetch<{ ok: boolean; debugCode?: string }>(
-        "/auth/otp/request",
-        { method: "POST", body: { phone: normalized } },
-      );
-      await setOnboardingPhone(normalized);
-      setPhone(normalized);
-      if (res.debugCode) setDebugHint(`Dev code: ${res.debugCode}`);
-      setOnboarding("otp");
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not send code");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function verifyOtp() {
-    setError(null);
-    const stored = (await getOnboardingPhone()) ?? normalizeNgPhone(phone);
-    const code = otp.replace(/\D/g, "");
-    if (code.length !== 6) {
-      setError("Enter the 6-digit code");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await apiFetch<{
-        accessToken: string;
-        refreshToken: string;
-      }>("/auth/otp/verify", {
-        method: "POST",
-        body: {
-          phone: stored,
-          code,
-          device: { name: "ReWorth Mobile", platform: "UNKNOWN" },
-        },
-      });
-      await setTokens(res.accessToken, res.refreshToken);
-      // Stay on onboarding until profile is saved (do not set authed yet)
-      try {
-        const profile = await apiFetch<MeResponse>("/me", {
-          token: res.accessToken,
-        });
-        setMe(profile);
-        if (profile.profile?.displayName) {
-          setDisplayName(profile.profile.displayName);
-        }
-        const pref = profile.profile?.preferredCommunity;
-        if (pref && (COMMUNITIES as readonly string[]).includes(pref)) {
-          setCommunity(pref as Community);
-        }
-      } catch {
-        /* form stays empty */
-      }
-      setOnboarding("profile");
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Invalid code");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function saveProfile() {
     setError(null);
     const name = displayName.trim();
@@ -259,11 +182,13 @@ export default function App() {
       await apiFetch("/me", {
         method: "PATCH",
         token,
-        body: { displayName: name, preferredCommunity: community },
+        body: {
+          displayName: name,
+          preferredCommunity: community,
+          bio: bio.trim() || null,
+        },
       });
       await refreshMe();
-      setAuthed(true);
-      setActive("home");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not save");
     } finally {
@@ -284,8 +209,6 @@ export default function App() {
     await clearTokens();
     setAuthed(false);
     setMe(null);
-    setOnboarding("welcome");
-    setOtp("");
     setError(null);
   }
 
@@ -293,7 +216,10 @@ export default function App() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <ActivityIndicator color="#0E9F6E" accessibilityLabel="Loading" />
+          <ActivityIndicator
+            color={colors.emerald}
+            accessibilityLabel="Loading"
+          />
         </View>
       </SafeAreaView>
     );
@@ -301,161 +227,23 @@ export default function App() {
 
   if (!authed) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.canvas }]}>
         <StatusBar style="dark" />
-        <ScrollView
-          contentContainerStyle={styles.onboarding}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text style={styles.brand} accessibilityRole="header">
-            ReWorth
-          </Text>
-
-          {onboarding === "welcome" ? (
-            <View>
-              <Text style={styles.title}>Welcome</Text>
-              <Text style={styles.copy}>
-                Sell fast · Local trust · AI listing — Lagos recommerce in
-                ~60 seconds.
-              </Text>
-              <Pressable
-                style={styles.primaryBtn}
-                onPress={() => setOnboarding("phone")}
-                accessibilityRole="button"
-                accessibilityLabel="Continue"
-              >
-                <Text style={styles.primaryBtnText}>Continue</Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          {onboarding === "phone" ? (
-            <View>
-              <Text style={styles.title}>Your phone</Text>
-              <Text style={styles.label}>Phone number</Text>
-              <TextInput
-                style={styles.input}
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                autoComplete="tel"
-                accessibilityLabel="Phone number"
-                editable={!loading}
-              />
-              {error ? (
-                <Text style={styles.error} accessibilityRole="alert">
-                  {error}
-                </Text>
-              ) : null}
-              {debugHint ? (
-                <Text style={styles.hint} accessibilityLiveRegion="polite">
-                  {debugHint}
-                </Text>
-              ) : null}
-              <Pressable
-                style={[styles.primaryBtn, loading && styles.btnDisabled]}
-                onPress={() => void requestOtp()}
-                disabled={loading}
-                accessibilityRole="button"
-                accessibilityState={{ busy: loading }}
-              >
-                <Text style={styles.primaryBtnText}>
-                  {loading ? "Sending…" : "Send code"}
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          {onboarding === "otp" ? (
-            <View>
-              <Text style={styles.title}>Enter code</Text>
-              <Text style={styles.copy}>6-digit SMS code</Text>
-              <TextInput
-                style={[styles.input, styles.otpInput]}
-                value={otp}
-                onChangeText={(t) => setOtp(t.replace(/\D/g, "").slice(0, 6))}
-                keyboardType="number-pad"
-                maxLength={6}
-                accessibilityLabel="One-time code"
-                editable={!loading}
-              />
-              {error ? (
-                <Text style={styles.error} accessibilityRole="alert">
-                  {error}
-                </Text>
-              ) : null}
-              <Pressable
-                style={[styles.primaryBtn, loading && styles.btnDisabled]}
-                onPress={() => void verifyOtp()}
-                disabled={loading}
-                accessibilityRole="button"
-              >
-                <Text style={styles.primaryBtnText}>
-                  {loading ? "Verifying…" : "Verify"}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setOnboarding("phone")}
-                accessibilityRole="button"
-              >
-                <Text style={styles.link}>Change number</Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          {onboarding === "profile" ? (
-            <View>
-              <Text style={styles.title}>Your profile</Text>
-              <Text style={styles.label}>Display name</Text>
-              <TextInput
-                style={styles.input}
-                value={displayName}
-                onChangeText={setDisplayName}
-                accessibilityLabel="Display name"
-                editable={!loading}
-              />
-              <Text style={styles.label}>Preferred community</Text>
-              <View style={styles.chips}>
-                {COMMUNITIES.map((c) => (
-                  <Pressable
-                    key={c}
-                    onPress={() => setCommunity(c)}
-                    style={[
-                      styles.chip,
-                      community === c && styles.chipSelected,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: community === c }}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        community === c && styles.chipTextSelected,
-                      ]}
-                    >
-                      {c}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              {error ? (
-                <Text style={styles.error} accessibilityRole="alert">
-                  {error}
-                </Text>
-              ) : null}
-              <Pressable
-                style={[styles.primaryBtn, loading && styles.btnDisabled]}
-                onPress={() => void saveProfile()}
-                disabled={loading}
-                accessibilityRole="button"
-              >
-                <Text style={styles.primaryBtnText}>
-                  {loading ? "Saving…" : "Done"}
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
-        </ScrollView>
+        <OnboardingFlow
+          onComplete={(profile) => {
+            setMe(profile);
+            if (profile.profile?.displayName) {
+              setDisplayName(profile.profile.displayName);
+            }
+            if (profile.profile?.bio) setBio(profile.profile.bio);
+            const pref = profile.profile?.preferredCommunity;
+            if (pref && (COMMUNITIES as readonly string[]).includes(pref)) {
+              setCommunity(pref as Community);
+            }
+            setAuthed(true);
+            setActive("home");
+          }}
+        />
       </SafeAreaView>
     );
   }
@@ -534,6 +322,61 @@ export default function App() {
                     ? ` · ${me.profile.preferredCommunity}`
                     : ""}
                 </Text>
+
+                <Text style={styles.label}>Display name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  accessibilityLabel="Display name"
+                />
+                <Text style={styles.label}>Bio</Text>
+                <TextInput
+                  style={[styles.input, { minHeight: 72 }]}
+                  value={bio}
+                  onChangeText={setBio}
+                  multiline
+                  accessibilityLabel="Bio"
+                />
+                <Text style={styles.label}>Preferred community</Text>
+                <View style={styles.chips}>
+                  {COMMUNITIES.map((c) => (
+                    <Pressable
+                      key={c}
+                      onPress={() => setCommunity(c)}
+                      style={[
+                        styles.chip,
+                        community === c && styles.chipSelected,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: community === c }}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          community === c && styles.chipTextSelected,
+                        ]}
+                      >
+                        {c}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {error ? (
+                  <Text style={styles.error} accessibilityRole="alert">
+                    {error}
+                  </Text>
+                ) : null}
+                <Pressable
+                  style={[styles.primaryBtn, loading && styles.btnDisabled]}
+                  onPress={() => void saveProfile()}
+                  disabled={loading}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.primaryBtnText}>
+                    {loading ? "Saving…" : "Save profile"}
+                  </Text>
+                </Pressable>
 
                 <Pressable
                   style={styles.secondaryBtn}

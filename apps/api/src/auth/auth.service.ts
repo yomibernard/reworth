@@ -38,6 +38,7 @@ import type {
   OAuthCallbackDto,
   OtpRequestDto,
   OtpVerifyDto,
+  RegisterDto,
 } from './dto/auth.dto';
 
 type TokenPair = {
@@ -232,6 +233,31 @@ export class AuthService {
       }
     }
 
+    return { ...tokens, userId: user.id };
+  }
+
+  async register(
+    dto: RegisterDto,
+    ip?: string,
+  ): Promise<TokenPair & { userId: string }> {
+    const email = dto.email.trim().toLowerCase();
+    if (dto.password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+    const user = await this.createUserWithPassword({
+      email,
+      password: dto.password,
+      displayName: dto.displayName?.trim() || email.split('@')[0],
+    });
+    const tokens = await this.issueTokenPair(user.id, dto.device);
+    await this.audit.log({
+      actorUserId: user.id,
+      action: 'REGISTER',
+      entityType: 'User',
+      entityId: user.id,
+      afterJson: { email, method: 'email_password' },
+      ip: ip ?? null,
+    });
     return { ...tokens, userId: user.id };
   }
 

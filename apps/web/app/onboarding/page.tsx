@@ -47,16 +47,22 @@ export default function OnboardingWelcomePage() {
         ))}
       </ol>
 
-      <div className="mt-auto pt-12">
-        <Link href="/onboarding/phone" className="block">
+      <div className="mt-auto flex flex-col gap-3 pt-12">
+        <Link href="/onboarding/method" className="block">
           <Button
             variant="primary"
             size="lg"
             className="w-full"
-            aria-label="Continue to phone verification"
+            aria-label="Get started"
           >
-            Continue
+            Get started
           </Button>
+        </Link>
+        <Link
+          href="/onboarding/method"
+          className="text-center text-sm font-medium text-[var(--rw-accent)]"
+        >
+          Skip intro
         </Link>
       </div>
     </OnboardingShell>

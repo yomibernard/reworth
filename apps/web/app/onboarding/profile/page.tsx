@@ -16,6 +16,7 @@ export default function OnboardingProfilePage() {
   const router = useRouter();
   const [displayName, setDisplayName] = useState("");
   const [community, setCommunity] = useState<Community | "">("");
+  const [bio, setBio] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
@@ -29,6 +30,7 @@ export default function OnboardingProfilePage() {
     apiFetch<MeResponse>("/me", { token })
       .then((me) => {
         if (me.profile?.displayName) setDisplayName(me.profile.displayName);
+        if (me.profile?.bio) setBio(me.profile.bio);
         const pref = me.profile?.preferredCommunity;
         if (pref && (COMMUNITIES as readonly string[]).includes(pref)) {
           setCommunity(pref as Community);
@@ -68,6 +70,7 @@ export default function OnboardingProfilePage() {
         body: {
           displayName: name,
           preferredCommunity: community,
+          bio: bio.trim() || null,
         },
       });
       clearOnboardingPhone();
@@ -94,8 +97,8 @@ export default function OnboardingProfilePage() {
   return (
     <OnboardingShell
       step={4}
-      title="Your profile"
-      subtitle="How neighbours will see you on ReWorth."
+      title="Customise your profile"
+      subtitle="Name, bio, and community — how Lagos neighbours see you."
     >
       <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-8" noValidate>
         <Input
@@ -107,6 +110,15 @@ export default function OnboardingProfilePage() {
           onChange={(e) => setDisplayName(e.target.value)}
           disabled={loading}
           required
+        />
+
+        <Input
+          label="Bio (optional)"
+          name="bio"
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          disabled={loading}
+          hint="A short line about you"
         />
 
         <fieldset>
@@ -147,7 +159,7 @@ export default function OnboardingProfilePage() {
             disabled={loading}
             aria-busy={loading}
           >
-            {loading ? "Saving…" : "Done"}
+            {loading ? "Saving…" : "Enter ReWorth"}
           </Button>
         </div>
       </form>
