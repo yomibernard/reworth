@@ -46,7 +46,7 @@ import {
   upgradeSellerPlus,
   type SellerPlan,
 } from "../../lib/monetization";
-import { setDonateIfUnsold } from "../../lib/circular";
+import { setDonateIfUnsold as patchDonateIfUnsold } from "../../lib/circular";
 import { brandPublic } from "../../lib/brand";
 
 type SellStep =
@@ -466,7 +466,7 @@ export default function SellPage() {
       const live = await publishListing(listingId, token);
       if (donateIfUnsold) {
         try {
-          await setDonateIfUnsold(token, listingId, donateIfUnsoldDays);
+          await patchDonateIfUnsold(token, listingId, donateIfUnsoldDays);
         } catch {
           /* non-blocking */
         }
