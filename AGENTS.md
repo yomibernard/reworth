@@ -30,8 +30,8 @@ Functional · UX · **mobile behaviour verified on iOS + Android; web parity del
 | Last completed (post-launch) | **3.3** (`v2.2-monetization`) |
 | MVP Admin | **`v0.8-admin`** (+ harden) |
 | MVP Risk / Security | **`v0.9-risk-security`** (+ harden) |
-| Status | **In progress** — foundation shipped; Home/Sell/system components elevating |
-| Next | PDP/Chat/Orders/Search sheets; camera SELL; Maestro + Lighthouse device demo |
+| Status | **Near complete** — tokens + brand assets + Maestro stubs ready; device recording / staging k6 / Termii keys remain |
+| Next | Maestro ≤60s device recording; staging k6 re-gate; Termii live keys |
 
 ## MVP / post-launch
 
@@ -40,9 +40,11 @@ Post-launch through `v2.2-monetization`: swap → communities → intelligence �
 
 ## Known gaps
 
-- Expo push mock; staging k6 certification; pen-test / NDPR / store sign-offs
-- Cross-border: ADR-007 design only; next cities via config + seed
-- Web companion for Boost / Featured / Seller Plus (mobile full — see `docs/MOBILE_PARITY.md`)
+- Real device Maestro ≤60s recording still open (`e2e/mobile/00_demo_60s.yaml` + README; testIDs on OTP/Sell)
+- Staging k6 p95 certification; pen-test / NDPR / store sign-offs
+- Cross-border: ADR-007 design only; next cities via config + seed (pilot = Lagos + Abuja; PH/Ibadan supply)
 - Promoted search self-serve later (ADR-009 admin-assigned)
+- Payments still mock-default in local (Paystack adapter present)
+- Termii live SMS/WhatsApp keys still pending (dual-channel mock verified)
 
 See `docs/PHASE_STATUS.md`, `docs/BUYER_JOURNEY_AUDIT.md`, `docs/METRICS.md`, `docs/ADRS/009-promoted-search-admin.md`.

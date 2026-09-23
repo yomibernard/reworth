@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Linking,
   Pressable,
   SafeAreaView,
@@ -10,6 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import type { ImageSourcePropType } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { parseDeepLink } from "./lib/notifications";
 import { ChatsPanel } from "./ChatScreens";
@@ -31,23 +33,41 @@ import { PrivacySettings } from "./PrivacySettings";
 import { NotificationsModal } from "./NotificationsScreens";
 import {
   PlatformToolsModal,
+  SharedBundleModal,
   type PlatformTool,
 } from "./PlatformTools";
+import { SellerAnalyticsPanel } from "./SellerAnalyticsPanel";
 import { OnboardingFlow } from "./OnboardingFlow";
+import { CommunitiesModal } from "./CommunitiesScreens";
+import { MovingSalesModal } from "./MovingSalesScreens";
+import { ReferralsModal } from "./ReferralsScreens";
+import { ProSellerModal } from "./ProSellerScreens";
+import { StorefrontModal } from "./StorefrontModal";
+import { CorporateModal } from "./CorporateScreens";
+import { PartnerConsoleModal } from "./PartnerScreens";
 import { apiFetch, ApiError } from "./lib/api";
 import {
   clearTokens,
+  ensureAccessToken,
   getAccessToken,
   getRefreshToken,
 } from "./lib/auth";
-import { registerDevicePushToken } from "./lib/push";
-import { listRegions } from "./lib/region";
+import { registerDevicePushToken, setupPushListeners } from "./lib/push";
+import {
+  communityLabelsForCity,
+  getPreferredCityKey,
+  listRegions,
+  setPreferredCityKey,
+  type RegionCity,
+} from "./lib/region";
+import type { SearchFilters } from "./lib/discovery";
 import {
   COMMUNITIES,
   type Community,
   type MeResponse,
 } from "./lib/types";
 import { BottomNav } from "./components/BottomNav";
+import { brandAssets } from "./lib/brandAssets";
 import { ThemeProvider, useTheme } from "./theme/ThemeProvider";
 import { colors } from "./theme/tokens";
 
@@ -85,8 +105,10 @@ function AppShell() {
   const [homeSearchOpen, setHomeSearchOpen] = useState(false);
   const [platformTool, setPlatformTool] = useState<PlatformTool>(null);
   const [cityLabel, setCityLabel] = useState("Lagos");
+  const [cityKey, setCityKey] = useState("lagos");
+  const [cities, setCities] = useState<RegionCity[]>([]);
   const [profileSubtab, setProfileSubtab] = useState<
-    "account" | "saved" | "orders"
+    "account" | "saved" | "orders" | "stats"
   >("account");
   const [openChatId, setOpenChatId] = useState<string | null>(null);
   const [checkoutParams, setCheckoutParams] = useState<{
@@ -98,6 +120,23 @@ function AppShell() {
   const [disputeId, setDisputeId] = useState<string | null>(null);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [communitiesOpen, setCommunitiesOpen] = useState(false);
+  const [communityFocusId, setCommunityFocusId] = useState<string | null>(null);
+  const [movingSalesOpen, setMovingSalesOpen] = useState(false);
+  const [movingSaleFocusId, setMovingSaleFocusId] = useState<string | null>(
+    null,
+  );
+  const [referralsOpen, setReferralsOpen] = useState(false);
+  const [proOpen, setProOpen] = useState(false);
+  const [corporateOpen, setCorporateOpen] = useState(false);
+  const [partnerOpen, setPartnerOpen] = useState(false);
+  const [searchSeed, setSearchSeed] = useState<SearchFilters | null>(null);
+  const [bundleShareToken, setBundleShareToken] = useState<string | null>(
+    null,
+  );
+  const [storefrontHandle, setStorefrontHandle] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     function handleUrl(url: string | null) {
@@ -109,14 +148,47 @@ function AppShell() {
         setOpenChatId(parsed.id);
         setActive("chats");
       } else if (parsed?.kind === "listing" && parsed.id) setDetailId(parsed.id);
+      else if (parsed?.kind === "moving_sale" && parsed.id) {
+        setMovingSaleFocusId(parsed.id);
+        setMovingSalesOpen(true);
+      }       else if (parsed?.kind === "community" && parsed.id) {
+        setCommunityFocusId(parsed.id);
+        setCommunitiesOpen(true);
+      } else if (parsed?.kind === "bundle" && parsed.id) {
+        setBundleShareToken(parsed.id);
+      } else if (parsed?.kind === "storefront" && parsed.id) {
+        setStorefrontHandle(parsed.id);
+      }
     }
     void Linking.getInitialURL().then(handleUrl);
     const sub = Linking.addEventListener("url", (e) => handleUrl(e.url));
     return () => sub.remove();
   }, []);
 
+  useEffect(() => {
+    return setupPushListeners((route) => {
+      if (route.kind === "order") setOrderId(route.id);
+      else if (route.kind === "dispute") setDisputeId(route.id);
+      else if (route.kind === "chat") {
+        setOpenChatId(route.id);
+        setActive("chats");
+      } else if (route.kind === "listing") setDetailId(route.id);
+      else if (route.kind === "moving_sale") {
+        setMovingSaleFocusId(route.id);
+        setMovingSalesOpen(true);
+      }       else if (route.kind === "community") {
+        setCommunityFocusId(route.id);
+        setCommunitiesOpen(true);
+      } else if (route.kind === "bundle") {
+        setBundleShareToken(route.id);
+      } else if (route.kind === "storefront") {
+        setStorefrontHandle(route.id);
+      }
+    });
+  }, []);
+
   const refreshMe = useCallback(async () => {
-    const token = await getAccessToken();
+    const token = await ensureAccessToken();
     if (!token) {
       setAuthed(false);
       setMe(null);
@@ -134,16 +206,19 @@ function AppShell() {
       if (pref && (COMMUNITIES as readonly string[]).includes(pref)) {
         setCommunity(pref as Community);
       }
-    } catch {
-      await clearTokens();
-      setAuthed(false);
-      setMe(null);
+    } catch (err) {
+      // Only wipe session on hard auth failure — keep tokens on network blips.
+      if (err instanceof ApiError && err.status === 401) {
+        await clearTokens();
+        setAuthed(false);
+        setMe(null);
+      }
     }
   }, []);
 
   useEffect(() => {
     (async () => {
-      const token = await getAccessToken();
+      const token = await ensureAccessToken();
       if (token) {
         await refreshMe();
       }
@@ -151,15 +226,40 @@ function AppShell() {
     })();
   }, [refreshMe]);
 
+  // Quiet re-auth while app is open so short sessions don't surprise the user.
   useEffect(() => {
-    void listRegions()
-      .then((items) => {
-        const lagos = items.find((c) => c.city === "lagos");
-        if (lagos) setCityLabel(lagos.displayName);
-        else if (items[0]) setCityLabel(items[0].displayName);
-      })
-      .catch(() => undefined);
+    if (!authed) return;
+    const id = setInterval(() => {
+      void ensureAccessToken().then((t) => {
+        if (t) void refreshMe();
+      });
+    }, 20 * 60_000);
+    return () => clearInterval(id);
+  }, [authed, refreshMe]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const [items, saved] = await Promise.all([
+          listRegions(),
+          getPreferredCityKey(),
+        ]);
+        setCities(items);
+        const match =
+          items.find((c) => c.city === saved) ??
+          items.find((c) => c.city === "lagos") ??
+          items[0];
+        if (match) {
+          setCityKey(match.city);
+          setCityLabel(match.displayName);
+        }
+      } catch {
+        /* keep Lagos defaults */
+      }
+    })();
   }, []);
+
+  const profileCommunities = communityLabelsForCity(cityKey);
 
   useEffect(() => {
     if (!authed) return;
@@ -227,7 +327,7 @@ function AppShell() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
           <ActivityIndicator
-            color={colors.emerald}
+            color={colors.orange}
             accessibilityLabel="Loading"
           />
         </View>
@@ -261,7 +361,17 @@ function AppShell() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
-      <View style={styles.screen} accessibilityRole="summary">
+      <View
+        style={[
+          styles.screen,
+          (active === "home" ||
+            active === "discover" ||
+            active === "sell" ||
+            active === "chats") &&
+            styles.screenFlush,
+        ]}
+        accessibilityRole="summary"
+      >
         {active === "profile" ? (
           <>
             <View style={styles.subtabs}>
@@ -313,25 +423,109 @@ function AppShell() {
                   Orders
                 </Text>
               </Pressable>
+              <Pressable
+                onPress={() => setProfileSubtab("stats")}
+                style={[
+                  styles.subtab,
+                  profileSubtab === "stats" && styles.subtabActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.subtabText,
+                    profileSubtab === "stats" && styles.subtabTextActive,
+                  ]}
+                >
+                  Stats
+                </Text>
+              </Pressable>
             </View>
             {profileSubtab === "saved" ? (
-              <FavouritesPanel onOpenListing={(id) => setDetailId(id)} />
+              <FavouritesPanel
+                onOpenListing={(id) => setDetailId(id)}
+                onBrowse={() => {
+                  setProfileSubtab("account");
+                  setActive("home");
+                }}
+                onOpenSearch={(filters) => {
+                  setSearchSeed(filters ?? null);
+                  setProfileSubtab("account");
+                  setActive("discover");
+                }}
+              />
             ) : profileSubtab === "orders" ? (
               <OrdersPanel
                 meId={me?.id ?? null}
                 onOpenOrder={(id) => setOrderId(id)}
               />
+            ) : profileSubtab === "stats" ? (
+              <SellerAnalyticsPanel
+                city={cityLabel}
+                onOpenListing={(id) => setDetailId(id)}
+                onSell={() => setActive("sell")}
+              />
             ) : (
               <ScrollView contentContainerStyle={styles.profilePad}>
-                <Text style={styles.brand} accessibilityRole="header">
-                  Profile
-                </Text>
-                <Text style={styles.copy}>
-                  {me?.profile?.displayName ?? "Member"}
-                  {me?.profile?.preferredCommunity
-                    ? ` · ${me.profile.preferredCommunity}`
-                    : ""}
-                </Text>
+                <View style={styles.profileHero} accessibilityRole="header">
+                  <Image
+                    source={brandAssets.logo}
+                    style={styles.profileLogo}
+                    resizeMode="contain"
+                    accessibilityLabel="ReWorth"
+                  />
+                  <View style={styles.profileHeroRow}>
+                    <Image
+                      source={brandAssets.profileAvatar}
+                      style={styles.profileAvatar}
+                      resizeMode="cover"
+                      accessibilityIgnoresInvertColors
+                    />
+                    <View style={styles.profileHeroText}>
+                      <Text style={styles.profileName}>
+                        {me?.profile?.displayName ?? "Member"}
+                      </Text>
+                      <Text style={styles.copy}>
+                        {me?.profile?.preferredCommunity
+                          ? me.profile.preferredCommunity
+                          : cityLabel}
+                        {me?.identityVerifiedBadge ? " · Verified" : ""}
+                      </Text>
+                    </View>
+                    {me?.identityVerifiedBadge ? (
+                      <Image
+                        source={brandAssets.verified}
+                        style={styles.profileVerified}
+                        resizeMode="contain"
+                        accessibilityLabel="Verified"
+                      />
+                    ) : null}
+                  </View>
+                </View>
+
+                <View
+                  style={styles.profileTrustRow}
+                  accessibilityLabel="Trust signals"
+                >
+                  {(
+                    [
+                      ["Buyer protection", brandAssets.trustBuyerProtection],
+                      ["Secure payment", brandAssets.trustSecurePayment],
+                      ["Safe meetup", brandAssets.trustSafeMeetup],
+                      ["Verified", brandAssets.verifiedSeller],
+                    ] as const
+                  ).map(([label, icon]) => (
+                    <View key={label} style={styles.profileTrustChip}>
+                      <Image
+                        source={icon}
+                        style={styles.profileTrustIcon}
+                        resizeMode="contain"
+                      />
+                      <Text style={styles.profileTrustLabel} numberOfLines={1}>
+                        {label}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
 
                 <Text style={styles.label}>Display name</Text>
                 <TextInput
@@ -348,12 +542,57 @@ function AppShell() {
                   multiline
                   accessibilityLabel="Bio"
                 />
+                <View style={styles.sectionHead}>
+                  <Image
+                    source={brandAssets.actionLocation}
+                    style={styles.sectionIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.sectionLabelInline}>City (pilot)</Text>
+                </View>
+                <View style={styles.chips}>
+                  {(cities.length ? cities : [
+                    { city: "lagos", key: "lagos", displayName: "Lagos" },
+                    { city: "abuja", key: "abuja", displayName: "Abuja" },
+                  ]).map((c) => (
+                    <Pressable
+                      key={c.city}
+                      onPress={() => {
+                        setCityKey(c.city);
+                        setCityLabel(c.displayName);
+                        void setPreferredCityKey(c.city);
+                        if (
+                          community &&
+                          !communityLabelsForCity(c.city).includes(community)
+                        ) {
+                          setCommunity("");
+                        }
+                      }}
+                      style={[
+                        styles.chip,
+                        cityKey === c.city && styles.chipSelected,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: cityKey === c.city }}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          cityKey === c.city && styles.chipTextSelected,
+                        ]}
+                      >
+                        {c.displayName}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
                 <Text style={styles.label}>Preferred community</Text>
                 <View style={styles.chips}>
-                  {COMMUNITIES.map((c) => (
+                  {profileCommunities.map((c) => (
                     <Pressable
                       key={c}
-                      onPress={() => setCommunity(c)}
+                      onPress={() => setCommunity(c as Community)}
                       style={[
                         styles.chip,
                         community === c && styles.chipSelected,
@@ -388,16 +627,58 @@ function AppShell() {
                   </Text>
                 </Pressable>
 
-                <Pressable
-                  style={styles.secondaryBtn}
-                  onPress={() => setNotificationsOpen(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Open notifications"
-                >
-                  <Text style={styles.secondaryBtnText}>Notifications</Text>
-                </Pressable>
+                <View style={styles.profileMenu}>
+                  <ProfileMenuRow
+                    icon={brandAssets.actionChat}
+                    label="Notifications"
+                    onPress={() => setNotificationsOpen(true)}
+                  />
+                  <ProfileMenuRow
+                    icon={brandAssets.communityNeighbourhood}
+                    label="Communities"
+                    onPress={() => {
+                      setCommunityFocusId(null);
+                      setCommunitiesOpen(true);
+                    }}
+                  />
+                  <ProfileMenuRow
+                    icon={brandAssets.movingSale}
+                    label="Moving sales"
+                    onPress={() => {
+                      setMovingSaleFocusId(null);
+                      setMovingSalesOpen(true);
+                    }}
+                  />
+                  <ProfileMenuRow
+                    icon={brandAssets.invite}
+                    label="Referrals"
+                    onPress={() => setReferralsOpen(true)}
+                  />
+                  <ProfileMenuRow
+                    icon={brandAssets.verifiedSeller}
+                    label="Pro seller"
+                    onPress={() => setProOpen(true)}
+                  />
+                  <ProfileMenuRow
+                    icon={brandAssets.communityCorporate}
+                    label="Corporate relocation"
+                    onPress={() => setCorporateOpen(true)}
+                  />
+                  <ProfileMenuRow
+                    icon={brandAssets.communityOffice}
+                    label="Partner console"
+                    onPress={() => setPartnerOpen(true)}
+                  />
+                </View>
 
-                <Text style={styles.sectionLabel}>Verification</Text>
+                <View style={styles.sectionHead}>
+                  <Image
+                    source={brandAssets.trustIdentityChecked}
+                    style={styles.sectionIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.sectionLabelInline}>Verification</Text>
+                </View>
                 <View style={styles.badges}>
                   <Badge
                     label="L1 Phone"
@@ -446,6 +727,8 @@ function AppShell() {
             <SearchPanel
               onOpenListing={(id) => setDetailId(id)}
               onBack={() => setHomeSearchOpen(false)}
+              initialFilters={searchSeed}
+              onNeedAuth={() => setAuthed(false)}
             />
           ) : (
             <DiscoveryHome
@@ -453,19 +736,51 @@ function AppShell() {
                 me?.profile?.preferredCommunity || community || undefined
               }
               cityLabel={cityLabel}
+              cityKey={cityKey}
+              cities={cities}
+              onChangeCity={(city) => {
+                setCityKey(city.city);
+                setCityLabel(city.displayName);
+                void setPreferredCityKey(city.city);
+                if (
+                  community &&
+                  !communityLabelsForCity(city.city).includes(community)
+                ) {
+                  setCommunity("");
+                }
+              }}
               onOpenSearch={() => setHomeSearchOpen(true)}
               onOpenListing={(id) => setDetailId(id)}
               onOpenTool={(tool) => setPlatformTool(tool)}
+              onSell={() => setActive("sell")}
+              onOpenMovingSales={(id) => {
+                setMovingSaleFocusId(id ?? null);
+                setMovingSalesOpen(true);
+              }}
+              onOpenCommunities={(id) => {
+                setCommunityFocusId(id ?? null);
+                setCommunitiesOpen(true);
+              }}
             />
           )
         ) : active === "discover" ? (
-          <SearchPanel onOpenListing={(id) => setDetailId(id)} />
+          <SearchPanel
+            onOpenListing={(id) => setDetailId(id)}
+            initialFilters={searchSeed}
+            onNeedAuth={() => setAuthed(false)}
+          />
         ) : active === "chats" ? (
           <ChatsPanel
             meId={me?.id ?? ""}
             openConversationId={openChatId}
             onConversationOpened={() => setOpenChatId(null)}
             onCheckout={(params) => setCheckoutParams(params)}
+            onBrowse={() => setActive("home")}
+            onSessionExpired={() => {
+              setAuthed(false);
+              setMe(null);
+              setActive("home");
+            }}
           />
         ) : (
           <>
@@ -509,6 +824,19 @@ function AppShell() {
         }}
       />
 
+      <SharedBundleModal
+        shareToken={bundleShareToken}
+        onClose={() => setBundleShareToken(null)}
+        onOpenListing={(id) => {
+          setBundleShareToken(null);
+          setDetailId(id);
+        }}
+        onNeedAuth={() => {
+          setBundleShareToken(null);
+          setAuthed(false);
+        }}
+      />
+
       <UserProfileModal
         userId={profileUserId}
         meId={me?.id ?? null}
@@ -537,6 +865,93 @@ function AppShell() {
         }}
         onOpenListing={(id) => {
           setNotificationsOpen(false);
+          setDetailId(id);
+        }}
+      />
+
+      <CommunitiesModal
+        visible={communitiesOpen}
+        initialSlugOrId={communityFocusId}
+        onClose={() => {
+          setCommunitiesOpen(false);
+          setCommunityFocusId(null);
+        }}
+        onOpenListing={(id) => {
+          setCommunitiesOpen(false);
+          setDetailId(id);
+        }}
+        onNeedAuth={() => {
+          setCommunitiesOpen(false);
+          setAuthed(false);
+        }}
+      />
+
+      <MovingSalesModal
+        visible={movingSalesOpen}
+        initialId={movingSaleFocusId}
+        onClose={() => {
+          setMovingSalesOpen(false);
+          setMovingSaleFocusId(null);
+        }}
+        onOpenListing={(id) => {
+          setMovingSalesOpen(false);
+          setDetailId(id);
+        }}
+        onNeedAuth={() => {
+          setMovingSalesOpen(false);
+          setAuthed(false);
+        }}
+        onSell={() => {
+          setMovingSalesOpen(false);
+          setActive("sell");
+        }}
+      />
+
+      <ReferralsModal
+        visible={referralsOpen}
+        onClose={() => setReferralsOpen(false)}
+        onNeedAuth={() => {
+          setReferralsOpen(false);
+          setAuthed(false);
+        }}
+      />
+
+      <ProSellerModal
+        visible={proOpen}
+        onClose={() => setProOpen(false)}
+        onNeedAuth={() => {
+          setProOpen(false);
+          setAuthed(false);
+        }}
+        onOpenStorefront={(handle) => {
+          setProOpen(false);
+          setStorefrontHandle(handle);
+        }}
+      />
+
+      <CorporateModal
+        visible={corporateOpen}
+        onClose={() => setCorporateOpen(false)}
+        onNeedAuth={() => {
+          setCorporateOpen(false);
+          setAuthed(false);
+        }}
+      />
+
+      <PartnerConsoleModal
+        visible={partnerOpen}
+        onClose={() => setPartnerOpen(false)}
+        onNeedAuth={() => {
+          setPartnerOpen(false);
+          setAuthed(false);
+        }}
+      />
+
+      <StorefrontModal
+        handle={storefrontHandle}
+        onClose={() => setStorefrontHandle(null)}
+        onOpenListing={(id) => {
+          setStorefrontHandle(null);
           setDetailId(id);
         }}
       />
@@ -571,6 +986,32 @@ function AppShell() {
   );
 }
 
+function ProfileMenuRow({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: ImageSourcePropType;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.profileMenuRow,
+        pressed && { opacity: 0.85 },
+      ]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Image source={icon} style={styles.profileMenuIcon} resizeMode="contain" />
+      <Text style={styles.profileMenuLabel}>{label}</Text>
+      <Text style={styles.profileMenuChevron}>›</Text>
+    </Pressable>
+  );
+}
+
 function ThemeToggleButton() {
   const { resolved, toggle } = useTheme();
   return (
@@ -601,7 +1042,7 @@ function Badge({ label, ok }: { label: string; ok: boolean }) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#FCFAF6",
+    backgroundColor: colors.canvas,
   },
   center: {
     flex: 1,
@@ -616,29 +1057,142 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 48,
+    paddingTop: 16,
+  },
+  screenFlush: {
+    paddingHorizontal: 0,
+    paddingTop: 8,
   },
   profilePad: {
     paddingBottom: 24,
   },
+  profileHero: {
+    marginBottom: 8,
+  },
+  profileLogo: {
+    width: 132,
+    height: 36,
+    marginBottom: 16,
+  },
+  profileHeroRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  profileAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.border,
+  },
+  profileHeroText: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 26,
+    fontWeight: "700",
+    color: colors.ink,
+    letterSpacing: -0.3,
+  },
+  profileVerified: {
+    width: 28,
+    height: 28,
+  },
+  profileTrustRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 18,
+    marginBottom: 4,
+  },
+  profileTrustChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    maxWidth: "48%",
+  },
+  profileTrustIcon: {
+    width: 18,
+    height: 18,
+  },
+  profileTrustLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.muted,
+    flexShrink: 1,
+  },
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 28,
+    marginBottom: 10,
+  },
+  sectionIcon: {
+    width: 22,
+    height: 22,
+  },
+  sectionLabelInline: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.ink,
+  },
+  profileMenu: {
+    marginTop: 28,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    overflow: "hidden",
+  },
+  profileMenuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  profileMenuIcon: {
+    width: 28,
+    height: 28,
+  },
+  profileMenuLabel: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.ink,
+  },
+  profileMenuChevron: {
+    fontSize: 22,
+    color: colors.disabled,
+    fontWeight: "500",
+  },
   brand: {
     fontSize: 40,
     fontWeight: "700",
-    color: "#172A3A",
+    color: colors.ink,
     letterSpacing: -0.5,
   },
   title: {
     marginTop: 28,
     fontSize: 28,
     fontWeight: "700",
-    color: "#172A3A",
+    color: colors.ink,
     letterSpacing: -0.3,
   },
   copy: {
     marginTop: 12,
     fontSize: 17,
     lineHeight: 24,
-    color: "#59636D",
+    color: colors.muted,
   },
   subtabs: {
     flexDirection: "row",
@@ -648,46 +1202,46 @@ const styles = StyleSheet.create({
   subtab: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   subtabActive: {
-    backgroundColor: "#D96A32",
-    borderColor: "#D96A32",
+    backgroundColor: colors.orange,
+    borderColor: colors.orange,
   },
   subtabText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#172A3A",
+    color: colors.ink,
   },
   subtabTextActive: {
-    color: "#FFFFFF",
+    color: colors.onAccent,
   },
   label: {
     marginTop: 20,
     marginBottom: 8,
     fontSize: 14,
     fontWeight: "600",
-    color: "#172A3A",
+    color: colors.ink,
   },
   sectionLabel: {
     marginTop: 28,
     marginBottom: 10,
     fontSize: 15,
     fontWeight: "600",
-    color: "#172A3A",
+    color: colors.ink,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#172A3A",
-    backgroundColor: "#FFFFFF",
+    color: colors.ink,
+    backgroundColor: colors.surface,
   },
   otpInput: {
     letterSpacing: 8,
@@ -702,47 +1256,47 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   chipSelected: {
-    backgroundColor: "#D96A32",
-    borderColor: "#D96A32",
+    backgroundColor: colors.orange,
+    borderColor: colors.orange,
   },
   chipText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#172A3A",
+    color: colors.ink,
   },
   chipTextSelected: {
-    color: "#FFFFFF",
+    color: colors.onAccent,
   },
   primaryBtn: {
     marginTop: 28,
-    backgroundColor: "#D96A32",
+    backgroundColor: colors.orange,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
   },
   primaryBtnText: {
-    color: "#FFFFFF",
+    color: colors.onAccent,
     fontSize: 16,
     fontWeight: "700",
   },
   secondaryBtn: {
     marginTop: 32,
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   secondaryBtnText: {
-    color: "#172A3A",
+    color: colors.ink,
     fontSize: 15,
     fontWeight: "600",
   },
@@ -752,17 +1306,17 @@ const styles = StyleSheet.create({
   link: {
     marginTop: 16,
     textAlign: "center",
-    color: "#D96A32",
+    color: colors.orange,
     fontWeight: "600",
   },
   error: {
     marginTop: 10,
-    color: "#C94A3A",
+    color: colors.error,
     fontSize: 14,
   },
   hint: {
     marginTop: 10,
-    color: "#D96A32",
+    color: colors.orange,
     fontSize: 14,
   },
   badges: {
@@ -776,28 +1330,28 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   badgeOk: {
-    backgroundColor: "#E4F0EA",
+    backgroundColor: colors.orangeWash,
   },
   badgeMuted: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
   },
   badgeText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#59636D",
+    color: colors.muted,
   },
   badgeTextOk: {
-    color: "#D96A32",
+    color: colors.orange,
   },
   nav: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-around",
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#E4DDD4",
-    backgroundColor: "#FFFFFF",
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
     paddingTop: 8,
     paddingBottom: 10,
     paddingHorizontal: 4,
@@ -811,10 +1365,10 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#59636D",
+    color: colors.muted,
   },
   tabLabelActive: {
-    color: "#D96A32",
+    color: colors.orange,
   },
   sellTab: {
     marginTop: -22,
@@ -822,17 +1376,17 @@ const styles = StyleSheet.create({
     height: 56,
     flex: 0,
     borderRadius: 28,
-    backgroundColor: "#D96A32",
+    backgroundColor: colors.orange,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#D96A32",
+    shadowColor: colors.orange,
     shadowOpacity: 0.35,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
   sellLabel: {
-    color: "#FFFFFF",
+    color: colors.onAccent,
     fontSize: 28,
     fontWeight: "500",
     lineHeight: 30,
@@ -843,24 +1397,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.6,
-    color: "#D96A32",
+    color: colors.orange,
   },
   listingRow: {
     marginTop: 14,
     padding: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E4DDD4",
-    backgroundColor: "#FFFFFF",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   listingTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#172A3A",
+    color: colors.ink,
   },
   listingMeta: {
     marginTop: 6,
     fontSize: 14,
-    color: "#59636D",
+    color: colors.muted,
   },
 });

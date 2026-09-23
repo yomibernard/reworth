@@ -31,6 +31,29 @@ export async function getOnboardingPhone(): Promise<string | null> {
   return AsyncStorage.getItem(PHONE_KEY);
 }
 
+/**
+ * Returns a usable access token, refreshing when needed.
+ * Prefer refresh when present so boot + long sessions stay valid.
+ * Lazy-imports api to avoid circular init issues.
+ */
+export async function ensureAccessToken(): Promise<string | null> {
+  const existing = await getAccessToken();
+  const refresh = await getRefreshToken();
+  if (!existing && !refresh) return null;
+
+  if (refresh) {
+    try {
+      const { refreshAccessToken } = await import("./api");
+      const next = await refreshAccessToken();
+      if (next) return next;
+    } catch {
+      /* fall through to existing access token */
+    }
+  }
+
+  return getAccessToken();
+}
+
 export function normalizeNgPhone(input: string): string {
   const trimmed = input.trim().replace(/[\s()-]/g, "");
   if (trimmed.startsWith("+")) return trimmed;

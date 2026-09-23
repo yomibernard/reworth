@@ -1,4 +1,5 @@
 import {
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -6,6 +7,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { brandAssets } from "../lib/brandAssets";
 import { useColors } from "../theme/ThemeProvider";
 import { radius, space, tap, type } from "../theme/tokens";
 import { hapticLight } from "../theme/haptics";
@@ -42,7 +44,10 @@ export function ListingCard({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        void hapticLight();
+        onPress?.();
+      }}
       accessibilityRole="button"
       accessibilityLabel={
         accessibilityLabel ??
@@ -51,23 +56,36 @@ export function ListingCard({
       style={({ pressed }) => [
         styles.card,
         {
-          backgroundColor: c.surface,
+          backgroundColor: pressed ? c.surfaceWarm : c.surface,
           borderColor: c.border,
-          opacity: pressed ? 0.92 : 1,
+          opacity: pressed ? 0.96 : 1,
         },
         style,
       ]}
     >
-      <View style={[styles.image, { backgroundColor: c.emeraldWash }]}>
-        <Text style={[styles.noPhoto, { color: c.muted }]} numberOfLines={1}>
-          {imageUri ? "Photo" : "No photo"}
-        </Text>
+      <View style={[styles.image, { backgroundColor: c.surfaceWarm }]}>
+        <Image
+          source={
+            imageUri
+              ? { uri: imageUri }
+              : brandAssets.listingPlaceholder
+          }
+          style={styles.imageFill}
+          resizeMode={imageUri ? "cover" : "contain"}
+        />
         {verified ? (
           <View
-            style={[styles.badge, { backgroundColor: c.goldWash }]}
+            style={[styles.badge, { backgroundColor: c.surface }]}
             accessibilityLabel="Verified"
           >
-            <Text style={[styles.badgeText, { color: c.gold }]}>Verified ✓</Text>
+            <Image
+              source={brandAssets.verifiedSeller}
+              style={styles.verifiedIcon}
+              resizeMode="contain"
+            />
+            <Text style={[styles.badgeText, { color: c.success }]}>
+              Verified
+            </Text>
           </View>
         ) : null}
         {onToggleSave ? (
@@ -76,28 +94,26 @@ export function ListingCard({
               void hapticLight();
               onToggleSave();
             }}
-            hitSlop={8}
+            hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel={saved ? "Remove from saved" : "Save listing"}
-            style={[
+            style={({ pressed }) => [
               styles.heart,
               {
-                backgroundColor: saved ? c.emerald : c.surface,
+                backgroundColor: saved ? c.orange : c.surface,
                 borderColor: c.border,
+                opacity: pressed ? 0.85 : 1,
               },
             ]}
           >
-            <Text style={{ color: saved ? "#fff" : c.ink, fontSize: 14 }}>
+            <Text style={{ color: saved ? c.onAccent : c.ink, fontSize: 14 }}>
               ♥
             </Text>
           </Pressable>
         ) : null}
       </View>
       <View style={styles.body}>
-        <Text
-          style={[styles.price, { color: c.ink }]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.price, { color: c.ink }]} numberOfLines={1}>
           {priceLabel}
         </Text>
         <Text style={[styles.title, { color: c.ink }]} numberOfLines={1}>
@@ -125,8 +141,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  noPhoto: {
-    fontSize: type.meta,
+  imageFill: {
+    ...StyleSheet.absoluteFillObject,
+    width: "100%",
+    height: "100%",
   },
   badge: {
     position: "absolute",
@@ -134,8 +152,12 @@ const styles = StyleSheet.create({
     left: space.sm,
     borderRadius: radius.full,
     paddingHorizontal: space.sm,
-    paddingVertical: 2,
+    paddingVertical: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
+  verifiedIcon: { width: 18, height: 18 },
   badgeText: {
     fontSize: 11,
     fontWeight: "600",

@@ -30,6 +30,7 @@
   --rw-warn-muted: #fef3c7;
   --rw-error: #c94a3a;
   --rw-error-muted: #fce8e6;
+  --rw-on-accent: #ffffff;
   --rw-radius: 0.75rem;
   --rw-radius-lg: 1rem;
   --rw-type-display: 1.75rem;
@@ -46,6 +47,23 @@
   --rw-space-xxl: 2rem;
   --rw-shadow-float: 0 4px 16px rgba(23, 42, 58, 0.08);
   --rw-shadow-sell: 0 8px 24px rgba(217, 106, 50, 0.35);
+
+  /* Prompt-compatible aliases */
+  --color-primary: var(--rw-navy);
+  --color-primary-dark: var(--rw-navy-dark);
+  --color-accent: var(--rw-accent);
+  --color-accent-hover: var(--rw-accent-hover);
+  --color-background: var(--rw-bg);
+  --color-surface: var(--rw-bg-elevated);
+  --color-surface-warm: var(--rw-bg-warm);
+  --color-text-primary: var(--rw-ink);
+  --color-text-secondary: var(--rw-ink-muted);
+  --color-border: var(--rw-border);
+  --color-disabled: var(--rw-disabled);
+  --color-success: var(--rw-success);
+  --color-warning: var(--rw-warn);
+  --color-error: var(--rw-error);
+
   color-scheme: light;
 }
 
@@ -78,6 +96,7 @@
   --rw-warn-muted: #422006;
   --rw-error: #e07060;
   --rw-error-muted: #3d1f1c;
+  --rw-on-accent: #ffffff;
   --rw-shadow-float: 0 4px 16px rgba(0, 0, 0, 0.35);
   --rw-shadow-sell: 0 8px 24px rgba(217, 106, 50, 0.4);
   color-scheme: dark;

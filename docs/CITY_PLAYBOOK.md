@@ -11,9 +11,10 @@
 
 | Key | Purpose |
 | --- | --- |
-| `city` | Stable city id (e.g. `lagos`, `ibadan`) |
+| `city` | Stable city id (e.g. `lagos`, `abuja`) |
 | `displayName` | UI label |
 | `timezone` | Default `Africa/Lagos` |
+| `status` | `pilot` (public picker) · `supply` (config-ready) · `disabled` |
 | `communities[]` | Focus areas for discovery / sell chips |
 | `geocoding` | Lat/lng fixtures per community |
 | `logistics.baseFeeKobo` / `perKmKobo` | Delivery quote inputs |
@@ -24,12 +25,14 @@ Validate: `pnpm validate:cities`
 
 ## Shipped cities
 
-| City | File | Notes |
-| --- | --- | --- |
-| Lagos | `lagos.json` | Launch city |
-| Abuja | `abuja.json` | Phase 3.2 |
-| Port Harcourt | `port-harcourt.json` | Phase 3.2 |
-| Ibadan | `ibadan.json` | Ops track — supply-first before marketing |
+| City | File | Status | Notes |
+| --- | --- | --- | --- |
+| Lagos | `lagos.json` | **pilot** | Launch + active consumer pilot |
+| Abuja | `abuja.json` | **pilot** | Dual-city pilot with Lagos |
+| Port Harcourt | `port-harcourt.json` | supply | Config-ready; not in public picker |
+| Ibadan | `ibadan.json` | supply | Ops track — supply-first before marketing |
+
+**Consumer pilot:** `GET /regions` returns Lagos + Abuja only. Ops/full list: `GET /regions?all=1`. Override via `REGION_PILOT_CITIES=lagos,abuja`.
 
 ## Per-city ops runbook (PRD §57)
 
@@ -42,5 +45,5 @@ Validate: `pnpm validate:cities`
 
 ## Surfaces
 
-- `GET /regions` drives city pickers (web Account/Sell/Corporate; mobile home label).
+- `GET /regions` drives city pickers (web Account/Sell/Corporate; mobile Home + Profile) — **pilot = Lagos + Abuja**.
 - Corporate relocation uses `cityFrom` / `cityTo` from the same list.

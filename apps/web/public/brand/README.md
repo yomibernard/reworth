@@ -1,27 +1,19 @@
 # ReWorth brand assets
 
-Served on web as `/brand/...` from `apps/web/public/brand`.  
-Mobile mirrors the same tree under `apps/mobile/assets/brand` (require/import — not HTTP).
+Web: `apps/web/public/brand/` · Mobile mirror: `apps/mobile/assets/brand/`
 
-| Folder | Use |
+## Folder map
+
+| Folder | Contents |
 | --- | --- |
-| `logos/` | Wordmark / lockup (light, dark, primary) |
-| `icons/` | App icon, favicon, tab bar glyphs |
-| `categories/` | Category chip / rail imagery |
-| `trust/` | Buyer protection, escrow, safety |
-| `badges/` | Verified ✓, Top Seller, Founding (gold only) |
-| `empty-states/` | Empty list illustrations + single CTA scenes |
-| `onboarding/` | Full-bleed welcome slides (sofa · phone · car) |
-| `social/` | OG / share / store listing art |
-| `illustrations/` | Misc product illustrations |
+| `logos/` | Primary, wordmark, dark-background |
+| `icons/` | App icon, favicon, action icons (chat, sell, buy, …) |
+| `categories/` | Product categories + community types (`community-*`) |
+| `trust/` | Buyer protection, secure payment, verified seller, … |
+| `badges/` | Verified, condition (`condition-*`), order/offer status (`status-*`) |
+| `empty-states/` | No listings / messages / offers / saved / search |
+| `onboarding/` | Login illustration |
+| `social/` | Moving Sale, splash, invite, profile |
+| `illustrations/` | Listing placeholder |
 
-## Naming
-
-- kebab-case, no spaces: `reworth-logo-primary.png`
-- Prefer SVG for logos/icons when available; PNG/WebP for photography
-- Light + dark variants: `*-light`, `*-dark` when needed
-
-## Do / don’t
-
-- Emerald CTAs use brand emerald — do not recolour logo gold for marketing CTAs
-- Gold assets only for verification / Top Seller / Founding marks (`docs/DESIGN.md`)
+Palette: Midnight Navy `#172A3A` · Burnt Orange `#D96A32` · Warm Beige `#F2E7D5` · Soft White `#FCFAF6`. See `docs/DESIGN.md`.

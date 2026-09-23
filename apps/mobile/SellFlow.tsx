@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,10 +9,10 @@ import {
   View,
 } from "react-native";
 import { ApiError } from "./lib/api";
-import { getAccessToken } from "./lib/auth";
+import { ensureAccessToken, getAccessToken } from "./lib/auth";
+import { brandAssets, conditionBadgeSource, HOME_CATEGORIES } from "./lib/brandAssets";
 import {
   assistListing,
-  attachListingImages,
   completeMedia,
   createListing,
   getListing,
@@ -36,6 +37,7 @@ import {
   type PublicListing,
   type SellingModeValue,
 } from "./lib/types";
+import { colors } from "./theme/tokens";
 
 type SellStep =
   | "photos"
@@ -51,6 +53,8 @@ type LocalPhoto = {
   name: string;
   type: string;
   key?: string;
+  /** Optional local preview when uri is mock:// */
+  preview?: number;
 };
 
 type Props = {
@@ -60,7 +64,6 @@ type Props = {
 
 async function pickImages(): Promise<LocalPhoto[]> {
   try {
-    // Optional dependency — may be missing until pnpm install
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const ImagePicker = require("expo-image-picker") as {
       requestMediaLibraryPermissionsAsync: () => Promise<{
@@ -97,21 +100,99 @@ async function pickImages(): Promise<LocalPhoto[]> {
   }
 }
 
+async function capturePhoto(): Promise<LocalPhoto | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ImagePicker = require("expo-image-picker") as {
+      requestCameraPermissionsAsync: () => Promise<{ status: string }>;
+      launchCameraAsync: (opts: object) => Promise<{
+        canceled: boolean;
+        assets?: Array<{
+          uri: string;
+          fileName?: string | null;
+          mimeType?: string | null;
+        }>;
+      }>;
+    };
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (perm.status !== "granted") {
+      return null;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.85,
+      allowsEditing: false,
+    });
+    if (result.canceled || !result.assets?.[0]) return null;
+    const a = result.assets[0];
+    return {
+      uri: a.uri,
+      name: a.fileName ?? `camera-${Date.now()}.jpg`,
+      type: a.mimeType ?? "image/jpeg",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Read local / blob photo into base64 for media/complete when PUT fails. */
+async function photoToBase64(
+  uri: string,
+): Promise<string | undefined> {
+  if (!uri || uri.startsWith("mock://")) return undefined;
+  try {
+    const res = await fetch(uri);
+    const blob = await res.blob();
+    if (blob.size > 9 * 1024 * 1024) return undefined;
+    return await new Promise<string | undefined>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result;
+        if (typeof result !== "string") {
+          resolve(undefined);
+          return;
+        }
+        const comma = result.indexOf(",");
+        resolve(comma >= 0 ? result.slice(comma + 1) : result);
+      };
+      reader.onerror = () => resolve(undefined);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return undefined;
+  }
+}
+
 function mockPhotos(): LocalPhoto[] {
   return [
     {
       uri: "mock://photo-1",
-      name: "samsung-tv-front.jpg",
+      name: "living-room-front.jpg",
       type: "image/jpeg",
       key: "uploads/mock/samsung-tv-front.jpg",
+      preview: brandAssets.listingPlaceholder,
     },
     {
       uri: "mock://photo-2",
-      name: "samsung-tv-side.jpg",
+      name: "living-room-side.jpg",
       type: "image/jpeg",
       key: "uploads/mock/samsung-tv-side.jpg",
+      preview: brandAssets.movingSale,
+    },
+    {
+      uri: "mock://photo-3",
+      name: "living-room-detail.jpg",
+      type: "image/jpeg",
+      key: "uploads/mock/living-room-detail.jpg",
+      preview: brandAssets.onboarding,
     },
   ];
+}
+
+function photoPreviewSource(photo: LocalPhoto) {
+  if (photo.preview) return photo.preview;
+  if (photo.uri.startsWith("mock://")) return brandAssets.listingPlaceholder;
+  return { uri: photo.uri };
 }
 
 export function SellFlow({ onPublished, onOpenListing }: Props) {
@@ -139,16 +220,27 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
   const [fulfilmentPickup, setFulfilmentPickup] = useState(true);
   const [fulfilmentMeet, setFulfilmentMeet] = useState(true);
   const [fulfilmentDelivery, setFulfilmentDelivery] = useState(false);
+  const [authRequired, setAuthRequired] = useState(false);
+  const [instantBuyEligible, setInstantBuyEligible] = useState(false);
+  const [donateIfUnsold, setDonateIfUnsold] = useState(false);
+  const [donateDays, setDonateDays] = useState("30");
   const [published, setPublished] = useState<PublicListing | null>(null);
   const [sellerPlan, setSellerPlan] = useState<SellerPlan | null>(null);
   const [planBusy, setPlanBusy] = useState(false);
   const [planToast, setPlanToast] = useState<string | null>(null);
 
   const tokenOrThrow = useCallback(async () => {
-    const token = await getAccessToken();
-    if (!token) throw new Error("Not signed in");
+    const token = await ensureAccessToken();
+    if (!token) {
+      throw new Error("Not signed in — open Profile and sign in");
+    }
     return token;
   }, []);
+
+  /** Prefer latest access token (after apiFetch auto-refresh). */
+  const latestToken = useCallback(async () => {
+    return (await ensureAccessToken()) ?? (await tokenOrThrow());
+  }, [tokenOrThrow]);
 
   const loadSellerPlan = useCallback(async () => {
     try {
@@ -173,6 +265,7 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
     setPlanBusy(true);
     setPlanToast(null);
     try {
+      await ensureAccessToken();
       const token = await getAccessToken();
       if (!token) {
         setPlanToast("Sign in to upgrade");
@@ -181,8 +274,12 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
       await upgradeSellerPlus(token, newIdempotencyKey("seller_plus"));
       await loadSellerPlan();
       setPlanToast("Seller Plus active");
-    } catch {
-      setPlanToast("Upgrade failed — try again or contact support");
+    } catch (err) {
+      setPlanToast(
+        err instanceof ApiError && err.status === 401
+          ? "Session expired — sign in again"
+          : "Upgrade failed — try again or contact support",
+      );
     } finally {
       setPlanBusy(false);
     }
@@ -223,10 +320,28 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
     setError(null);
     const picked = await pickImages();
     if (!picked.length) {
-      setError("No photos selected — try again or use mock photos.");
+      setError("No photos selected — try camera, gallery, or mock photos.");
       return;
     }
     setPhotos((prev) => [...prev, ...picked].slice(0, 6));
+  }
+
+  async function takePhoto() {
+    setError(null);
+    if (photos.length >= 6) {
+      setError("Maximum 6 photos.");
+      return;
+    }
+    const shot = await capturePhoto();
+    if (!shot) {
+      setError("Camera unavailable — allow camera access or use gallery.");
+      return;
+    }
+    setPhotos((prev) => [...prev, shot].slice(0, 6));
+  }
+
+  function removePhoto(index: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function useMockPhotos() {
@@ -242,14 +357,17 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
     }
     setBusy(true);
     try {
-      const token = await tokenOrThrow();
+      // Warm / refresh session so short-lived JWTs don't block Analyze
+      let token = await latestToken();
       const id = await ensureDraft(token);
+      token = await latestToken();
       const keys: { key: string; sortOrder: number }[] = [];
 
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i];
+        token = await latestToken();
         if (photo.uri.startsWith("mock://") && photo.key) {
-          // Mock: skip PUT — complete with key (or presign fresh if rejected)
+          // Mock: complete with key — API seeds placeholder bytes for vision
           try {
             await completeMedia(token, id, photo.key, i);
             keys.push({ key: photo.key, sortOrder: i });
@@ -261,51 +379,57 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
               photo.type,
               2048,
             );
+            token = await latestToken();
             await completeMedia(token, id, presign.key, i);
             keys.push({ key: presign.key, sortOrder: i });
           }
           continue;
         }
-        const contentLength = 4096;
+        const inlineBase64 = await photoToBase64(photo.uri);
+        const contentLength = inlineBase64
+          ? Math.ceil((inlineBase64.length * 3) / 4)
+          : 4096;
         const presign = await presignMedia(
           token,
           id,
           photo.name,
           photo.type,
-          contentLength,
+          Math.max(contentLength, 64),
         );
+        let putOk = false;
         try {
           const blobRes = await fetch(photo.uri);
           const blob = await blobRes.blob();
-          await fetch(presign.uploadUrl, {
+          const putRes = await fetch(presign.uploadUrl, {
             method: "PUT",
             headers: { "Content-Type": photo.type },
             body: blob,
           });
+          putOk = putRes.ok;
         } catch {
-          /* mock / CORS — proceed with key */
+          /* mock / CORS — fall through to inline */
         }
+        token = await latestToken();
+        await completeMedia(token, id, presign.key, i, {
+          ...(putOk
+            ? {}
+            : {
+                inlineBase64,
+                contentType: photo.type,
+              }),
+        });
         keys.push({ key: presign.key, sortOrder: i });
-      }
-
-      // Batch attach for analytics when keys were only presigned (not completed)
-      const needAttach = keys.filter((k) => !photos[k.sortOrder]?.uri?.startsWith("mock://"));
-      if (needAttach.length) {
-        try {
-          await attachListingImages(id, token, needAttach);
-        } catch {
-          /* may already be completed */
-        }
       }
 
       setAssistLoading(true);
       setStep("draft");
+      token = await latestToken();
       const assist = await assistListing(
         id,
         token,
         keys.map((k) => k.key),
       );
-      const refreshed = await getListing(id, token);
+      const refreshed = await getListing(id, await latestToken());
       setTitle(assist.draft?.title || refreshed.title);
       setDescription(assist.draft?.description || refreshed.description);
       setBrand(assist.draft?.brand || refreshed.brand || "");
@@ -325,7 +449,15 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
         setPriceIntel(null);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Upload failed");
+      const message =
+        err instanceof ApiError
+          ? err.status === 401
+            ? "Session expired — open Profile, Sign out, then sign in again"
+            : err.message
+          : err instanceof Error
+            ? err.message
+            : "Upload failed";
+      setError(message);
       setStep("photos");
     } finally {
       setAssistLoading(false);
@@ -349,6 +481,8 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
       fulfilmentPickup,
       fulfilmentMeet,
       fulfilmentDelivery,
+      authRequired,
+      instantBuyEligible: sellingMode === "SELL" ? instantBuyEligible : false,
     });
   }
 
@@ -362,6 +496,15 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
       await saveFields();
       const token = await tokenOrThrow();
       const live = await publishListing(listingId, token);
+      if (donateIfUnsold && sellingMode === "SELL") {
+        try {
+          const { setDonateIfUnsold } = await import("./lib/circular");
+          const days = Math.max(1, Number(donateDays) || 30);
+          await setDonateIfUnsold(token, listingId, days);
+        } catch {
+          /* non-blocking */
+        }
+      }
       setPublished(live);
       setStep("done");
       await hapticSuccess();
@@ -429,47 +572,102 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
       {step === "photos" ? (
         <View>
           <Text style={styles.copy}>
-            Add up to 6 photos. Tap a slot or Analyze when ready.
+            Add up to 6 photos. Prefer daylight, fill the frame — Analyze drafts
+            the listing from what the camera sees.
           </Text>
           <View style={styles.filmstrip}>
             {Array.from({ length: 6 }).map((_, i) => {
               const photo = photos[i];
               return (
-                <Pressable
-                  key={i}
-                  style={[
-                    styles.filmSlot,
-                    photo ? styles.filmSlotFilled : null,
-                  ]}
-                  onPress={() => void addPhotos()}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    photo ? `Photo ${i + 1} of ${photos.length}` : `Add photo slot ${i + 1}`
-                  }
-                >
-                  <Text style={styles.filmSlotText}>
-                    {photo ? String(i + 1) : "+"}
-                  </Text>
-                </Pressable>
+                <View key={i} style={styles.filmSlotWrap}>
+                  <Pressable
+                    style={[
+                      styles.filmSlot,
+                      photo ? styles.filmSlotFilled : null,
+                    ]}
+                    onPress={() => {
+                      if (photo) removePhoto(i);
+                      else void takePhoto();
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      photo
+                        ? `Remove photo ${i + 1}`
+                        : `Capture photo in slot ${i + 1}`
+                    }
+                  >
+                    {photo ? (
+                      <>
+                        <Image
+                          source={photoPreviewSource(photo)}
+                          style={styles.filmSlotImage}
+                          resizeMode="cover"
+                        />
+                        <View style={styles.filmScanLine} pointerEvents="none" />
+                        <Text style={styles.filmRemove}>×</Text>
+                      </>
+                    ) : (
+                      <Image
+                        source={brandAssets.listingPlaceholder}
+                        style={styles.filmSlotEmptyIcon}
+                        resizeMode="contain"
+                        accessibilityElementsHidden
+                        importantForAccessibility="no"
+                      />
+                    )}
+                  </Pressable>
+                </View>
               );
             })}
           </View>
           <Text style={styles.meta}>{photos.length} / 6 photos</Text>
           <Pressable
             style={styles.primaryBtn}
+            onPress={() => void takePhoto()}
+            accessibilityRole="button"
+            accessibilityLabel="Take photo with camera"
+            testID="sell-take-photo"
+          >
+            <Image
+              source={brandAssets.actionSell}
+              style={styles.ctaIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.primaryBtnText}>Take photo</Text>
+          </Pressable>
+          <Pressable
+            style={styles.secondaryBtn}
             onPress={() => void addPhotos()}
             accessibilityRole="button"
+            accessibilityLabel="Add from gallery"
+            testID="sell-gallery"
           >
-            <Text style={styles.primaryBtnText}>Add photos</Text>
+            <Image
+              source={brandAssets.actionSave}
+              style={styles.ctaIconMuted}
+              resizeMode="contain"
+            />
+            <Text style={styles.secondaryBtnText}>Add from gallery</Text>
           </Pressable>
           <Pressable
             style={styles.secondaryBtn}
             onPress={() => void useMockPhotos()}
             accessibilityRole="button"
+            accessibilityLabel="Use mock photos"
+            testID="sell-mock-photos"
           >
+            <Image
+              source={brandAssets.movingSale}
+              style={styles.ctaIconMuted}
+              resizeMode="contain"
+            />
             <Text style={styles.secondaryBtnText}>Use mock photos</Text>
           </Pressable>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? (
+            <Text style={styles.error} accessibilityRole="alert">
+              {error}
+            </Text>
+          ) : null}
           <Pressable
             style={[
               styles.primaryBtn,
@@ -479,6 +677,7 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
             disabled={busy || photos.length < 2}
             accessibilityRole="button"
             accessibilityLabel="Analyze photos"
+            testID="sell-analyze"
           >
             <Text style={styles.primaryBtnText}>
               {busy ? "Uploading…" : "Analyze"}
@@ -505,17 +704,78 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
                 onChange={setDescription}
                 multiline
               />
-              <Field
-                label="Category"
-                value={categoryName}
-                onChange={setCategoryName}
-              />
+              <Text style={styles.label}>Category</Text>
+              <View style={styles.chips}>
+                {HOME_CATEGORIES.map(({ label, icon }) => {
+                  const selected = categoryName === label;
+                  return (
+                    <Pressable
+                      key={label}
+                      onPress={() => setCategoryName(label)}
+                      style={[
+                        styles.catChipBtn,
+                        selected && styles.catChipSelected,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                    >
+                      <Image
+                        source={brandAssets[icon]}
+                        style={styles.catChipIcon}
+                        resizeMode="contain"
+                      />
+                      <Text
+                        style={[
+                          styles.chipText,
+                          selected && styles.catChipTextOn,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
               <Field label="Brand" value={brand} onChange={setBrand} />
-              <Field
-                label="Condition"
-                value={condition}
-                onChange={setCondition}
-              />
+              <Text style={styles.label}>Condition</Text>
+              <View style={styles.chips}>
+                {(
+                  [
+                    ["LIKE_NEW", "Like new"],
+                    ["GOOD", "Good"],
+                    ["FAIR", "Fair"],
+                    ["USED", "Used"],
+                  ] as const
+                ).map(([value, label]) => {
+                  const selected = condition === value;
+                  return (
+                    <Pressable
+                      key={value}
+                      onPress={() => setCondition(value)}
+                      style={[
+                        styles.catChipBtn,
+                        selected && styles.catChipSelected,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                    >
+                      <Image
+                        source={conditionBadgeSource(value)}
+                        style={styles.catChipIcon}
+                        resizeMode="contain"
+                      />
+                      <Text
+                        style={[
+                          styles.chipText,
+                          selected && styles.catChipTextOn,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
               <Field
                 label="Price (₦)"
                 value={priceNaira}
@@ -533,6 +793,35 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
                     Recommended{" "}
                     {formatNgnFromKobo(priceIntel.recommendedKobo)}
                   </Text>
+                  {priceIntel.quickSaleKobo != null ? (
+                    <Text style={styles.copy}>
+                      Quick sale{" "}
+                      {formatNgnFromKobo(priceIntel.quickSaleKobo)}
+                      {priceIntel.maxValueKobo != null
+                        ? ` · Max ${formatNgnFromKobo(priceIntel.maxValueKobo)}`
+                        : ""}
+                    </Text>
+                  ) : null}
+                  {priceIntel.confidenceLabel || priceIntel.sampleCount != null ? (
+                    <Text style={styles.copy}>
+                      {priceIntel.confidenceLabel ?? "Comps"}
+                      {priceIntel.sampleCount != null
+                        ? ` · ${priceIntel.sampleCount} samples`
+                        : ""}
+                    </Text>
+                  ) : null}
+                  <Pressable
+                    style={styles.secondaryBtn}
+                    onPress={() =>
+                      setPriceNaira(
+                        String(Math.round(priceIntel.recommendedKobo / 100)),
+                      )
+                    }
+                  >
+                    <Text style={styles.secondaryBtnText}>
+                      Use recommended price
+                    </Text>
+                  </Pressable>
                 </View>
               ) : null}
               {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -589,6 +878,44 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
               {negotiable ? "☑" : "☐"} Negotiable
             </Text>
           </Pressable>
+          <Pressable
+            style={styles.checkRow}
+            onPress={() => setAuthRequired((v) => !v)}
+          >
+            <Text style={styles.copy}>
+              {authRequired ? "☑" : "☐"} Require luxury authentication
+            </Text>
+          </Pressable>
+          {sellingMode === "SELL" ? (
+            <>
+              <Pressable
+                style={styles.checkRow}
+                onPress={() => setInstantBuyEligible((v) => !v)}
+              >
+                <Text style={styles.copy}>
+                  {instantBuyEligible ? "☑" : "☐"} Instant Buy eligible
+                </Text>
+              </Pressable>
+              <Pressable
+                style={styles.checkRow}
+                onPress={() => setDonateIfUnsold((v) => !v)}
+              >
+                <Text style={styles.copy}>
+                  {donateIfUnsold ? "☑" : "☐"} Donate if unsold
+                </Text>
+              </Pressable>
+              {donateIfUnsold ? (
+                <TextInput
+                  style={styles.input}
+                  value={donateDays}
+                  onChangeText={setDonateDays}
+                  keyboardType="number-pad"
+                  placeholder="Days before donate (e.g. 30)"
+                  accessibilityLabel="Donate after days"
+                />
+              ) : null}
+            </>
+          ) : null}
           <View style={styles.row}>
             <Pressable
               style={[styles.secondaryBtn, styles.flex]}
@@ -733,18 +1060,10 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
           {published.status !== "REJECTED" &&
           published.status !== "UNDER_REVIEW" ? (
             <View
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: 36,
-                backgroundColor: "#F2E7D5",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: 16,
-              }}
+              style={styles.successMark}
               accessibilityLabel="Published successfully"
             >
-              <Text style={{ fontSize: 36, color: "#D96A32" }}>✓</Text>
+              <Text style={styles.successMarkText}>✓</Text>
             </View>
           ) : null}
           <Text style={[styles.titlePreview, { textAlign: "center" }]}>
@@ -917,60 +1236,70 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 32,
     fontWeight: "700",
-    color: "#172A3A",
+    color: colors.ink,
     letterSpacing: -0.4,
   },
   stepHint: {
     marginTop: 6,
     fontSize: 13,
     fontWeight: "600",
-    color: "#D96A32",
+    color: colors.orange,
   },
   copy: {
     marginTop: 12,
     fontSize: 16,
     lineHeight: 22,
-    color: "#59636D",
+    color: colors.muted,
   },
-  meta: { marginTop: 8, fontSize: 14, color: "#59636D" },
+  meta: { marginTop: 8, fontSize: 14, color: colors.muted },
   label: {
     marginBottom: 6,
     fontSize: 14,
     fontWeight: "600",
-    color: "#172A3A",
+    color: colors.ink,
   },
   field: { marginTop: 14 },
   input: {
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#172A3A",
-    backgroundColor: "#FFFFFF",
+    color: colors.ink,
+    backgroundColor: colors.surface,
   },
   textarea: { minHeight: 96, textAlignVertical: "top" },
   primaryBtn: {
     marginTop: 20,
-    backgroundColor: "#D96A32",
+    backgroundColor: colors.orange,
     borderRadius: 14,
     paddingVertical: 14,
+    paddingHorizontal: 16,
     alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 10,
   },
-  primaryBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  primaryBtnText: { color: colors.onAccent, fontSize: 16, fontWeight: "700" },
   secondaryBtn: {
     marginTop: 12,
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     borderRadius: 14,
     paddingVertical: 14,
+    paddingHorizontal: 16,
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 10,
+    backgroundColor: colors.surface,
   },
-  secondaryBtnText: { color: "#172A3A", fontSize: 15, fontWeight: "600" },
+  secondaryBtnText: { color: colors.ink, fontSize: 15, fontWeight: "600" },
+  ctaIcon: { width: 22, height: 22 },
+  ctaIconMuted: { width: 22, height: 22, opacity: 0.9 },
   btnDisabled: { opacity: 0.55 },
-  error: { marginTop: 10, color: "#C94A3A", fontSize: 14 },
+  error: { marginTop: 10, color: colors.error, fontSize: 14 },
   row: { flexDirection: "row", gap: 10, marginTop: 8 },
   flex: { flex: 1 },
   centerBlock: { alignItems: "center", paddingVertical: 40, gap: 12 },
@@ -980,34 +1309,64 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 16,
   },
+  filmSlotWrap: { position: "relative" },
   filmSlot: {
-    width: 56,
-    height: 72,
-    borderRadius: 10,
+    width: 72,
+    height: 96,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#E4DDD4",
-    backgroundColor: "#FFFFFF",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   filmSlotFilled: {
-    backgroundColor: "#F2E7D5",
-    borderColor: "#D96A32",
+    backgroundColor: colors.beige,
+    borderColor: colors.orange,
+    borderWidth: 1.5,
   },
-  filmSlotText: { fontSize: 16, fontWeight: "700", color: "#D96A32" },
+  filmSlotImage: {
+    width: "100%",
+    height: "100%",
+  },
+  filmSlotEmptyIcon: {
+    width: 36,
+    height: 36,
+    opacity: 0.55,
+  },
+  filmSlotText: { fontSize: 22, fontWeight: "700", color: colors.orange },
+  filmRemove: {
+    position: "absolute",
+    top: 2,
+    right: 4,
+    color: colors.onAccent,
+    fontSize: 16,
+    fontWeight: "700",
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowRadius: 3,
+  },
+  filmScanLine: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: "42%",
+    height: 2,
+    backgroundColor: "rgba(217,106,50,0.55)",
+  },
   scanBlock: { alignItems: "center", paddingVertical: 32, gap: 16 },
   scanFrame: {
     width: "100%",
     height: 160,
     borderRadius: 16,
-    backgroundColor: "#F2E7D5",
+    backgroundColor: colors.beige,
     overflow: "hidden",
     justifyContent: "center",
   },
   scanLine: {
     height: 3,
     width: "100%",
-    backgroundColor: "#D96A32",
+    backgroundColor: colors.orange,
     opacity: 0.85,
   },
   intel: {
@@ -1015,84 +1374,112 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E4DDD4",
-    backgroundColor: "#FFFFFF",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  intelTitle: { fontSize: 14, fontWeight: "700", color: "#172A3A" },
+  intelTitle: { fontSize: 14, fontWeight: "700", color: colors.ink },
   intelRec: {
     marginTop: 6,
     fontSize: 16,
     fontWeight: "700",
-    color: "#D96A32",
+    color: colors.orange,
   },
   modeBtn: {
     marginTop: 10,
     padding: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E4DDD4",
-    backgroundColor: "#FFFFFF",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   modeSelected: {
-    borderColor: "#D96A32",
-    backgroundColor: "#E4F0EA",
+    borderColor: colors.orange,
+    backgroundColor: colors.orangeWash,
   },
-  modeText: { fontSize: 16, fontWeight: "600", color: "#172A3A" },
+  modeText: { fontSize: 16, fontWeight: "600", color: colors.ink },
   checkRow: { marginTop: 14 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 },
   chip: {
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
-  chipSelected: { backgroundColor: "#D96A32", borderColor: "#D96A32" },
-  chipText: { fontSize: 13, fontWeight: "600", color: "#172A3A" },
-  chipTextSelected: { color: "#FFFFFF" },
+  chipSelected: { backgroundColor: colors.orange, borderColor: colors.orange },
+  chipText: { fontSize: 13, fontWeight: "600", color: colors.ink },
+  chipTextSelected: { color: colors.onAccent },
+  catChipBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+    minHeight: 44,
+  },
+  catChipSelected: {
+    backgroundColor: colors.beige,
+    borderColor: colors.ink,
+  },
+  catChipIcon: { width: 22, height: 22 },
+  catChipTextOn: { color: colors.ink, fontWeight: "700" },
   titlePreview: {
     marginTop: 16,
     fontSize: 22,
     fontWeight: "700",
-    color: "#172A3A",
+    color: colors.ink,
   },
+  successMark: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.beige,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  successMarkText: { fontSize: 36, color: colors.orange },
   planCard: {
     marginTop: 16,
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E4DDD4",
-    backgroundColor: "#FFFFFF",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  planTitle: { fontSize: 15, fontWeight: "700", color: "#172A3A" },
+  planTitle: { fontSize: 15, fontWeight: "700", color: colors.ink },
   planCopy: {
     marginTop: 6,
     fontSize: 13,
     lineHeight: 18,
-    color: "#59636D",
+    color: colors.muted,
   },
   planBtn: {
     marginTop: 12,
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     borderRadius: 12,
     paddingVertical: 10,
     alignItems: "center",
   },
-  planBtnText: { fontSize: 14, fontWeight: "600", color: "#172A3A" },
+  planBtnText: { fontSize: 14, fontWeight: "600", color: colors.ink },
   planBtnPrimary: {
     marginTop: 12,
-    backgroundColor: "#D96A32",
+    backgroundColor: colors.orange,
     borderRadius: 12,
     paddingVertical: 10,
     alignItems: "center",
   },
-  planBtnPrimaryText: { fontSize: 14, fontWeight: "700", color: "#FFFFFF" },
+  planBtnPrimaryText: { fontSize: 14, fontWeight: "700", color: colors.onAccent },
   planToast: {
     marginTop: 10,
     fontSize: 13,
     fontWeight: "600",
-    color: "#D96A32",
+    color: colors.orange,
   },
 });

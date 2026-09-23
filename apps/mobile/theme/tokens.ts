@@ -26,6 +26,8 @@ export const colors = {
   success: "#2F7D5B",
   warning: "#D99632",
   error: "#C94A3A",
+  /** Text / icons on orange or navy filled CTAs — always white for contrast */
+  onAccent: "#FFFFFF",
 } as const;
 
 export const colorsDark = {
@@ -50,6 +52,7 @@ export const colorsDark = {
   success: "#3D9B72",
   warning: "#E0A84A",
   error: "#E07060",
+  onAccent: "#FFFFFF",
 } as const;
 
 export const type = {

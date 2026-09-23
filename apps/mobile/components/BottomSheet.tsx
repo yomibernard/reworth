@@ -1,6 +1,7 @@
 import {
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -50,7 +51,13 @@ export function BottomSheet({ visible, title, onClose, children }: Props) {
           {title ? (
             <Text style={[styles.title, { color: c.ink }]}>{title}</Text>
           ) : null}
-          {children}
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollPad}
+          >
+            {children}
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -86,5 +93,9 @@ const styles = StyleSheet.create({
     fontSize: type.titleSm,
     fontWeight: "600",
     marginBottom: space.md,
+  },
+  scrollPad: {
+    paddingBottom: space.lg,
+    gap: space.sm,
   },
 });

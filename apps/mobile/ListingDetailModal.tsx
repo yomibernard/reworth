@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
   Image,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -41,6 +42,14 @@ import {
   createSwapProposal,
   myLiveListings,
 } from "./lib/swap";
+import {
+  INSPECTION_SLOTS,
+  inspectedBadgeLabel,
+  isVehicleListing,
+  payInspection,
+  requestInspection,
+  scheduleInspection,
+} from "./lib/verticals";
 import { formatResponseShort } from "./lib/trust";
 import {
   formatNgnFromKobo,
@@ -50,6 +59,7 @@ import {
 } from "./lib/types";
 import { hapticLight } from "./theme/haptics";
 import { useColors } from "./theme/ThemeProvider";
+import { colors } from "./theme/tokens";
 
 const GALLERY_W = Dimensions.get("window").width;
 
@@ -94,6 +104,10 @@ export function ListingDetailModal({
   const [quoteBusy, setQuoteBusy] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [inspectOpen, setInspectOpen] = useState(false);
+  const [inspectBusy, setInspectBusy] = useState(false);
+  const [inspectId, setInspectId] = useState<string | null>(null);
+  const [inspectSlot, setInspectSlot] = useState<string>(INSPECTION_SLOTS[0]);
   const c = useColors();
 
   const gallery = useMemo(() => {
@@ -308,7 +322,7 @@ export function ListingDetailModal({
     setSwapBusy(true);
     try {
       const cashComponentKobo = Math.round(Number(swapCashNaira || 0) * 100);
-      await createSwapProposal(token, listingId, {
+      const proposal = await createSwapProposal(token, listingId, {
         offeredListingId: swapSelected,
         cashComponentKobo: Number.isFinite(cashComponentKobo)
           ? cashComponentKobo
@@ -316,10 +330,43 @@ export function ListingDetailModal({
       });
       setSwapOpen(false);
       setToast("Swap proposal sent");
+      if (proposal.conversationId) {
+        onOpenChat?.(proposal.conversationId);
+      }
     } catch (err) {
       setToast(err instanceof ApiError ? err.message : "Proposal failed");
     } finally {
       setSwapBusy(false);
+    }
+  }
+
+  async function startInspection() {
+    if (!listingId) return;
+    const token = await getAccessToken();
+    if (!token) {
+      setToast("Sign in to book inspection");
+      return;
+    }
+    setInspectBusy(true);
+    try {
+      const row = await requestInspection(token, listingId, {
+        slotLabel: inspectSlot,
+      });
+      setInspectId(row.id);
+      const paid = await payInspection(token, row.id);
+      if (paid.checkoutUrl) {
+        await Linking.openURL(paid.checkoutUrl).catch(() => undefined);
+      }
+      await scheduleInspection(token, row.id, { slotLabel: inspectSlot });
+      setInspectOpen(false);
+      setToast("Inspection booked");
+      await reloadListing(listingId, token);
+    } catch (err) {
+      setToast(
+        err instanceof ApiError ? err.message : "Inspection booking failed",
+      );
+    } finally {
+      setInspectBusy(false);
     }
   }
 
@@ -694,13 +741,26 @@ export function ListingDetailModal({
 
           <View style={[styles.stickyBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
             {isOwner ? (
-              <Pressable
-                style={[styles.stickyPrimary, { backgroundColor: c.emerald, flex: 1 }]}
-                onPress={() => setBoostOpen(true)}
-                accessibilityRole="button"
-              >
-                <Text style={styles.stickyPrimaryText}>Boost listing</Text>
-              </Pressable>
+              <>
+                {listing && isVehicleListing(listing) && !inspectedBadgeLabel(listing) ? (
+                  <Pressable
+                    style={[styles.stickyOutline, { borderColor: c.border }]}
+                    onPress={() => setInspectOpen(true)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.stickyOutlineText, { color: c.ink }]}>
+                      Book inspection
+                    </Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  style={[styles.stickyPrimary, { backgroundColor: c.emerald, flex: 1 }]}
+                  onPress={() => setBoostOpen(true)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.stickyPrimaryText}>Boost listing</Text>
+                </Pressable>
+              </>
             ) : isSwap ? (
               <Pressable
                 style={[styles.stickyPrimary, { backgroundColor: c.emerald, flex: 1 }]}
@@ -780,7 +840,13 @@ export function ListingDetailModal({
           title="Make offer"
           onClose={() => setOfferOpen(false)}
         >
-          <Text style={styles.label}>Amount (₦)</Text>
+          {listing ? (
+            <Text style={styles.muted}>
+              Asking {formatNgnFromKobo(listing.priceKobo)}
+              {listing.negotiable ? " · negotiable" : ""}
+            </Text>
+          ) : null}
+          <Text style={styles.label}>Your offer (₦)</Text>
           <TextInput
             style={styles.input}
             value={offerNaira}
@@ -789,6 +855,26 @@ export function ListingDetailModal({
             placeholder="45000"
             accessibilityLabel="Offer amount in naira"
           />
+          {listing && listing.priceKobo > 0 ? (
+            <View style={styles.offerChips}>
+              {[0.9, 0.85, 0.8].map((pct) => {
+                const naira = Math.round((listing.priceKobo * pct) / 100);
+                return (
+                  <Pressable
+                    key={pct}
+                    style={styles.offerChip}
+                    onPress={() => setOfferNaira(String(naira))}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${Math.round(pct * 100)} percent of asking`}
+                  >
+                    <Text style={styles.offerChipText}>
+                      {Math.round(pct * 100)}% · ₦{naira.toLocaleString("en-NG")}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
           <Pressable
             style={[styles.primaryBtn, offerBusy && styles.disabled]}
             disabled={offerBusy}
@@ -796,6 +882,43 @@ export function ListingDetailModal({
           >
             <Text style={styles.primaryBtnText}>
               {offerBusy ? "Sending…" : "Send offer"}
+            </Text>
+          </Pressable>
+        </BottomSheet>
+
+        <BottomSheet
+          visible={inspectOpen}
+          title="Book vehicle inspection"
+          onClose={() => setInspectOpen(false)}
+        >
+          <Text style={styles.muted}>
+            Pay the inspection fee, then pick a Lagos slot. Results show as
+            Inspected ✓ on your listing.
+          </Text>
+          <Text style={styles.label}>Preferred slot</Text>
+          {INSPECTION_SLOTS.map((slot) => (
+            <Pressable
+              key={slot}
+              style={[
+                styles.pickRow,
+                inspectSlot === slot && styles.pickRowActive,
+              ]}
+              onPress={() => setInspectSlot(slot)}
+            >
+              <Text style={styles.pickTitle}>{slot}</Text>
+            </Pressable>
+          ))}
+          <Pressable
+            style={[styles.primaryBtn, inspectBusy && styles.disabled]}
+            disabled={inspectBusy}
+            onPress={() => void startInspection()}
+          >
+            <Text style={styles.primaryBtnText}>
+              {inspectBusy
+                ? "Booking…"
+                : inspectId
+                  ? "Retry booking"
+                  : "Pay & schedule"}
             </Text>
           </Pressable>
         </BottomSheet>
@@ -928,7 +1051,7 @@ export function ListingDetailModal({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FCFAF6" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -937,13 +1060,13 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
   },
-  brand: { fontSize: 20, fontWeight: "700", color: "#172A3A" },
-  close: { fontSize: 16, fontWeight: "600", color: "#D96A32" },
+  brand: { fontSize: 20, fontWeight: "700", color: colors.ink },
+  close: { fontSize: 16, fontWeight: "600", color: colors.orange },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   body: { paddingBottom: 40 },
   hero: {
     height: 320,
-    backgroundColor: "#E4DDD4",
+    backgroundColor: colors.border,
   },
   heroEmpty: { alignItems: "center", justifyContent: "center" },
   counterChip: {
@@ -993,7 +1116,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 12,
   },
-  stickyPrimaryText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
+  stickyPrimaryText: { color: colors.onAccent, fontWeight: "700", fontSize: 15 },
   stickyOutline: {
     minHeight: 48,
     minWidth: 56,
@@ -1003,6 +1126,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 12,
   },
+  stickyOutlineText: { fontWeight: "700", fontSize: 14 },
   stickyGhost: {
     minHeight: 48,
     minWidth: 48,
@@ -1012,28 +1136,28 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#172A3A",
+    color: colors.ink,
   },
   title: {
     marginTop: 8,
     paddingHorizontal: 20,
     fontSize: 20,
     fontWeight: "600",
-    color: "#172A3A",
+    color: colors.ink,
   },
-  meta: { marginTop: 8, paddingHorizontal: 20, fontSize: 13, color: "#59636D" },
+  meta: { marginTop: 8, paddingHorizontal: 20, fontSize: 13, color: colors.muted },
   section: {
     marginTop: 24,
     marginBottom: 8,
     paddingHorizontal: 20,
     fontSize: 15,
     fontWeight: "700",
-    color: "#172A3A",
+    color: colors.ink,
   },
   copy: {
     paddingHorizontal: 20,
     fontSize: 15,
-    color: "#172A3A",
+    color: colors.ink,
     lineHeight: 22,
   },
   seller: {
@@ -1042,8 +1166,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#E4DDD4",
-    backgroundColor: "#FFFFFF",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     gap: 4,
   },
   protect: {
@@ -1052,8 +1176,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#E4DDD4",
-    backgroundColor: "#FFFFFF",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   similarBlock: { marginTop: 8, paddingLeft: 20 },
   chip: {
@@ -1064,10 +1188,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: "#F2E7D5",
+    backgroundColor: colors.beige,
     fontSize: 13,
     fontWeight: "600",
-    color: "#D96A32",
+    color: colors.orange,
   },
   badgeRow: {
     marginTop: 10,
@@ -1078,179 +1202,194 @@ const styles = StyleSheet.create({
   },
   verticalBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "#E4F0EA",
+    backgroundColor: colors.orangeWash,
     overflow: "hidden",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     fontSize: 12,
     fontWeight: "700",
-    color: "#2F7D5B",
+    color: colors.success,
   },
   instantBuyBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "#E4F0EA",
+    backgroundColor: colors.orangeWash,
     overflow: "hidden",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     fontSize: 12,
     fontWeight: "700",
-    color: "#D96A32",
+    color: colors.orange,
   },
   promoBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "#FEF3C7",
+    backgroundColor: colors.goldWash,
     overflow: "hidden",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     fontSize: 12,
     fontWeight: "700",
-    color: "#92400E",
+    color: colors.gold,
   },
   promoBadgeFeatured: {
     alignSelf: "flex-start",
-    backgroundColor: "#E0E7FF",
+    backgroundColor: colors.beige,
     overflow: "hidden",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     fontSize: 12,
     fontWeight: "700",
-    color: "#3730A3",
+    color: colors.navy,
   },
   verticalBadgeMuted: {
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     overflow: "hidden",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     fontSize: 12,
     fontWeight: "600",
-    color: "#59636D",
+    color: colors.muted,
   },
-  sellerName: { fontSize: 16, fontWeight: "700", color: "#172A3A" },
+  sellerName: { fontSize: 16, fontWeight: "700", color: colors.ink },
   trustBadge: {
     alignSelf: "flex-start",
     marginTop: 6,
-    backgroundColor: "#F5EDD0",
+    backgroundColor: colors.goldWash,
     overflow: "hidden",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
     fontSize: 12,
     fontWeight: "700",
-    color: "#C9A227",
+    color: colors.gold,
   },
   profileLink: {
     marginTop: 8,
     marginHorizontal: 20,
     fontSize: 14,
     fontWeight: "600",
-    color: "#D96A32",
+    color: colors.orange,
   },
-  muted: { marginTop: 4, fontSize: 13, color: "#59636D" },
-  protectTitle: { fontSize: 14, fontWeight: "700", color: "#D96A32" },
+  muted: { marginTop: 4, fontSize: 13, color: colors.muted },
+  protectTitle: { fontSize: 14, fontWeight: "700", color: colors.orange },
   similarScroll: { marginTop: 10 },
   similarCard: { width: 132, marginRight: 10 },
   similarImg: {
     width: 132,
     height: 100,
     borderRadius: 12,
-    backgroundColor: "#E4DDD4",
+    backgroundColor: colors.border,
   },
-  similarPh: { backgroundColor: "#E4DDD4" },
+  similarPh: { backgroundColor: colors.border },
   similarTitle: {
     marginTop: 6,
     fontSize: 13,
     fontWeight: "600",
-    color: "#172A3A",
+    color: colors.ink,
   },
-  similarPrice: { marginTop: 2, fontSize: 13, fontWeight: "700", color: "#172A3A" },
+  similarPrice: { marginTop: 2, fontSize: 13, fontWeight: "700", color: colors.ink },
   centerText: { textAlign: "center", marginTop: 16 },
   actions: { marginTop: 24, gap: 10 },
   actionBtn: {
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   actionPrimary: {
-    backgroundColor: "#D96A32",
-    borderColor: "#D96A32",
+    backgroundColor: colors.orange,
+    borderColor: colors.orange,
   },
-  actionText: { fontSize: 15, fontWeight: "700", color: "#172A3A" },
-  actionTextPrimary: { color: "#FFFFFF" },
+  actionText: { fontSize: 15, fontWeight: "700", color: colors.ink },
+  actionTextPrimary: { color: colors.onAccent },
   toast: {
     marginTop: 16,
     textAlign: "center",
-    color: "#D96A32",
+    color: colors.orange,
     fontWeight: "600",
   },
-  error: { color: "#C94A3A", fontSize: 15 },
+  error: { color: colors.error, fontSize: 15 },
   sheetBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "flex-end",
   },
   sheet: {
-    backgroundColor: "#FCFAF6",
+    backgroundColor: colors.canvas,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: 32,
   },
-  sheetTitle: { fontSize: 20, fontWeight: "700", color: "#172A3A" },
+  sheetTitle: { fontSize: 20, fontWeight: "700", color: colors.ink },
   label: {
     marginTop: 16,
     marginBottom: 8,
     fontSize: 14,
     fontWeight: "600",
-    color: "#172A3A",
+    color: colors.ink,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: "#172A3A",
-    backgroundColor: "#FFFFFF",
+    color: colors.ink,
+    backgroundColor: colors.surface,
   },
   primaryBtn: {
     marginTop: 20,
-    backgroundColor: "#D96A32",
+    backgroundColor: colors.orange,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
   },
-  primaryBtnText: { color: "#FFF", fontWeight: "700", fontSize: 16 },
+  primaryBtnText: { color: colors.onAccent, fontWeight: "700", fontSize: 16 },
+  offerChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  offerChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.beige,
+  },
+  offerChipText: { fontSize: 13, fontWeight: "600", color: colors.ink },
   cancel: {
     marginTop: 14,
     textAlign: "center",
-    color: "#D96A32",
+    color: colors.orange,
     fontWeight: "600",
   },
   disabled: { opacity: 0.55 },
   pickRow: {
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   pickRowActive: {
-    borderColor: "#D96A32",
-    backgroundColor: "#F8E6DC",
+    borderColor: colors.orange,
+    backgroundColor: colors.orangeWash,
   },
-  pickTitle: { fontSize: 15, fontWeight: "600", color: "#172A3A" },
+  pickTitle: { fontSize: 15, fontWeight: "600", color: colors.ink },
   durationRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1259,30 +1398,30 @@ const styles = StyleSheet.create({
   },
   durationChip: {
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   durationChipActive: {
-    borderColor: "#D96A32",
-    backgroundColor: "#F8E6DC",
+    borderColor: colors.orange,
+    backgroundColor: colors.orangeWash,
   },
-  durationChipText: { fontSize: 14, fontWeight: "600", color: "#172A3A" },
-  durationChipTextActive: { color: "#2F7D5B" },
+  durationChipText: { fontSize: 14, fontWeight: "600", color: colors.ink },
+  durationChipTextActive: { color: colors.orange },
   secondarySheetBtn: {
     marginTop: 12,
     borderWidth: 1,
-    borderColor: "#E4DDD4",
+    borderColor: colors.border,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surface,
   },
   secondarySheetBtnText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#172A3A",
+    color: colors.ink,
   },
 });

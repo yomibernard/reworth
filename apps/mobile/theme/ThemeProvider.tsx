@@ -42,6 +42,7 @@ export type ColorTokens = {
   success: string;
   warning: string;
   error: string;
+  onAccent: string;
 };
 
 type ThemeMode = "light" | "dark" | "system";

@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { brandAssets } from "../lib/brandAssets";
 import { useColors } from "../theme/ThemeProvider";
-import { radius, space, tap, type } from "../theme/tokens";
+import { colors, radius, space, tap } from "../theme/tokens";
 import { hapticLight } from "../theme/haptics";
 
 export type BottomNavTab = "home" | "discover" | "sell" | "chats" | "profile";
@@ -10,15 +11,19 @@ type Props = {
   onChange: (tab: BottomNavTab) => void;
 };
 
-const TABS: { id: BottomNavTab; label: string }[] = [
-  { id: "home", label: "Home" },
-  { id: "discover", label: "Discover" },
-  { id: "sell", label: "SELL" },
-  { id: "chats", label: "Chats" },
-  { id: "profile", label: "Profile" },
+const TABS: {
+  id: BottomNavTab;
+  label: string;
+  icon?: keyof typeof brandAssets;
+}[] = [
+  { id: "home", label: "Home", icon: "appIcon" },
+  { id: "discover", label: "Discover", icon: "actionBuy" },
+  { id: "sell", label: "SELL", icon: "actionSell" },
+  { id: "chats", label: "Chats", icon: "actionChat" },
+  { id: "profile", label: "Profile", icon: "profileAvatar" },
 ];
 
-/** Home · Discover · SELL (elevated emerald) · Chats · Profile */
+/** Home · Discover · SELL (elevated orange FAB) · Chats · Profile */
 export function BottomNav({ active, onChange }: Props) {
   const c = useColors();
 
@@ -47,17 +52,26 @@ export function BottomNav({ active, onChange }: Props) {
               accessibilityRole="tab"
               accessibilityState={{ selected }}
               accessibilityLabel="Sell"
-              style={styles.sellWrap}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.sellWrap,
+                { opacity: pressed ? 0.9 : 1 },
+              ]}
             >
               <View
                 style={[
                   styles.sellFab,
                   {
-                    backgroundColor: c.emerald,
-                    shadowColor: c.emerald,
+                    backgroundColor: c.orange,
+                    shadowColor: c.orange,
                   },
                 ]}
               >
+                <Image
+                  source={brandAssets.actionSell}
+                  style={styles.sellIcon}
+                  resizeMode="contain"
+                />
                 <Text style={styles.sellLabel}>SELL</Text>
               </View>
             </Pressable>
@@ -73,14 +87,29 @@ export function BottomNav({ active, onChange }: Props) {
             accessibilityRole="tab"
             accessibilityState={{ selected }}
             accessibilityLabel={tab.label}
-            style={styles.tab}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.tab,
+              { opacity: pressed ? 0.75 : 1 },
+            ]}
           >
+            {tab.icon ? (
+              <Image
+                source={brandAssets[tab.icon]}
+                style={[
+                  styles.tabIcon,
+                  tab.id === "profile" && styles.profileTabIcon,
+                  { opacity: selected ? 1 : 0.55 },
+                ]}
+                resizeMode={tab.id === "profile" ? "cover" : "contain"}
+              />
+            ) : null}
             <Text
               style={[
                 styles.label,
                 {
-                  color: selected ? c.emerald : c.muted,
-                  fontWeight: selected ? "600" : "500",
+                  color: selected ? c.orange : c.muted,
+                  fontWeight: selected ? "700" : "500",
                 },
               ]}
             >
@@ -101,7 +130,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: space.sm,
     paddingBottom: space.md,
-    minHeight: 64,
+    minHeight: 72,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -113,18 +142,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: tap.min,
     minWidth: tap.min,
+    gap: 4,
+  },
+  tabIcon: {
+    width: 28,
+    height: 28,
+  },
+  profileTabIcon: {
+    borderRadius: 14,
   },
   label: {
-    fontSize: type.meta,
+    fontSize: 11,
   },
   sellWrap: {
     flex: 1,
     alignItems: "center",
-    marginTop: -20,
+    marginTop: -28,
   },
   sellFab: {
-    minWidth: 64,
-    minHeight: 64,
+    width: 72,
+    height: 72,
     borderRadius: radius.full,
     alignItems: "center",
     justifyContent: "center",
@@ -132,11 +169,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 6,
+    gap: 0,
+    overflow: "hidden",
+    paddingTop: 6,
+  },
+  sellIcon: {
+    width: 40,
+    height: 40,
   },
   sellLabel: {
-    color: "#FFFFFF",
-    fontSize: type.meta,
+    color: colors.onAccent,
+    fontSize: 10,
     fontWeight: "700",
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+    marginTop: 1,
   },
 });

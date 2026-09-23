@@ -7,6 +7,13 @@ export const COMMUNITIES = [
   "Chevron",
   "Ajah",
   "Other Lagos",
+  "Maitama",
+  "Asokoro",
+  "Wuse",
+  "Garki",
+  "Jabi",
+  "Guzape",
+  "Other Abuja",
 ] as const;
 
 export type Community = (typeof COMMUNITIES)[number];

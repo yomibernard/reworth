@@ -6,6 +6,7 @@ export type ButtonVariant =
   | "primary"
   | "secondary"
   | "ghost"
+  | "soft"
   | "danger"
   | "sell";
 
@@ -25,6 +26,8 @@ const variantClasses: Record<ButtonVariant, string> = {
     "bg-[var(--rw-secondary)] text-white hover:bg-[var(--rw-secondary-hover)] focus-visible:ring-[var(--rw-secondary)]",
   ghost:
     "bg-transparent text-[var(--rw-ink)] border border-[var(--rw-ink)] hover:bg-[var(--rw-bg-warm)] focus-visible:ring-[var(--rw-ink)]",
+  soft:
+    "bg-[var(--rw-bg-warm)] text-[var(--rw-ink)] hover:opacity-90 focus-visible:ring-[var(--rw-ink)]",
   danger:
     "bg-[var(--rw-error)] text-white hover:opacity-90 focus-visible:ring-[var(--rw-error)]",
   sell:

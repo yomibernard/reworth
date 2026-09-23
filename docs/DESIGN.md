@@ -30,6 +30,8 @@ Not: recycling, charity, generic classifieds, cold corporate banking.
 
 Gold `#C9A227` remains reserved for Founding / Top Seller marks only.
 
+**On-accent text** `#FFFFFF` — always white for labels/icons on Burnt Orange or Midnight Navy filled CTAs (`onAccent` / `--rw-on-accent`). Do not use surface white for CTA copy (breaks dark mode).
+
 ## Dark mode
 
 | Role | Hex |
