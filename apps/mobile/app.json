@@ -34,7 +34,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow ReWorth to access your photos for listings and room scan."
+          "photosPermission": "Allow ReWorth to access your photos for listings and room scan.",
+          "cameraPermission": "Allow ReWorth to use the camera for listing photos and room scan."
         }
       ]
     ],

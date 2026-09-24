@@ -19,6 +19,10 @@ import {
   VerificationStatus,
 } from '@prisma/client';
 import { SMS_PROVIDER, type SmsProvider } from '../providers/sms.provider';
+import {
+  WHATSAPP_PROVIDER,
+  type WhatsAppProvider,
+} from '../providers/whatsapp.provider';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ReferralsService } from '../referrals/referrals.service';
@@ -55,6 +59,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly audit: AuditService,
     @Inject(SMS_PROVIDER) private readonly sms: SmsProvider,
+    @Inject(WHATSAPP_PROVIDER) private readonly whatsapp: WhatsAppProvider,
     @Optional()
     @Inject(forwardRef(() => ReferralsService))
     private readonly referrals?: ReferralsService,
@@ -71,7 +76,7 @@ export class AuthService {
   }
 
   private get accessTtl(): string {
-    return this.config.get<string>('JWT_ACCESS_TTL') ?? '15m';
+    return this.config.get<string>('JWT_ACCESS_TTL') ?? '24h';
   }
 
   private get refreshTtl(): string {
@@ -83,11 +88,15 @@ export class AuthService {
     const now = new Date();
     const fifteenMinAgo = new Date(now.getTime() - 15 * 60_000);
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
+    // Mock SMS (local / Expo): higher ceilings so QA isn't blocked by 429s.
+    const mockSms = this.sms.name === 'console-sms';
+    const maxPer15 = mockSms ? 20 : 3;
+    const maxPerDay = mockSms ? 100 : 5;
 
     const recent15 = await this.prisma.otpChallenge.count({
       where: { phone, createdAt: { gte: fifteenMinAgo } },
     });
-    if (recent15 >= 3) {
+    if (recent15 >= maxPer15) {
       throw new HttpException(
         'Too many OTP requests. Try again in 15 minutes.',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -97,7 +106,7 @@ export class AuthService {
     const recentDay = await this.prisma.otpChallenge.count({
       where: { phone, createdAt: { gte: dayAgo } },
     });
-    if (recentDay >= 5) {
+    if (recentDay >= maxPerDay) {
       throw new HttpException(
         'Daily OTP limit reached. Try again tomorrow.',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -107,31 +116,55 @@ export class AuthService {
     const code = generateOtpCode(6);
     const codeHash = hashWithPepper(code, this.otpPepper);
     const expiresAt = new Date(now.getTime() + 5 * 60_000);
+    const body = `Your ReWorth code is ${code}. Valid for 5 minutes.`;
+    const idempotencyKey = `otp:${phone}:${expiresAt.getTime()}`;
 
     await this.prisma.otpChallenge.create({
       data: { phone, codeHash, expiresAt },
     });
 
-    await this.sms.send({
-      to: phone,
-      body: `Your ReWorth code is ${code}. Valid for 5 minutes.`,
-      idempotencyKey: `otp:${phone}:${expiresAt.getTime()}`,
-    });
+    // Deliver the same 6-digit code on SMS and WhatsApp at the same time.
+    const [smsResult, waResult] = await Promise.allSettled([
+      this.sms.send({
+        to: phone,
+        body,
+        idempotencyKey: `${idempotencyKey}:sms`,
+      }),
+      this.whatsapp.sendOtp({
+        to: phone,
+        code,
+        body,
+        idempotencyKey: `${idempotencyKey}:whatsapp`,
+      }),
+    ]);
+
+    const channels: Array<'sms' | 'whatsapp'> = [];
+    if (smsResult.status === 'fulfilled' && smsResult.value.status !== 'failed') {
+      channels.push('sms');
+    }
+    if (waResult.status === 'fulfilled' && waResult.value.status !== 'failed') {
+      channels.push('whatsapp');
+    }
 
     await this.audit.log({
       action: 'OTP_REQUESTED',
       entityType: 'OtpChallenge',
       entityId: phone,
       ip: ip ?? null,
+      afterJson: { channels },
     });
+
+    const mockMessaging =
+      (this.sms.name === 'console-sms' ||
+        this.whatsapp.name === 'console-whatsapp') &&
+      process.env.NODE_ENV !== 'production';
 
     return {
       ok: true,
       expiresInSeconds: 300,
-      // Dev hint only when SMS is mock — never in production with real SMS
-      ...(this.sms.name === 'console-sms' && process.env.NODE_ENV !== 'production'
-        ? { debugCode: code }
-        : {}),
+      channels,
+      // Dev hint only when messaging is mock — never in production with real providers
+      ...(mockMessaging ? { debugCode: code } : {}),
     };
   }
 

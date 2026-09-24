@@ -6,6 +6,7 @@ import { AdminRole, DevicePlatform } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SMS_PROVIDER } from '../providers/sms.provider';
+import { WHATSAPP_PROVIDER } from '../providers/whatsapp.provider';
 import { AuthService } from './auth.service';
 import { hashWithPepper } from './crypto.util';
 
@@ -15,6 +16,10 @@ describe('AuthService', () => {
   const otpPepper = 'test-otp-pepper';
   const refreshPepper = 'test-refresh-secret';
   const sms = { name: 'console-sms', send: jest.fn().mockResolvedValue({ messageId: '1', status: 'sent' }) };
+  const whatsapp = {
+    name: 'console-whatsapp',
+    sendOtp: jest.fn().mockResolvedValue({ messageId: 'wa1', status: 'sent' }),
+  };
 
   function buildPrismaMock() {
     return {
@@ -79,6 +84,7 @@ describe('AuthService', () => {
           useValue: { log: jest.fn().mockResolvedValue(null) },
         },
         { provide: SMS_PROVIDER, useValue: sms },
+        { provide: WHATSAPP_PROVIDER, useValue: whatsapp },
       ],
     })
       .overrideProvider(AuthService)
@@ -94,6 +100,7 @@ describe('AuthService', () => {
             config,
             audit,
             sms as never,
+            whatsapp as never,
           ),
         inject: [ConfigService, JwtService, AuditService],
       })
@@ -106,18 +113,34 @@ describe('AuthService', () => {
       module.get(ConfigService),
       module.get(AuditService),
       sms as never,
+      whatsapp as never,
     );
 
     jest.clearAllMocks();
     sms.send.mockResolvedValue({ messageId: '1', status: 'sent' });
+    whatsapp.sendOtp.mockResolvedValue({ messageId: 'wa1', status: 'sent' });
   });
 
   describe('OTP', () => {
-    it('rejects when rate limit 3/15min exceeded', async () => {
-      prisma.otpChallenge.count.mockResolvedValueOnce(3);
+    it('rejects when mock SMS rate limit (20/15min) exceeded', async () => {
+      prisma.otpChallenge.count.mockResolvedValueOnce(20);
       await expect(
         service.requestOtp({ phone: '+2348012345678' }),
       ).rejects.toBeInstanceOf(HttpException);
+    });
+
+    it('sends the same code on SMS and WhatsApp together', async () => {
+      prisma.otpChallenge.count.mockResolvedValue(0);
+      prisma.otpChallenge.create.mockResolvedValue({ id: 'c1' });
+      const res = await service.requestOtp({ phone: '+2348012345678' });
+      expect(sms.send).toHaveBeenCalledTimes(1);
+      expect(whatsapp.sendOtp).toHaveBeenCalledTimes(1);
+      const smsBody = sms.send.mock.calls[0][0].body as string;
+      const code = whatsapp.sendOtp.mock.calls[0][0].code as string;
+      expect(smsBody).toContain(code);
+      expect(code).toMatch(/^\d{6}$/);
+      expect(res.channels).toEqual(['sms', 'whatsapp']);
+      expect(res.debugCode).toBe(code);
     });
 
     it('rejects expired OTP on verify', async () => {

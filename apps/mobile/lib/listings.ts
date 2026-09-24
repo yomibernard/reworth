@@ -117,10 +117,21 @@ export async function completeMedia(
   listingId: string,
   key: string,
   sortOrder: number,
+  opts?: { inlineBase64?: string; contentType?: string },
 ): Promise<unknown> {
   return apiFetch("/media/complete", {
     method: "POST",
     token,
-    body: { listingId, key, sortOrder },
+    body: {
+      listingId,
+      key,
+      sortOrder,
+      ...(opts?.inlineBase64
+        ? {
+            inlineBase64: opts.inlineBase64,
+            contentType: opts.contentType ?? "image/jpeg",
+          }
+        : {}),
+    },
   });
 }

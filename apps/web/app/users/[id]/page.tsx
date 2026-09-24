@@ -12,6 +12,7 @@ import {
 import { DiscoveryListingCard } from "../../../components/discovery/DiscoveryListingCard";
 import { ApiError, apiFetch } from "../../../lib/api";
 import { getAccessToken } from "../../../lib/auth";
+import { brandPublic } from "../../../lib/brand";
 import { followSeller, unfollowSeller } from "../../../lib/discovery";
 import type { MeResponse } from "../../../lib/types";
 import {
@@ -186,9 +187,14 @@ export default function PublicProfilePage() {
         <header className="mb-8 flex items-center justify-between gap-4">
           <Link
             href="/"
-            className="text-xl font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
           >
-            ReWorth
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={brandPublic.logo}
+              alt="ReWorth"
+              className="h-8 w-auto"
+            />
           </Link>
           <Link
             href="/"
@@ -204,24 +210,30 @@ export default function PublicProfilePage() {
               className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--rw-accent-muted)] text-2xl font-semibold text-[var(--rw-accent)]"
               aria-hidden
             >
-              {profile.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profile.avatarUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                (profile.displayName || "M").slice(0, 1).toUpperCase()
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={profile.avatarUrl || brandPublic.profileAvatar}
+                alt=""
+                className="h-full w-full object-cover"
+              />
             </div>
             <div className="min-w-0 flex-1">
-              <h1
-                id="profile-name"
-                className="text-3xl font-semibold tracking-tight sm:text-4xl"
-              >
-                {profile.displayName}
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1
+                  id="profile-name"
+                  className="text-3xl font-semibold tracking-tight sm:text-4xl"
+                >
+                  {profile.displayName}
+                </h1>
+                {profile.identityVerified ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={brandPublic.verified}
+                    alt="Verified"
+                    className="h-6 w-6"
+                  />
+                ) : null}
+              </div>
               <p className="mt-2 text-base text-[var(--rw-ink-muted)]">
                 {formatStars(profile.avgRating, profile.reviewCount)}
               </p>
@@ -248,8 +260,14 @@ export default function PublicProfilePage() {
 
           <ul className="mt-6 space-y-2 text-sm sm:text-base">
             {profile.identityVerified ? (
-              <li className="font-medium text-[var(--rw-accent)]">
-                Identity Verified ✓
+              <li className="flex items-center gap-2 font-medium text-[var(--rw-accent)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={brandPublic.identityChecked}
+                  alt=""
+                  className="h-5 w-5"
+                />
+                Identity Verified
               </li>
             ) : null}
             <li>
@@ -259,6 +277,26 @@ export default function PublicProfilePage() {
             <li>Member since {profile.memberSince}</li>
             {responseLine ? <li>{responseLine}</li> : null}
           </ul>
+
+          <div className="mt-6 flex flex-wrap gap-2" aria-label="Trust signals">
+            {(
+              [
+                ["Buyer protection", brandPublic.buyerProtection],
+                ["Secure payment", brandPublic.securePayment],
+                ["Safe meetup", brandPublic.safeMeetup],
+                ["Verified sellers", brandPublic.verifiedSeller],
+              ] as const
+            ).map(([label, src]) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--rw-ink-muted)]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" className="h-4 w-4" />
+                {label}
+              </span>
+            ))}
+          </div>
         </section>
 
         <section className="mt-12" aria-labelledby="active-listings">

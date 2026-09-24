@@ -39,6 +39,15 @@ import type {
   PublicListing,
   SellingModeValue,
 } from "../../lib/types";
+import {
+  cancelSellerPlus,
+  getSellerPlan,
+  newIdempotencyKey,
+  upgradeSellerPlus,
+  type SellerPlan,
+} from "../../lib/monetization";
+import { setDonateIfUnsold as patchDonateIfUnsold } from "../../lib/circular";
+import { brandPublic } from "../../lib/brand";
 
 type SellStep =
   | "photos"
@@ -123,6 +132,18 @@ export default function SellPage() {
   const [city, setCity] = useState("Lagos");
 
   const [published, setPublished] = useState<PublicListing | null>(null);
+  const [sellerPlan, setSellerPlan] = useState<SellerPlan | null>(null);
+  const [planBusy, setPlanBusy] = useState(false);
+
+  const refreshPlan = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      setSellerPlan(await getSellerPlan(token));
+    } catch {
+      /* optional */
+    }
+  }, []);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -131,6 +152,7 @@ export default function SellPage() {
       return;
     }
     setReady(true);
+    void refreshPlan();
     void (async () => {
       try {
         const [all, mine, regions] = await Promise.all([
@@ -160,7 +182,7 @@ export default function SellPage() {
         setEstateCommunities([]);
       }
     })();
-  }, [router]);
+  }, [router, refreshPlan]);
 
   const tokenOrThrow = useCallback(() => {
     const token = getAccessToken();
@@ -349,7 +371,6 @@ export default function SellPage() {
       fulfilmentMeet,
       fulfilmentDelivery,
       city: city || undefined,
-      donateIfUnsoldDays: donateIfUnsold ? donateIfUnsoldDays : null,
     };
     if (isVehicleCat || vehicleYear || vehicleMake || vehicleMileage) {
       body.vehicle = {
@@ -443,6 +464,13 @@ export default function SellPage() {
       await saveDraftFields();
       const token = tokenOrThrow();
       const live = await publishListing(listingId, token);
+      if (donateIfUnsold) {
+        try {
+          await patchDonateIfUnsold(token, listingId, donateIfUnsoldDays);
+        } catch {
+          /* non-blocking */
+        }
+      }
       setPublished(live);
       setStep("done");
     } catch (err) {
@@ -469,7 +497,7 @@ export default function SellPage() {
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 70% 50% at 85% 0%, rgba(14,159,110,0.14), transparent 55%), radial-gradient(ellipse 40% 35% at 5% 95%, rgba(201,162,39,0.1), transparent 50%), linear-gradient(165deg, #FAF9F7 0%, #F3F0EA 50%, #E8F5EF 100%)",
+            "radial-gradient(ellipse 70% 50% at 85% 0%, rgba(14,159,110,0.14), transparent 55%), radial-gradient(ellipse 40% 35% at 5% 95%, rgba(201,162,39,0.1), transparent 50%), linear-gradient(165deg, #FCFAF6 0%, #F3F0EA 50%, #E8F5EF 100%)",
         }}
       />
 
@@ -495,6 +523,83 @@ export default function SellPage() {
             ) : null}
           </div>
         </header>
+
+        <section
+          className="mb-6 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] p-4"
+          aria-label="Seller plan"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--rw-ink-muted)]">
+                Seller plan
+              </h2>
+              <p className="mt-1 text-lg font-semibold tracking-tight">
+                {sellerPlan?.tier === "PLUS" ? "Plus" : "Starter"}
+              </p>
+              <p className="mt-1 text-sm text-[var(--rw-ink-muted)]">
+                {sellerPlan?.tier === "PLUS"
+                  ? `Up to ${sellerPlan.maxActiveListings} live listings · featured slots & analytics`
+                  : "Upgrade for more live listings, a featured slot, and analytics."}
+              </p>
+            </div>
+            {sellerPlan?.tier === "PLUS" ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={planBusy}
+                onClick={() => {
+                  void (async () => {
+                    setPlanBusy(true);
+                    try {
+                      await cancelSellerPlus(tokenOrThrow());
+                      setToast("Plus cancelled at period end");
+                      await refreshPlan();
+                    } catch (err) {
+                      setError(
+                        err instanceof ApiError
+                          ? err.message
+                          : "Cancel failed",
+                      );
+                    } finally {
+                      setPlanBusy(false);
+                    }
+                  })();
+                }}
+              >
+                {planBusy ? "…" : "Cancel Plus"}
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={planBusy}
+                onClick={() => {
+                  void (async () => {
+                    setPlanBusy(true);
+                    try {
+                      await upgradeSellerPlus(
+                        tokenOrThrow(),
+                        newIdempotencyKey("seller_plus"),
+                      );
+                      setToast("Upgraded to Seller Plus");
+                      await refreshPlan();
+                    } catch (err) {
+                      setError(
+                        err instanceof ApiError
+                          ? err.message
+                          : "Upgrade failed",
+                      );
+                    } finally {
+                      setPlanBusy(false);
+                    }
+                  })();
+                }}
+              >
+                {planBusy ? "…" : "Upgrade to Plus"}
+              </Button>
+            )}
+          </div>
+        </section>
 
         {step !== "done" ? (
           <div
@@ -558,12 +663,15 @@ export default function SellPage() {
                   <button
                     type="button"
                     onClick={() => fileRef.current?.click()}
-                    className="flex aspect-square flex-col items-center justify-center gap-1 rounded-[var(--rw-radius)] border border-dashed border-[var(--rw-border)] bg-[var(--rw-bg-elevated)]/70 text-sm font-medium text-[var(--rw-ink-muted)] transition hover:border-[var(--rw-accent)] hover:text-[var(--rw-accent)]"
+                    className="flex aspect-square flex-col items-center justify-center gap-2 rounded-[var(--rw-radius)] border border-dashed border-[var(--rw-border)] bg-[var(--rw-bg-elevated)]/70 text-sm font-medium text-[var(--rw-ink-muted)] transition hover:border-[var(--rw-accent)] hover:text-[var(--rw-accent)]"
                     aria-label="Add photos"
                   >
-                    <span className="text-2xl leading-none" aria-hidden>
-                      +
-                    </span>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={brandPublic.listingPlaceholder}
+                      alt=""
+                      className="h-10 w-10 object-contain opacity-70"
+                    />
                     Add
                   </button>
                 ) : null}
@@ -580,9 +688,17 @@ export default function SellPage() {
               />
 
               {photos.length === 0 ? (
-                <p className="mt-6 text-sm text-[var(--rw-ink-muted)]">
-                  No photos yet — add at least two to continue.
-                </p>
+                <div className="mt-6 flex items-start gap-3 rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)]/60 p-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={brandPublic.actionSell}
+                    alt=""
+                    className="h-9 w-9 shrink-0 object-contain"
+                  />
+                  <p className="text-sm text-[var(--rw-ink-muted)]">
+                    No photos yet — add at least two to continue.
+                  </p>
+                </div>
               ) : null}
 
               {error ? (
