@@ -32,5 +32,6 @@
     "premium": { "minKobo": 50000000, "maxKobo": null }
   },
   "sms": { "enabled": true, "provider": "termii" },
-  "psp": { "enabled": true, "provider": "paystack" }
+  "psp": { "enabled": true, "provider": "paystack" },
+  "status": "pilot"
 }

@@ -10,6 +10,7 @@ import {
   setTokens,
 } from "../../../lib/auth";
 import type { AuthTokenResponse } from "../../../lib/types";
+import { brandPublic } from "../../../lib/brand";
 
 export default function OnboardingOtpPage() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function OnboardingOtpPage() {
 
     const trimmed = code.replace(/\D/g, "");
     if (trimmed.length !== 6) {
-      setError("Enter the 6-digit code from your SMS");
+      setError("Enter the 6-digit code from SMS or WhatsApp");
       return;
     }
 
@@ -77,7 +78,8 @@ export default function OnboardingOtpPage() {
     <OnboardingShell
       step={3}
       title="Enter code"
-      subtitle={`We sent a 6-digit code to ${phone}.`}
+      subtitle={`We sent a 6-digit code by SMS and WhatsApp to ${phone}.`}
+      illustration={brandPublic.securePayment}
     >
       <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-6" noValidate>
         <Input

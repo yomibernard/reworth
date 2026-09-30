@@ -63,18 +63,20 @@ export class HomeService {
 
   async getHome(query: {
     community?: string;
+    city?: string;
     radiusKm?: number;
     lat?: number;
     lng?: number;
     viewerId?: string | null;
   }): Promise<HomeResponse> {
     const community = query.community ?? '';
+    const city = (query.city ?? '').trim();
     const radiusKm = query.radiusKm;
     const grid = this.cache.gridCell(query.lat, query.lng);
     const key = this.cache.buildKey(
       community,
       radiusKm ?? 'all',
-      `${grid}:${query.viewerId ?? 'anon'}`,
+      `${grid}:${city || 'any'}:${query.viewerId ?? 'anon'}`,
     );
 
     const cached = await this.cache.get<HomeResponse>(key);
@@ -119,16 +121,35 @@ export class HomeService {
 
   private async buildRails(query: {
     community?: string;
+    city?: string;
     radiusKm?: number;
     lat?: number;
     lng?: number;
     viewerId?: string | null;
   }): Promise<HomeRail[]> {
-    const live = await this.prisma.listing.findMany({
+    const cityFilter = query.city?.trim();
+    const cityLabel =
+      cityFilter?.toLowerCase() === 'abuja'
+        ? 'Abuja'
+        : cityFilter?.toLowerCase() === 'lagos' || !cityFilter
+          ? 'Lagos'
+          : cityFilter;
+    const cityWhere = cityFilter
+      ? { city: { equals: cityLabel, mode: 'insensitive' as const } }
+      : null;
+
+    const liveWhereBase = {
+      status: 'LIVE' as const,
+      AND: [
+        this.visibility.visibleListingWhere(query.viewerId),
+        ...(cityWhere ? [cityWhere] : []),
+      ],
+    };
+
+    let live = await this.prisma.listing.findMany({
       where: {
-        status: 'LIVE',
+        ...liveWhereBase,
         ...(query.community ? { community: query.community } : {}),
-        AND: [this.visibility.visibleListingWhere(query.viewerId)],
       },
       include: {
         ...listingInclude,
@@ -140,6 +161,22 @@ export class HomeService {
       orderBy: { publishedAt: 'desc' },
       take: 60,
     });
+
+    // Empty preferred community → show city-wide so Home never looks dead.
+    if (query.community && live.length === 0) {
+      live = await this.prisma.listing.findMany({
+        where: liveWhereBase,
+        include: {
+          ...listingInclude,
+          events: {
+            where: { type: { in: ['VIEWED', 'SAVED', 'PRICE_CHANGED'] } },
+            select: { type: true, payload: true },
+          },
+        },
+        orderBy: { publishedAt: 'desc' },
+        take: 60,
+      });
+    }
 
     type Row = (typeof live)[number] & { distanceKm?: number | null };
 
@@ -214,7 +251,7 @@ export class HomeService {
     if (query.viewerId) {
       recommended = await this.recommendations.recommend({
         userId: query.viewerId,
-        city: 'Lagos',
+        city: cityLabel,
         limit: 12,
         surface: 'home',
         seed: `${query.viewerId}:home`,
