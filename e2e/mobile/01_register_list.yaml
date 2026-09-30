@@ -3,7 +3,7 @@
 # Demo seller (after seed): Ori +2348010000001
 # OTP: dual-channel SMS + WhatsApp; mock returns debugCode on POST /auth/otp/request
 # Replace OTP_CODE below with debugCode (or live Termii code).
-appId: ng.reworth.mobile
+appId: com.reworth.app
 ---
 - launchApp
 - assertVisible: "ReWorth"

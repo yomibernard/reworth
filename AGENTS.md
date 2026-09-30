@@ -30,8 +30,8 @@ Functional · UX · **mobile behaviour verified on iOS + Android; web parity del
 | Last completed (post-launch) | **3.3** (`v2.2-monetization`) |
 | MVP Admin | **`v0.8-admin`** (+ harden) |
 | MVP Risk / Security | **`v0.9-risk-security`** (+ harden) |
-| Status | **Near complete** — tokens + brand assets + Maestro testIDs + listing share deep links; device recording / staging k6 / Termii keys remain |
-| Next | Maestro ≤60s device recording; staging k6 re-gate; Termii live keys |
+| Status | **Near complete** — tokens + brand + Maestro testIDs/`com.reworth.app` + listing App Links stubs; device recording / staging k6 / Termii remain |
+| Next | Maestro ≤60s device recording; staging k6 re-gate (`DISABLE_THROTTLE` + cloud); Termii live keys; fill AASA TEAMID + Play SHA |
 
 ## MVP / post-launch
 

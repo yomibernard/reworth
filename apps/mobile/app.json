@@ -12,6 +12,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.reworth.app",
+      "associatedDomains": [
+        "applinks:reworth.ng",
+        "applinks:www.reworth.ng"
+      ],
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "ReWorth needs photos to list and room-scan your items.",
         "NSCameraUsageDescription": "ReWorth needs the camera for room scan and listing photos."
@@ -28,6 +32,25 @@
         "WRITE_EXTERNAL_STORAGE",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "category": ["BROWSABLE", "DEFAULT"],
+          "data": [
+            {
+              "scheme": "https",
+              "host": "reworth.ng",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.reworth.ng",
+              "pathPrefix": "/"
+            }
+          ]
+        }
       ]
     },
     "plugins": [

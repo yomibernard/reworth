@@ -1,7 +1,8 @@
 # ReWorth mobile Maestro stubs
 #
 # Install: https://maestro.mobile.dev
-# Run against a device/sim with Expo (`ng.reworth.mobile` or Expo Go appId override).
+# Run against a device/sim with package/bundle `com.reworth.app`
+# (see apps/mobile/app.json). Expo Go needs appId override to the host Expo app.
 #
 # Env:
 #   OTP_CODE   — from mock `debugCode` or Termii SMS/WhatsApp

@@ -2,7 +2,7 @@
 # Goal: Home → PDP sticky actions → Chats under one minute.
 # Preconditions: seed running, API up, Expo Metro, preferably signed-in.
 # Record: maestro test e2e/mobile/00_demo_60s.yaml  (then screenrecord separately)
-appId: ng.reworth.mobile
+appId: com.reworth.app
 ---
 - launchApp
 - assertVisible: "ReWorth"

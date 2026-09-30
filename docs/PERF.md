@@ -14,6 +14,7 @@
 | --- | --- |
 | [`infra/k6/mixed-load.js`](../infra/k6/mixed-load.js) | Mixed home/search/listings + health (arrival-rate, 500 VUs) |
 | [`infra/k6/phase9-500vu-gate.js`](../infra/k6/phase9-500vu-gate.js) | Hot-path gate (health/categories/readyz × 500 VUs) |
+| [`infra/k6/local-mid-gate.js`](../infra/k6/local-mid-gate.js) | Laptop mid-gate (50 VUs / 60s) before staging 500 VU |
 | [`infra/k6/results-phase9-summary.json`](../infra/k6/results-phase9-summary.json) | Latest local summary export |
 
 ```bash
@@ -42,6 +43,18 @@ Hardware: single Nest process on Windows laptop, Postgres available, Redis offli
 | Thresholds | Pass |
 
 This does **not** replace the 500 VU staging gate — it confirms the smoke script + local API path before device/PO demos.
+
+### Local mid-gate 50 VU (2026-09-30)
+
+`k6 run -e API_BASE_URL=http://127.0.0.1:3011/api/v1 infra/k6/local-mid-gate.js` against Nest without `DISABLE_THROTTLE=1`:
+
+| Check | Result |
+| --- | --- |
+| http_req_failed | **~98%** (throttle / 429 storm under 50 VUs) |
+| http_req_duration p95 | ~981ms |
+| Thresholds | Fail — expected without `DISABLE_THROTTLE` |
+
+Re-run with `DISABLE_THROTTLE=1` on the API before treating mid-gate as a local pass. Staging 500 VU remains required.
 
 ### Top 3 offenders fixed (local)
 
