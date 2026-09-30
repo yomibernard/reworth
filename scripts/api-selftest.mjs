@@ -1,4 +1,4 @@
-const base = "http://127.0.0.1:3001/api/v1";
+const base = process.env.API_BASE_URL || "http://127.0.0.1:3001/api/v1";
 let pass = 0;
 let fail = 0;
 const rows = [];

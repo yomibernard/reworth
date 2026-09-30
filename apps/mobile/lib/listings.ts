@@ -1,6 +1,15 @@
 import { apiFetch } from "./api";
 import type { PriceIntelligence, PublicListing } from "./types";
 
+/** Companion web URL for share sheets / WhatsApp (opens in app via deep link). */
+export function listingShareUrl(id: string): string {
+  return `https://reworth.ng/listings/${encodeURIComponent(id)}`;
+}
+
+export function listingDeepLink(id: string): string {
+  return `reworth://listings/${encodeURIComponent(id)}`;
+}
+
 export async function createListing(
   token: string,
   body: Record<string, unknown> = {},

@@ -511,7 +511,7 @@ export function DiscoveryHome({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.railRow}
             >
-              {rail.items.map((item) => {
+              {rail.items.map((item, index) => {
                 const price =
                   item.sellingMode === "GIVE_AWAY"
                     ? "Free"
@@ -529,6 +529,11 @@ export function DiscoveryHome({
                     }
                     verified={Boolean(item.seller?.verificationBadge)}
                     onPress={() => onOpenListing(item.id)}
+                    testID={
+                      rail === rails[0] && index === 0
+                        ? "listing-card-0"
+                        : undefined
+                    }
                   />
                 );
               })}

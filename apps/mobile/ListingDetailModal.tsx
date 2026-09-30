@@ -6,6 +6,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -25,7 +26,7 @@ import {
   getMeFavourites,
   unfavouriteListing,
 } from "./lib/discovery";
-import { getListing } from "./lib/listings";
+import { getListing, listingShareUrl } from "./lib/listings";
 import { fetchRecommendations } from "./lib/intelligence";
 import {
   BOOST_DURATIONS_HOURS,
@@ -450,14 +451,40 @@ export function ListingDetailModal({
       <View style={[styles.safe, { backgroundColor: c.canvas }]}>
         <View style={[styles.header, { borderBottomColor: c.border }]}>
           <Text style={[styles.brand, { color: c.ink }]}>ReWorth</Text>
-          <Pressable
-            onPress={onClose}
-            accessibilityRole="button"
-            hitSlop={8}
-            style={{ minHeight: 44, justifyContent: "center" }}
-          >
-            <Text style={[styles.close, { color: c.emerald }]}>Close</Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            {listingId ? (
+              <Pressable
+                onPress={() => {
+                  void (async () => {
+                    const url = listingShareUrl(listingId);
+                    const title = listing?.title || "ReWorth listing";
+                    await Share.share({
+                      message: `${title} on ReWorth\n${url}`,
+                      title,
+                      url,
+                    }).catch(() => undefined);
+                  })();
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Share listing"
+                testID="pdp-share"
+                hitSlop={8}
+                style={{ minHeight: 44, justifyContent: "center", paddingHorizontal: 8 }}
+              >
+                <Text style={[styles.close, { color: c.ink }]}>Share</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              testID="pdp-close"
+              hitSlop={8}
+              style={{ minHeight: 44, justifyContent: "center" }}
+            >
+              <Text style={[styles.close, { color: c.emerald }]}>Close</Text>
+            </Pressable>
+          </View>
         </View>
 
         {loading ? (
@@ -794,6 +821,7 @@ export function ListingDetailModal({
                   }}
                   accessibilityRole="button"
                   accessibilityLabel="Chat"
+                  testID="pdp-chat"
                 >
                   <Text style={{ color: c.ink, fontWeight: "600" }}>
                     {chatBusy ? "…" : "Chat"}
@@ -807,6 +835,7 @@ export function ListingDetailModal({
                   }}
                   accessibilityRole="button"
                   accessibilityLabel={saved ? "Unsave" : "Save"}
+                  testID="pdp-save"
                 >
                   <Text style={{ color: saved ? c.emerald : c.ink, fontSize: 18 }}>
                     ♥
@@ -816,6 +845,8 @@ export function ListingDetailModal({
                   style={[styles.stickyOutline, { borderColor: c.border, flex: 1 }]}
                   onPress={() => setOfferOpen(true)}
                   accessibilityRole="button"
+                  accessibilityLabel="Make offer"
+                  testID="pdp-offer"
                 >
                   <Text style={{ color: c.ink, fontWeight: "600" }}>Offer</Text>
                 </Pressable>
@@ -826,6 +857,7 @@ export function ListingDetailModal({
                     else setToast("Coming soon");
                   }}
                   accessibilityRole="button"
+                  testID="pdp-buy"
                 >
                   <Text style={styles.stickyPrimaryText}>Buy Now</Text>
                 </Pressable>
@@ -1059,6 +1091,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 8,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   brand: { fontSize: 20, fontWeight: "700", color: colors.ink },
   close: { fontSize: 16, fontWeight: "600", color: colors.orange },

@@ -24,6 +24,7 @@ export type ListingCardProps = {
   onToggleSave?: () => void;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
+  testID?: string;
 };
 
 export function ListingCard({
@@ -38,12 +39,14 @@ export function ListingCard({
   onToggleSave,
   style,
   accessibilityLabel,
+  testID,
 }: ListingCardProps) {
   const c = useColors();
   const meta = [community, distanceLabel].filter(Boolean).join(" · ");
 
   return (
     <Pressable
+      testID={testID}
       onPress={() => {
         void hapticLight();
         onPress?.();

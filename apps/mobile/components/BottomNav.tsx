@@ -52,6 +52,7 @@ export function BottomNav({ active, onChange }: Props) {
               accessibilityRole="tab"
               accessibilityState={{ selected }}
               accessibilityLabel="Sell"
+              testID="tab-sell"
               hitSlop={8}
               style={({ pressed }) => [
                 styles.sellWrap,
@@ -87,6 +88,7 @@ export function BottomNav({ active, onChange }: Props) {
             accessibilityRole="tab"
             accessibilityState={{ selected }}
             accessibilityLabel={tab.label}
+            testID={`tab-${tab.id}`}
             hitSlop={6}
             style={({ pressed }) => [
               styles.tab,

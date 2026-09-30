@@ -14,6 +14,13 @@
 #   04_dispute.yaml
 #   05_boost_listing.yaml
 #
+# Stable testIDs (prefer over text):
+#   tab-home | tab-discover | tab-sell | tab-chats | tab-profile
+#   listing-card-0
+#   pdp-share | pdp-close | pdp-chat | pdp-save | pdp-offer | pdp-buy
+#   phone-input | send-otp | otp-input | verify-otp
+#   sell-take-photo | sell-gallery | sell-mock-photos | sell-analyze
+#
 # Example:
 #   maestro test -e OTP_CODE=123456 e2e/mobile/01_register_list.yaml
 #   maestro test e2e/mobile/00_demo_60s.yaml

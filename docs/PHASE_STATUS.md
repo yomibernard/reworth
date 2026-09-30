@@ -76,7 +76,8 @@
 - ~~Chat bubbles~~ token pass (`ChatScreens` → `theme/tokens` + `useColors`)
 - ~~Orders timeline / Notifications~~ token pass (`OrdersScreens`, `NotificationsScreens`)
 - ~~PDP sheets~~ token pass (`ListingDetailModal` brand badges + sheets)
-- Maestro stubs present (`e2e/mobile/*.yaml` + README); OTP/Sell **testIDs** wired; **real-device ≤60s recording** still open
+- Maestro stubs present (`e2e/mobile/*.yaml` + README); OTP/Sell/PDP/tabs **testIDs** wired; **real-device ≤60s recording** still open
+- Shareable listing URLs: PDP Share + `https://reworth.ng/listings/:id` deep link (mobile + web companion)
 - Full-app hex purge: core consumer screens + CTA `onAccent` token (light/dark safe); only `theme/tokens.ts` retains palette hex
 - P10 partials closed: Worth photo/share, sell price intel, consign/pickup lifecycle, Home For you recs
 - P11 B2B: Corporate relocation + Partner console on mobile (Profile)

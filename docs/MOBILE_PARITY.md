@@ -87,7 +87,7 @@ These are **expected** on web even when mobile leads; keep parity **full** or do
 
 | Flow | Mobile | Web | Intent |
 | --- | --- | --- | --- |
-| Shareable listing URLs | deep link TBD | **full** | Web companion for links |
+| Shareable listing URLs | **full** | **full** | Mobile PDP **Share** → `https://reworth.ng/listings/:id`; deep link opens PDP (`parseDeepLink`) |
 | SEO / marketing landing | N/A | **full** | Web-only OK |
 | Admin ops | N/A | Admin app | Out of scope |
 
@@ -97,9 +97,9 @@ These are **expected** on web even when mobile leads; keep parity **full** or do
 
 | | full | partial | missing |
 | --- | ---: | ---: | ---: |
-| Mobile | ~28 | ~6 | ~6 |
+| Mobile | ~29 | ~5 | ~5 |
 
-Exact rows: see tables. **Priority close order (mobile-first):** Maestro ≤60s device recording; staging k6; Termii keys.
+Exact rows: see tables. **Priority close order (mobile-first):** Maestro ≤60s device recording (testIDs ready); staging k6; Termii keys.
 
 ---
 
