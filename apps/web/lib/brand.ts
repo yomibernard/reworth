@@ -18,6 +18,7 @@ export const brandPublic = {
   listingPlaceholder: "/brand/illustrations/listing-placeholder.png",
   onboarding: "/brand/onboarding/login-illustration.png",
   invite: "/brand/social/invite-someone.png",
+  whatsappShareCard: "/brand/social/whatsapp-share-card.png",
   actionChat: "/brand/icons/action-chat.png",
   actionBuy: "/brand/icons/action-buy.png",
   actionLocation: "/brand/icons/action-location.png",
