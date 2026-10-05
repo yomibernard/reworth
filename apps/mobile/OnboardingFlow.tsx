@@ -21,7 +21,6 @@ import {
   setOnboardingPhone,
   setTokens,
 } from "./lib/auth";
-import { completeOAuth, type OAuthProvider } from "./lib/oauth";
 import {
   COMMUNITIES,
   type Community,
@@ -181,35 +180,6 @@ export function OnboardingFlow({ onComplete }: Props) {
     }
   }
 
-  async function continueWithOAuth(provider: OAuthProvider) {
-    setError(null);
-    setLoading(true);
-    void hapticLight();
-    try {
-      const res = await completeOAuth(provider);
-      setAccessToken(res.accessToken);
-      const me = await apiFetch<MeResponse>("/me", { token: res.accessToken });
-      if (me.profile?.displayName) setDisplayName(me.profile.displayName);
-      if (me.profile?.bio) setBio(me.profile.bio);
-      if (me.profile?.avatarUrl) setAvatarUrl(me.profile.avatarUrl);
-      const pref = me.profile?.preferredCommunity;
-      if (pref && (COMMUNITIES as readonly string[]).includes(pref)) {
-        setCommunity(pref as Community);
-      }
-      setStep("profile");
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : provider === "google"
-            ? "Google sign-in failed"
-            : "Apple sign-in failed",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function pickAvatar() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -361,61 +331,26 @@ export function OnboardingFlow({ onComplete }: Props) {
           </View>
           <Text style={styles.title}>Join ReWorth</Text>
           <Text style={styles.copy}>
-            Phone, email, or Google / Apple — then customise how neighbours see
-            you.
+            Sign in with your phone number or email — then customise how
+            neighbours see you.
           </Text>
           <Pressable
-            style={[styles.methodRow, loading && styles.btnDisabled]}
+            style={[styles.methodPhone, loading && styles.btnDisabled]}
             onPress={() => setStep("phone")}
             disabled={loading}
             accessibilityRole="button"
             accessibilityLabel="Continue with phone"
           >
-            <Image
-              source={brandAssets.actionChat}
-              style={styles.methodIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.methodLabel}>Continue with phone</Text>
+            <Text style={styles.methodLabelOnAccent}>Continue with phone</Text>
           </Pressable>
           <Pressable
-            style={[styles.methodRow, loading && styles.btnDisabled]}
+            style={[styles.methodEmail, loading && styles.btnDisabled]}
             onPress={() => setStep("email")}
             disabled={loading}
             accessibilityRole="button"
             accessibilityLabel="Continue with email"
           >
-            <Image
-              source={brandAssets.actionShare}
-              style={styles.methodIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.methodLabel}>Continue with email</Text>
-          </Pressable>
-          <View style={styles.oauthDivider}>
-            <View style={styles.oauthRule} />
-            <Text style={styles.oauthOr}>or</Text>
-            <View style={styles.oauthRule} />
-          </View>
-          <Pressable
-            style={[styles.oauthBtn, loading && styles.btnDisabled]}
-            onPress={() => void continueWithOAuth("google")}
-            disabled={loading}
-            accessibilityRole="button"
-            accessibilityLabel="Continue with Google"
-          >
-            <Text style={styles.oauthBtnText}>
-              {loading ? "…" : "Continue with Google"}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.oauthBtn, loading && styles.btnDisabled]}
-            onPress={() => void continueWithOAuth("apple")}
-            disabled={loading}
-            accessibilityRole="button"
-            accessibilityLabel="Continue with Apple"
-          >
-            <Text style={styles.oauthBtnText}>Continue with Apple</Text>
+            <Text style={styles.methodLabelOnAccent}>Continue with email</Text>
           </Pressable>
           {error ? (
             <Text style={styles.error} accessibilityRole="alert">
@@ -441,19 +376,9 @@ export function OnboardingFlow({ onComplete }: Props) {
           </Text>
           <View style={styles.channelRow} accessibilityLabel="Delivery channels">
             <View style={styles.channelChip}>
-              <Image
-                source={brandAssets.actionChat}
-                style={styles.channelIcon}
-                resizeMode="contain"
-              />
               <Text style={styles.channelLabel}>SMS</Text>
             </View>
             <View style={styles.channelChip}>
-              <Image
-                source={brandAssets.invite}
-                style={styles.channelIcon}
-                resizeMode="contain"
-              />
               <Text style={styles.channelLabel}>WhatsApp</Text>
             </View>
           </View>
@@ -764,28 +689,36 @@ const styles = StyleSheet.create({
     width: "88%",
     height: "88%",
   },
-  methodRow: {
-    flexDirection: "row",
+  methodPhone: {
     alignItems: "center",
-    gap: space.md,
+    justifyContent: "center",
     minHeight: tap.min,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    backgroundColor: colors.surface,
     marginBottom: space.sm,
+    backgroundColor: colors.orange,
   },
-  methodIcon: {
-    width: 28,
-    height: 28,
+  methodEmail: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: tap.min,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    marginBottom: space.sm,
+    backgroundColor: colors.navy,
   },
   methodLabel: {
-    flex: 1,
     fontSize: typeScale.body,
     fontWeight: "600",
     color: colors.ink,
+  },
+  methodLabelOnAccent: {
+    fontSize: typeScale.body,
+    fontWeight: "700",
+    color: colors.onAccent,
+    textAlign: "center",
   },
   channelRow: {
     flexDirection: "row",
@@ -793,19 +726,14 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
   },
   channelChip: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-  },
-  channelIcon: {
-    width: 18,
-    height: 18,
   },
   channelLabel: {
     fontSize: typeScale.meta,
@@ -896,39 +824,6 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: {
     color: colors.onAccent,
-    fontSize: typeScale.bodySm,
-    fontWeight: "600",
-  },
-  oauthDivider: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.sm,
-    marginTop: space.xl,
-    marginBottom: space.sm,
-  },
-  oauthRule: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-  },
-  oauthOr: {
-    fontSize: typeScale.meta,
-    color: colors.muted,
-    fontWeight: "500",
-  },
-  oauthBtn: {
-    marginTop: space.sm,
-    minHeight: tap.min,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: space.lg,
-  },
-  oauthBtnText: {
-    color: colors.ink,
     fontSize: typeScale.bodySm,
     fontWeight: "600",
   },

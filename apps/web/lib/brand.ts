@@ -10,6 +10,10 @@ export const brandPublic = {
   safeMeetup: "/brand/trust/safe-meetup.png",
   trustedDelivery: "/brand/trust/trusted-delivery.png",
   movingSale: "/brand/social/moving-sale.png",
+  movingSaleHero: "/brand/social/moving-sale-hero.jpg",
+  /** Full-bleed marketing hero (`public/brand/landing page.png`). */
+  landingPage: "/brand/landing-page.png",
+  splash: "/brand/social/splash.png",
   profileAvatar: "/brand/social/profile-image.png",
   listingPlaceholder: "/brand/illustrations/listing-placeholder.png",
   onboarding: "/brand/onboarding/login-illustration.png",

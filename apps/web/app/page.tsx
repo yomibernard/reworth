@@ -185,6 +185,12 @@ export default function HomePage() {
             </Button>
           </form>
 
+          <Link
+            href="/welcome"
+            className="hidden text-sm font-medium text-[var(--rw-ink-muted)] hover:text-[var(--rw-ink)] sm:inline"
+          >
+            About
+          </Link>
           <Link href="/my" className="hidden text-sm font-medium text-[var(--rw-ink-muted)] hover:text-[var(--rw-ink)] sm:inline">
             Saved
           </Link>

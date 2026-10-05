@@ -64,14 +64,10 @@ export default function OnboardingPhonePage() {
         className="mb-2 flex flex-wrap gap-2"
         aria-label="Delivery channels"
       >
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--rw-ink-muted)]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={brandPublic.actionChat} alt="" className="h-4 w-4" />
+        <span className="inline-flex items-center rounded-full border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--rw-ink-muted)]">
           SMS
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--rw-ink-muted)]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={brandPublic.invite} alt="" className="h-4 w-4" />
+        <span className="inline-flex items-center rounded-full border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--rw-ink-muted)]">
           WhatsApp
         </span>
       </div>
