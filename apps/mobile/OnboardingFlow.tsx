@@ -237,12 +237,12 @@ export function OnboardingFlow({ onComplete }: Props) {
     {
       title: "Good things find new homes.",
       line: "Sell what you don’t need — photo to live listing in Lagos.",
-      image: brandAssets.onboarding,
+      image: brandAssets.landingPage,
     },
     {
       title: "Buy with local trust",
       line: "Verified neighbours. Buyer protection on every deal.",
-      image: brandAssets.movingSale,
+      image: brandAssets.onboarding,
     },
     {
       title: "Swap or give away",
@@ -269,7 +269,7 @@ export function OnboardingFlow({ onComplete }: Props) {
             <Image
               source={slides[welcomeSlide].image}
               style={styles.welcomeImage}
-              resizeMode="contain"
+              resizeMode="cover"
             />
           </View>
           <Text style={styles.title}>{slides[welcomeSlide].title}</Text>
@@ -667,9 +667,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     overflow: "hidden",
     marginBottom: space.lg,
-    backgroundColor: colors.surfaceWarm,
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: colors.navy,
   },
   welcomeImage: {
     width: "100%",

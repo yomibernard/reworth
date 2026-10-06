@@ -77,6 +77,8 @@ export const brandAssets = {
   onboarding: require("../assets/brand/onboarding/login-illustration.png"),
   movingSale: require("../assets/brand/social/moving-sale.png"),
   splash: require("../assets/brand/social/splash-logo-centred.png"),
+  splashWide: require("../assets/brand/social/splash.png"),
+  landingPage: require("../assets/brand/landing-page.png"),
   invite: require("../assets/brand/social/invite-someone.png"),
   listingPlaceholder: require("../assets/brand/illustrations/listing-placeholder.png"),
   profileAvatar: require("../assets/brand/social/profile-image.png"),

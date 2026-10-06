@@ -169,6 +169,28 @@ export function DiscoveryHome({
         {cityLabel}, your unused things are worth something.
       </Text>
 
+      <View
+        style={[styles.brandHero, { backgroundColor: c.navy }]}
+        accessibilityRole="summary"
+      >
+        <Image
+          source={brandAssets.landingPage}
+          style={styles.brandHeroImg}
+          resizeMode="cover"
+          accessibilityIgnoresInvertColors
+        />
+        <View style={styles.brandHeroVeil} />
+        <View style={styles.brandHeroCopy}>
+          <Text style={styles.brandHeroEyebrow}>Lagos recommerce</Text>
+          <Text style={styles.brandHeroTitle}>
+            Good things find new homes.
+          </Text>
+          <Text style={styles.brandHeroBody}>
+            Photograph an item and list it in about 60 seconds.
+          </Text>
+        </View>
+      </View>
+
       <Pressable
         style={({ pressed }) => [
           styles.locationPill,
@@ -1368,6 +1390,53 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   homeLogo: { width: 132, height: 36 },
+  homeTagline: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  brandHero: {
+    borderRadius: 18,
+    overflow: "hidden",
+    minHeight: 148,
+    marginBottom: 14,
+    justifyContent: "flex-end",
+  },
+  brandHeroImg: {
+    ...StyleSheet.absoluteFillObject,
+    width: "100%",
+    height: "100%",
+  },
+  brandHeroVeil: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(23,42,58,0.55)",
+  },
+  brandHeroCopy: {
+    position: "relative",
+    zIndex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 4,
+  },
+  brandHeroEyebrow: {
+    color: "#D96A32",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  brandHeroTitle: {
+    color: "#FCFAF6",
+    fontSize: 20,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+  },
+  brandHeroBody: {
+    color: "rgba(252,250,246,0.78)",
+    fontSize: 13,
+    lineHeight: 18,
+    maxWidth: 280,
+  },
   headerSell: {
     minHeight: 40,
     paddingHorizontal: 16,
@@ -1379,11 +1448,6 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontSize: 14,
     fontWeight: "700",
-  },
-  homeTagline: {
-    fontSize: 13,
-    marginBottom: 14,
-    lineHeight: 18,
   },
   locationPill: {
     alignSelf: "flex-start",

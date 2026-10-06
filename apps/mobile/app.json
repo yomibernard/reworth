@@ -6,8 +6,11 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "reworth",
+    "icon": "./assets/brand/icons/app-icon.png",
     "splash": {
-      "backgroundColor": "#FAF9F7"
+      "image": "./assets/brand/social/splash-logo-centred.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FCFAF6"
     },
     "ios": {
       "supportsTablet": true,
@@ -23,7 +26,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FAF9F7"
+        "foregroundImage": "./assets/brand/icons/app-icon-adaptive.png",
+        "backgroundColor": "#FCFAF6"
       },
       "package": "com.reworth.app",
       "permissions": [
@@ -68,7 +72,8 @@
       }
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/brand/icons/favicon.png"
     }
   }
 }

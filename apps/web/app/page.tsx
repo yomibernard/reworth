@@ -140,10 +140,10 @@ export default function HomePage() {
     <main className="relative min-h-[100dvh] bg-[var(--rw-bg)] text-[var(--rw-ink)]">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[42vh]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[48vh]"
         style={{
           background:
-            "radial-gradient(ellipse 80% 50% at 70% 0%, rgba(14,159,110,0.16), transparent 55%), radial-gradient(ellipse 40% 30% at 10% 20%, rgba(201,162,39,0.1), transparent 50%), linear-gradient(180deg, #F3F0EA 0%, var(--rw-bg) 100%)",
+            "radial-gradient(ellipse 70% 45% at 85% 0%, rgba(217,106,50,0.14), transparent 55%), radial-gradient(ellipse 45% 35% at 8% 15%, rgba(242,231,213,0.9), transparent 50%), linear-gradient(180deg, #F7F1E8 0%, var(--rw-bg) 100%)",
         }}
       />
 
@@ -151,9 +151,15 @@ export default function HomePage() {
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
           <Link
             href="/"
-            className="shrink-0 text-lg font-semibold tracking-tight sm:text-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+            className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+            aria-label="ReWorth home"
           >
-            ReWorth
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={brandPublic.logo}
+              alt="ReWorth"
+              className="h-8 w-auto sm:h-9"
+            />
           </Link>
 
           <form
@@ -208,18 +214,66 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6">
-        <section className="rw-fade-up">
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Find something worth keeping.
-          </h1>
-          <p className="mt-2 max-w-xl text-[var(--rw-ink-muted)]">
-            {cityLabel}, your unused things are worth something.
-          </p>
-          <nav
-            aria-label="AI & platform tools"
-            className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium"
-          >
+      <div className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
+        <section className="rw-fade-up relative overflow-hidden rounded-[1.25rem] border border-[var(--rw-border)] bg-[var(--rw-navy)] text-[var(--rw-soft-white)] shadow-[var(--rw-shadow-float)]">
+          <div className="absolute inset-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={brandPublic.landingPage}
+              alt=""
+              className="h-full w-full object-cover opacity-55"
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(105deg, rgba(23,42,58,0.92) 0%, rgba(23,42,58,0.72) 48%, rgba(23,42,58,0.35) 100%)",
+              }}
+            />
+          </div>
+          <div className="relative grid gap-6 px-5 py-8 sm:grid-cols-[1.2fr_0.8fr] sm:items-end sm:px-8 sm:py-10">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--rw-orange)]">
+                Lagos recommerce
+              </p>
+              <h1 className="mt-2 max-w-lg text-3xl font-semibold tracking-tight sm:text-4xl">
+                Find something worth keeping.
+              </h1>
+              <p className="mt-2 max-w-md text-sm text-white/75 sm:text-base">
+                {cityLabel}, your unused things are worth something.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Link href="/sell">
+                  <Button variant="sell" size="md">
+                    Start selling
+                  </Button>
+                </Link>
+                <Link href="/onboarding">
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    className="border-white/40 text-white hover:bg-white/10"
+                  >
+                    Join ReWorth
+                  </Button>
+                </Link>
+              </div>
+            </div>
+            <div className="hidden justify-end sm:flex">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={brandPublic.splashCentred}
+                alt=""
+                className="h-36 w-auto drop-shadow-lg"
+              />
+            </div>
+          </div>
+        </section>
+
+        <nav
+          aria-label="AI & platform tools"
+          className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium"
+        >
             <Link
               href="/ask"
               className="text-[var(--rw-accent)] underline-offset-2 hover:underline"
@@ -245,7 +299,6 @@ export default function HomePage() {
               Consign
             </Link>
           </nav>
-        </section>
 
         <section
           aria-label="Location"
@@ -371,18 +424,18 @@ export default function HomePage() {
                       href={`/search?categoryId=${encodeURIComponent(cat.id)}`}
                       className="shrink-0"
                     >
-                      <Chip className="inline-flex items-center gap-2">
+                  <Chip className="inline-flex min-w-[5.5rem] flex-col items-center gap-1.5 !rounded-2xl !px-3 !py-2.5">
                         {icon ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={icon}
                             alt=""
-                            width={18}
-                            height={18}
-                            className="h-[18px] w-[18px] object-contain"
+                            width={28}
+                            height={28}
+                            className="h-7 w-7 object-contain"
                           />
                         ) : null}
-                        {cat.name}
+                        <span className="text-xs font-semibold">{cat.name}</span>
                       </Chip>
                     </Link>
                   );
@@ -404,10 +457,16 @@ export default function HomePage() {
           ).map(([label, src]) => (
             <span
               key={label}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-2.5 py-1 text-xs font-medium"
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--rw-ink)]"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" width={16} height={16} className="h-4 w-4 object-contain" />
+              <img
+                src={src}
+                alt=""
+                width={22}
+                height={22}
+                className="h-[22px] w-[22px] object-contain"
+              />
               {label}
             </span>
           ))}
@@ -418,6 +477,14 @@ export default function HomePage() {
             <EmptyState
               title="Couldn’t load discovery"
               description={error}
+              icon={
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={brandPublic.emptyListings}
+                  alt=""
+                  className="mx-auto h-28 w-28 object-contain"
+                />
+              }
               action={
                 <Button variant="primary" onClick={() => void load(loc)}>
                   Retry
@@ -514,6 +581,14 @@ export default function HomePage() {
               <EmptyState
                 title="No listings nearby"
                 description="Try another community or be the first to sell."
+                icon={
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={brandPublic.emptyListings}
+                    alt=""
+                    className="mx-auto h-28 w-28 object-contain"
+                  />
+                }
                 action={
                   <Link href="/sell">
                     <Button variant="sell">SELL</Button>

@@ -2,6 +2,10 @@
 
 export const brandPublic = {
   logo: "/brand/logos/reworth-logo-primary.png",
+  logoMark: "/brand/logos/reworth-logo.png",
+  logoDark: "/brand/logos/reworth-logo-dark.png",
+  favicon: "/brand/icons/favicon.png",
+  appIcon: "/brand/icons/app-icon.png",
   verifiedSeller: "/brand/trust/verified-seller.png",
   verified: "/brand/badges/verified.png",
   identityChecked: "/brand/trust/identity-checked.png",
@@ -11,14 +15,20 @@ export const brandPublic = {
   trustedDelivery: "/brand/trust/trusted-delivery.png",
   movingSale: "/brand/social/moving-sale.png",
   movingSaleHero: "/brand/social/moving-sale-hero.jpg",
-  /** Full-bleed marketing hero (`public/brand/landing page.png`). */
+  /** Full-bleed marketing hero. */
   landingPage: "/brand/landing-page.png",
   splash: "/brand/social/splash.png",
+  splashCentred: "/brand/social/splash-logo-centred.png",
   profileAvatar: "/brand/social/profile-image.png",
   listingPlaceholder: "/brand/illustrations/listing-placeholder.png",
   onboarding: "/brand/onboarding/login-illustration.png",
   invite: "/brand/social/invite-someone.png",
   whatsappShareCard: "/brand/social/whatsapp-share-card.png",
+  emptyListings: "/brand/empty-states/no-listings-yet.png",
+  emptyMessages: "/brand/empty-states/no-messages.png",
+  emptyOffers: "/brand/empty-states/no-offers.png",
+  emptySaved: "/brand/empty-states/no-saved-items.png",
+  emptySearch: "/brand/empty-states/no-search-results.png",
   actionChat: "/brand/icons/action-chat.png",
   actionBuy: "/brand/icons/action-buy.png",
   actionLocation: "/brand/icons/action-location.png",
@@ -27,6 +37,7 @@ export const brandPublic = {
   actionSell: "/brand/icons/action-sell.png",
   actionSave: "/brand/icons/action-save.png",
   actionShare: "/brand/icons/action-share.png",
+  actionGive: "/brand/icons/action-give.png",
   statusDisputed: "/brand/badges/status-disputed.png",
 } as const;
 
