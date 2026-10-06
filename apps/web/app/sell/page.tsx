@@ -14,7 +14,11 @@ import { formatNgn, nairaToKobo, koboToNaira } from "@reworth/shared";
 import { Button, Chip, Input, Skeleton, Toast } from "@reworth/ui-web";
 import { ApiError } from "../../lib/api";
 import { getAccessToken } from "../../lib/auth";
-import { COMMUNITIES, type Community } from "../../lib/communities";
+import {
+  COMMUNITIES,
+  communitiesForCity,
+  type Community,
+} from "../../lib/communities";
 import {
   listEstateCommunities,
   listMyCommunities,
@@ -1073,7 +1077,10 @@ export default function SellPage() {
                   City
                   <select
                     value={city}
-                    onChange={(e) => setCity(e.target.value)}
+                    onChange={(e) => {
+                      setCity(e.target.value);
+                      setCommunity("");
+                    }}
                     className="mt-2 w-full rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
                     disabled={busy}
                   >
@@ -1086,11 +1093,11 @@ export default function SellPage() {
                 </label>
               ) : null}
               <div className="mt-8 flex flex-wrap gap-2">
-                {COMMUNITIES.map((c) => (
+                {communitiesForCity(city).map((c) => (
                   <Chip
                     key={c}
                     selected={community === c}
-                    onClick={() => setCommunity(c)}
+                    onClick={() => setCommunity(c as Community)}
                   >
                     {c}
                   </Chip>

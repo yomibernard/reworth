@@ -28,11 +28,14 @@ import {
 } from "./lib/moving-sales";
 import { myLiveListings } from "./lib/swap";
 import {
-  COMMUNITIES,
   formatNgnFromKobo,
   listingImageUrl,
   type PublicListing,
 } from "./lib/types";
+import {
+  communityLabelsForCity,
+  getPreferredCityKey,
+} from "./lib/region";
 import { hapticLight } from "./theme/haptics";
 import { useColors } from "./theme/ThemeProvider";
 import { radius, space, type } from "./theme/tokens";
@@ -86,6 +89,7 @@ export function MovingSalesModal({
   const [title, setTitle] = useState("");
   const [blurb, setBlurb] = useState("");
   const [community, setCommunity] = useState("");
+  const [cityKey, setCityKey] = useState("lagos");
   const [days, setDays] = useState<7 | 14 | 30>(14);
   const [mine, setMine] = useState<PublicListing[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -149,6 +153,9 @@ export function MovingSalesModal({
   useEffect(() => {
     if (!visible) return;
     setError(null);
+    void getPreferredCityKey().then((key) => {
+      if (key) setCityKey(key);
+    });
     if (initialId) {
       void openDetail(initialId);
       return;
@@ -408,7 +415,7 @@ export function MovingSalesModal({
             </View>
             <Text style={[styles.meta, { color: c.muted }]}>Community</Text>
             <View style={styles.chipRow}>
-              {COMMUNITIES.map((name) => (
+              {communityLabelsForCity(cityKey).map((name) => (
                 <Pressable
                   key={name}
                   onPress={() => setCommunity(name)}

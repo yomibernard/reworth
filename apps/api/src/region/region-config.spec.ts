@@ -69,7 +69,7 @@ describe('RegionConfigService — config-only city expansion', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('lists only pilot cities by default (Lagos + Abuja)', () => {
+  it('lists only status=pilot cities by default', () => {
     const dir = join(tmpdir(), `reworth-pilot-${Date.now()}`);
     mkdirSync(dir, { recursive: true });
     writeFileSync(

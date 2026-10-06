@@ -6,7 +6,7 @@ export class RegionController {
   constructor(private readonly regions: RegionConfigService) {}
 
   /**
-   * Consumer picker: pilot cities only (Lagos + Abuja).
+   * Consumer picker: pilot cities only (SW + Abuja + PH).
    * Pass `?all=1` for ops / full config set (excludes disabled).
    */
   @Get()

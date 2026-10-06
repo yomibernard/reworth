@@ -26,6 +26,12 @@ import {
   type Community,
   type MeResponse,
 } from "./lib/types";
+import {
+  communityLabelsForCity,
+  listRegions,
+  setPreferredCityKey,
+  type RegionCity,
+} from "./lib/region";
 import { brandAssets } from "./lib/brandAssets";
 import { colors, radius, space, tap, type as typeScale } from "./theme/tokens";
 import { hapticLight } from "./theme/haptics";
@@ -52,6 +58,8 @@ export function OnboardingFlow({ onComplete }: Props) {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [community, setCommunity] = useState<Community | "">("");
+  const [cityKey, setCityKey] = useState("lagos");
+  const [cities, setCities] = useState<RegionCity[]>([]);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -62,6 +70,17 @@ export function OnboardingFlow({ onComplete }: Props) {
   useEffect(() => {
     setError(null);
   }, [step]);
+
+  useEffect(() => {
+    void listRegions()
+      .then((list) => {
+        setCities(list);
+        if (list[0]?.city) setCityKey(list[0].city);
+      })
+      .catch(() => {
+        /* keep Lagos default */
+      });
+  }, []);
 
   async function requestOtp() {
     setError(null);
@@ -225,6 +244,7 @@ export function OnboardingFlow({ onComplete }: Props) {
           ...(remoteAvatar ? { avatarUrl: remoteAvatar } : {}),
         },
       });
+      await setPreferredCityKey(cityKey);
       onComplete(me);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not save");
@@ -569,7 +589,7 @@ export function OnboardingFlow({ onComplete }: Props) {
         <View>
           <Text style={styles.title}>Customise your profile</Text>
           <Text style={styles.copy}>
-            Name, photo, bio, and community — how Lagos neighbours see you.
+            Name, photo, bio, and community — how neighbours in your city see you.
           </Text>
           <Pressable
             style={styles.avatarBtn}
@@ -601,12 +621,46 @@ export function OnboardingFlow({ onComplete }: Props) {
             accessibilityLabel="Bio"
             editable={!loading}
           />
+          {cities.length > 0 ? (
+            <>
+              <Text style={styles.label}>City</Text>
+              <View style={styles.chips}>
+                {cities.map((city) => {
+                  const key = city.city || city.key;
+                  return (
+                    <Pressable
+                      key={key}
+                      onPress={() => {
+                        setCityKey(key);
+                        setCommunity("");
+                      }}
+                      style={[
+                        styles.chip,
+                        cityKey === key && styles.chipSelected,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: cityKey === key }}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          cityKey === key && styles.chipTextSelected,
+                        ]}
+                      >
+                        {city.displayName || key}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          ) : null}
           <Text style={styles.label}>Preferred community</Text>
           <View style={styles.chips}>
-            {COMMUNITIES.map((c) => (
+            {communityLabelsForCity(cityKey).map((c) => (
               <Pressable
                 key={c}
-                onPress={() => setCommunity(c)}
+                onPress={() => setCommunity(c as Community)}
                 style={[styles.chip, community === c && styles.chipSelected]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: community === c }}

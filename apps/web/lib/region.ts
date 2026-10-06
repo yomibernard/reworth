@@ -1,6 +1,6 @@
 /**
  * Phase 3.2 — Config-driven cities (GET /regions).
- * Consumer list defaults to pilot (Lagos + Abuja).
+ * Consumer list defaults to pilot (SW + Abuja + PH).
  */
 
 import { apiFetch } from "./api";
@@ -59,7 +59,7 @@ function asCities(
   return list.map(normalizeCity).filter(Boolean) as RegionCity[];
 }
 
-/** List pilot cities (Lagos + Abuja). Pass all=true for ops. */
+/** List pilot cities (SW + Abuja + PH). Pass all=true for ops. */
 export async function listRegions(opts?: {
   all?: boolean;
 }): Promise<RegionCity[]> {

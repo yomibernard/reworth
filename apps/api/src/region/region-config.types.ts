@@ -44,5 +44,16 @@ export const REGION_REQUIRED_KEYS = [
 
 export const DEFAULT_CITY_KEY = 'lagos';
 
-/** Default consumer pilot set (Lagos + Abuja). Override via REGION_PILOT_CITIES. */
-export const DEFAULT_PILOT_CITY_KEYS = ['lagos', 'abuja'] as const;
+/** Default consumer pilot: SW + Abuja + PH. Override via REGION_PILOT_CITIES. */
+export const DEFAULT_PILOT_CITY_KEYS = [
+  'lagos',
+  'ogun',
+  'ibadan',
+  'osun',
+  'ondo',
+  'ekiti',
+  'edo',
+  'abuja',
+  'port-harcourt',
+  'kano',
+] as const;

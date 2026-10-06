@@ -11,7 +11,7 @@ National expansion was previously assumed to arrive via a mythical `v1.0.1-multi
 ## Decision
 
 1. **Source of truth** — `config/regions/<city>.json` (override directory via `REGION_CONFIG_DIR`).
-2. **Launch / pilot set** — **Lagos + Abuja** are `status: "pilot"` (public `GET /regions`). Port Harcourt and Ibadan are `status: "supply"` (ops via `?all=1`). Override with `REGION_PILOT_CITIES`.
+2. **Launch / pilot set** — **Southwest + Edo + Abuja + Port Harcourt + Kano** are `status: "pilot"` (public `GET /regions`): Lagos, Ogun, Ibadan (Oyo), Osun, Ondo, Ekiti, Edo, Abuja, Port Harcourt, Kano. Override with `REGION_PILOT_CITIES`.
 3. **Required keys** — `city`, `displayName`, `timezone` (`Africa/Lagos`), `communities[]`, `geocoding` (lat/lng per community), `logistics.baseFeeKobo` / `perKmKobo`, `priceBands`, `sms.enabled`, `psp.enabled`. Optional: `status`.
 4. **Runtime** — `RegionConfigService` loads all JSON at boot; `getCity`, `listCities` (pilot-filtered), `getCommunityGeo`, `getDeliveryRates`. Geocoding + delivery quote resolve via this service with Lagos fallback.
 5. **Automation** — `scripts/validate-city-config.mjs` + `docs/CITY_PLAYBOOK.md` for supply-first launch ops.

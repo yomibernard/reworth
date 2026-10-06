@@ -42,7 +42,7 @@ Post-launch through `v2.2-monetization`: swap → communities → intelligence �
 
 - Real device Maestro ≤60s recording still open (`e2e/mobile/00_demo_60s.yaml` + README; testIDs on OTP/Sell/tabs/PDP)
 - Staging k6 p95 certification; pen-test / NDPR / store sign-offs
-- Cross-border: ADR-007 design only; next cities via config + seed (pilot = Lagos + Abuja; PH/Ibadan supply)
+- Cross-border: ADR-007 design only; consumer pilot = SW + Edo + Abuja + PH + Kano (`config/regions`, `status=pilot`)
 - Promoted search self-serve later (ADR-009 admin-assigned)
 - Payments still mock-default in local (Paystack adapter present)
 - Termii live SMS/WhatsApp keys still pending (dual-channel mock verified)

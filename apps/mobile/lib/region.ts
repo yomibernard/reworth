@@ -1,5 +1,5 @@
 /**
- * Config-driven cities (GET /regions). Consumer list = pilot (Lagos + Abuja).
+ * Config-driven cities (GET /regions). Consumer list = SW + Abuja + PH pilot.
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -60,7 +60,7 @@ function asCities(res: unknown): RegionCity[] {
   return [];
 }
 
-/** Pilot cities for pickers (Lagos + Abuja). */
+/** Pilot cities for pickers (SW + Abuja + PH). */
 export async function listRegions(): Promise<RegionCity[]> {
   try {
     const res = await apiFetch<unknown>("/regions");
@@ -103,28 +103,112 @@ export async function setPreferredCityKey(cityKey: string): Promise<void> {
 
 /** Human labels for sell/profile chips from region community codes. */
 export function communityLabelsForCity(cityKey: string): string[] {
-  const key = cityKey.toLowerCase();
-  if (key === "abuja") {
-    return [
-      "Maitama",
-      "Asokoro",
-      "Wuse",
-      "Garki",
-      "Jabi",
-      "Guzape",
-      "Other Abuja",
-    ];
+  const key = cityKey
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/_/g, "-");
+  const normalized =
+    key === "oyo"
+      ? "ibadan"
+      : key === "ph" || key === "portharcourt"
+        ? "port-harcourt"
+        : key;
+  switch (normalized) {
+    case "abuja":
+      return [
+        "Maitama",
+        "Asokoro",
+        "Wuse",
+        "Garki",
+        "Jabi",
+        "Guzape",
+        "Other Abuja",
+      ];
+    case "ibadan":
+      return [
+        "Bodija",
+        "UI",
+        "Ring Road",
+        "Iwo Road",
+        "Challenge",
+        "Other Ibadan",
+      ];
+    case "port-harcourt":
+      return [
+        "GRA Port Harcourt",
+        "Old GRA",
+        "Rumuola",
+        "Ada George",
+        "Trans Amadi",
+        "Other PH",
+      ];
+    case "ogun":
+      return [
+        "Abeokuta",
+        "Sango-Ota",
+        "Ifo",
+        "Sagamu",
+        "Ijebu-Ode",
+        "Other Ogun",
+      ];
+    case "osun":
+      return [
+        "Osogbo",
+        "Ile-Ife",
+        "Iwo",
+        "Ede",
+        "Ikire",
+        "Other Osun",
+      ];
+    case "ondo":
+      return [
+        "Akure",
+        "Ondo Town",
+        "Ore",
+        "Owo",
+        "Okitipupa",
+        "Other Ondo",
+      ];
+    case "ekiti":
+      return [
+        "Ado-Ekiti",
+        "Ikere-Ekiti",
+        "Ikole",
+        "Iye",
+        "Omuo",
+        "Other Ekiti",
+      ];
+    case "edo":
+      return [
+        "Benin City",
+        "GRA Benin",
+        "Ugbowo",
+        "Sakponba",
+        "Auchi",
+        "Other Edo",
+      ];
+    case "kano":
+      return [
+        "Nassarawa",
+        "Fagge",
+        "Gwale",
+        "Tarauni",
+        "Dala",
+        "Other Kano",
+      ];
+    default:
+      return [
+        "Lekki Ph1",
+        "Ikoyi",
+        "VI",
+        "Oniru",
+        "VGC",
+        "Chevron",
+        "Ajah",
+        "Other Lagos",
+      ];
   }
-  return [
-    "Lekki Ph1",
-    "Ikoyi",
-    "VI",
-    "Oniru",
-    "VGC",
-    "Chevron",
-    "Ajah",
-    "Other Lagos",
-  ];
 }
 
 export function regionLabel(city: RegionCity): string {

@@ -77,7 +77,7 @@ Companion column notes web’s intended role when mobile is primary.
 | Corporate relocation workspace | **full** | **full** | Mobile: Profile → Corporate modal (apply/projects/intake/complete/invoice share); web `/corporate` |
 | Estate partner console | **full** | **full** | Mobile: Profile → Partner console (KPIs + queue + session API key); web `/partner` |
 | Circular donate-if-unsold (seller) | **full** | **full** | Sell checkbox → `POST /listings/:id/donate-if-unsold` (mobile + web) |
-| Region / multi-city picker | **full** | **full** | Pilot Lagos + Abuja; mobile Home sheet + Profile chips; web Account/Sell |
+| Region / multi-city picker | **full** | **full** | Pilot SW + Edo + Abuja + PH + Kano; mobile Home sheet + Profile chips; web Account/Sell |
 
 ---
 

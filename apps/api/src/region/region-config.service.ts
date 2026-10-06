@@ -162,7 +162,7 @@ export class RegionConfigService implements OnModuleInit {
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }
 
-  /** Cities in the active consumer pilot (Lagos + Abuja by default). */
+  /** Cities in the active consumer pilot (SW + Abuja + PH by default). */
   pilotCityKeys(): Set<string> {
     return this.pilotCitiesFromEnv() ?? new Set(DEFAULT_PILOT_CITY_KEYS);
   }

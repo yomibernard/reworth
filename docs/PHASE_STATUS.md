@@ -82,7 +82,7 @@
 - Full-app hex purge: core consumer screens + CTA `onAccent` token (light/dark safe); only `theme/tokens.ts` retains palette hex
 - P10 partials closed: Worth photo/share, sell price intel, consign/pickup lifecycle, Home For you recs
 - P11 B2B: Corporate relocation + Partner console on mobile (Profile)
-- Pilot cities: **Lagos + Abuja** (`status=pilot`; PH/Ibadan supply-only)
+- Pilot cities: **SW + Edo + Abuja + PH + Kano** (`lagos`, `ogun`, `ibadan`, `osun`, `ondo`, `ekiti`, `edo`, `abuja`, `port-harcourt`, `kano`)
 - Dual-channel OTP (SMS + WhatsApp) shipped; Termii live keys still pending
 - Brand-asset pass: mobile onboarding / Chat / Orders status badges; web onboarding illustrations + channel chips; Sell empty/photo CTAs; dispute status badge
 - ~~Hex purge~~ → `theme/tokens` + `onAccent` / `--rw-on-accent`

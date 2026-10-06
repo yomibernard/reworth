@@ -30,13 +30,16 @@ import {
   type SellerPlan,
 } from "./lib/monetization";
 import {
-  COMMUNITIES,
   formatNgnFromKobo,
   type Community,
   type PriceIntelligence,
   type PublicListing,
   type SellingModeValue,
 } from "./lib/types";
+import {
+  communityLabelsForCity,
+  getPreferredCityKey,
+} from "./lib/region";
 import { colors } from "./theme/tokens";
 
 type SellStep =
@@ -217,6 +220,7 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
   const [sellingMode, setSellingMode] = useState<SellingModeValue>("SELL");
   const [negotiable, setNegotiable] = useState(true);
   const [community, setCommunity] = useState<Community | "">("");
+  const [cityKey, setCityKey] = useState("lagos");
   const [fulfilmentPickup, setFulfilmentPickup] = useState(true);
   const [fulfilmentMeet, setFulfilmentMeet] = useState(true);
   const [fulfilmentDelivery, setFulfilmentDelivery] = useState(false);
@@ -260,6 +264,12 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
   useEffect(() => {
     void loadSellerPlan();
   }, [loadSellerPlan]);
+
+  useEffect(() => {
+    void getPreferredCityKey().then((key) => {
+      if (key) setCityKey(key);
+    });
+  }, []);
 
   async function onUpgradePlus() {
     setPlanBusy(true);
@@ -939,10 +949,10 @@ export function SellFlow({ onPublished, onOpenListing }: Props) {
       {step === "location" ? (
         <View>
           <View style={styles.chips}>
-            {COMMUNITIES.map((c) => (
+            {communityLabelsForCity(cityKey).map((c) => (
               <Pressable
                 key={c}
-                onPress={() => setCommunity(c)}
+                onPress={() => setCommunity(c as Community)}
                 style={[styles.chip, community === c && styles.chipSelected]}
               >
                 <Text

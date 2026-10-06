@@ -27,12 +27,18 @@ Validate: `pnpm validate:cities`
 
 | City | File | Status | Notes |
 | --- | --- | --- | --- |
-| Lagos | `lagos.json` | **pilot** | Launch + active consumer pilot |
-| Abuja | `abuja.json` | **pilot** | Dual-city pilot with Lagos |
-| Port Harcourt | `port-harcourt.json` | supply | Config-ready; not in public picker |
-| Ibadan | `ibadan.json` | supply | Ops track — supply-first before marketing |
+| Lagos | `lagos.json` | **pilot** | SW launch city |
+| Ogun | `ogun.json` | **pilot** | Southwest |
+| Ibadan | `ibadan.json` | **pilot** | Oyo / Southwest |
+| Osun | `osun.json` | **pilot** | Southwest |
+| Ondo | `ondo.json` | **pilot** | Southwest |
+| Ekiti | `ekiti.json` | **pilot** | Southwest |
+| Edo | `edo.json` | **pilot** | South-South (Benin) |
+| Abuja | `abuja.json` | **pilot** | FCT |
+| Port Harcourt | `port-harcourt.json` | **pilot** | Rivers |
+| Kano | `kano.json` | **pilot** | North-West |
 
-**Consumer pilot:** `GET /regions` returns Lagos + Abuja only. Ops/full list: `GET /regions?all=1`. Override via `REGION_PILOT_CITIES=lagos,abuja`.
+**Consumer pilot:** `GET /regions` returns SW + Edo + Abuja + PH + Kano. Ops/full list: `GET /regions?all=1`. Override via `REGION_PILOT_CITIES`.
 
 ## Per-city ops runbook (PRD §57)
 
@@ -45,5 +51,5 @@ Validate: `pnpm validate:cities`
 
 ## Surfaces
 
-- `GET /regions` drives city pickers (web Account/Sell/Corporate; mobile Home + Profile) — **pilot = Lagos + Abuja**.
+- `GET /regions` drives city pickers (web Account/Sell/Corporate; mobile Home + Profile) — **pilot = SW + Edo + Abuja + PH + Kano**.
 - Corporate relocation uses `cityFrom` / `cityTo` from the same list.

@@ -29,5 +29,5 @@
   },
   "sms": { "enabled": true, "provider": "termii" },
   "psp": { "enabled": true, "provider": "paystack" },
-  "status": "supply"
+  "status": "pilot"
 }
