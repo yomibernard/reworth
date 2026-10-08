@@ -28,6 +28,8 @@ import {
   type AppNotification,
   type NotificationChannel,
 } from "./lib/notifications";
+import { useColors } from "./theme/ThemeProvider";
+import { colors } from "./theme/tokens";
 
 type Props = {
   visible: boolean;
@@ -46,6 +48,7 @@ export function NotificationsModal({
   onOpenChat,
   onOpenListing,
 }: Props) {
+  const theme = useColors();
   const [tab, setTab] = useState<"inbox" | "prefs">("inbox");
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -177,12 +180,12 @@ export function NotificationsModal({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.root}>
+      <View style={[styles.root, { backgroundColor: theme.canvas }]}>
         <View style={styles.header}>
           <Pressable onPress={onClose}>
-            <Text style={styles.link}>Close</Text>
+            <Text style={[styles.link, { color: theme.orange }]}>Close</Text>
           </Pressable>
-          <Text style={styles.brand}>Notifications</Text>
+          <Text style={[styles.brand, { color: theme.ink }]}>Notifications</Text>
           <Pressable
             onPress={() =>
               void (async () => {
@@ -193,53 +196,94 @@ export function NotificationsModal({
               })()
             }
           >
-            <Text style={styles.link}>Read all</Text>
+            <Text style={[styles.link, { color: theme.orange }]}>Read all</Text>
           </Pressable>
         </View>
 
         <View style={styles.tabs}>
           <Pressable
-            style={[styles.tab, tab === "inbox" && styles.tabOn]}
+            style={[
+              styles.tab,
+              { backgroundColor: theme.beige },
+              tab === "inbox" && { backgroundColor: theme.orange },
+            ]}
             onPress={() => setTab("inbox")}
           >
-            <Text style={[styles.tabText, tab === "inbox" && styles.tabTextOn]}>
+            <Text
+              style={[
+                styles.tabText,
+                { color: theme.muted },
+                tab === "inbox" && styles.tabTextOn,
+              ]}
+            >
               Inbox
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.tab, tab === "prefs" && styles.tabOn]}
+            style={[
+              styles.tab,
+              { backgroundColor: theme.beige },
+              tab === "prefs" && { backgroundColor: theme.orange },
+            ]}
             onPress={() => setTab("prefs")}
           >
-            <Text style={[styles.tabText, tab === "prefs" && styles.tabTextOn]}>
+            <Text
+              style={[
+                styles.tabText,
+                { color: theme.muted },
+                tab === "prefs" && styles.tabTextOn,
+              ]}
+            >
               Settings
             </Text>
           </Pressable>
         </View>
 
-        {toast ? <Text style={styles.toast}>{toast}</Text> : null}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {toast ? (
+          <Text style={[styles.toast, { color: theme.orange }]}>{toast}</Text>
+        ) : null}
+        {error ? (
+          <Text style={[styles.error, { color: theme.error }]}>{error}</Text>
+        ) : null}
 
         {tab === "inbox" ? (
           loading ? (
-            <ActivityIndicator color="#0E9F6E" style={{ marginTop: 24 }} />
+            <ActivityIndicator
+              color={theme.orange}
+              style={{ marginTop: 24 }}
+            />
           ) : (
             <FlatList
               data={items}
               keyExtractor={(n) => n.id}
               contentContainerStyle={styles.pad}
               ListEmptyComponent={
-                <Text style={styles.muted}>No notifications yet.</Text>
+                <Text style={[styles.muted, { color: theme.muted }]}>
+                  No notifications yet.
+                </Text>
               }
               renderItem={({ item: n }) => (
                 <Pressable
-                  style={[styles.row, !n.readAt && styles.rowUnread]}
+                  style={[
+                    styles.row,
+                    {
+                      backgroundColor: theme.surface,
+                      borderColor: theme.border,
+                    },
+                    !n.readAt && { borderColor: theme.orange },
+                  ]}
                   onPress={() => void openItem(n)}
                 >
-                  <Text style={styles.rowTitle}>{n.title}</Text>
-                  <Text style={styles.rowBody} numberOfLines={2}>
+                  <Text style={[styles.rowTitle, { color: theme.ink }]}>
+                    {n.title}
+                  </Text>
+                  <Text
+                    style={[styles.rowBody, { color: theme.ink }]}
+                    numberOfLines={2}
+                  >
                     {n.body}
                   </Text>
-                  <Text style={styles.meta}>
+                  <Text style={[styles.meta, { color: theme.muted }]}>
                     {categoryLabel(n.category)} ·{" "}
                     {new Date(n.createdAt).toLocaleString()}
                   </Text>
@@ -309,7 +353,7 @@ export function NotificationsModal({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F7F8F6", paddingTop: 48 },
+  root: { flex: 1, backgroundColor: colors.canvas, paddingTop: 48 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -317,40 +361,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 8,
   },
-  brand: { fontSize: 17, fontWeight: "700", color: "#1A1D21" },
-  link: { color: "#0E9F6E", fontWeight: "600", fontSize: 15 },
+  brand: { fontSize: 17, fontWeight: "700", color: colors.ink },
+  link: { color: colors.orange, fontWeight: "600", fontSize: 15 },
   tabs: { flexDirection: "row", gap: 8, paddingHorizontal: 16, marginBottom: 8 },
   tab: {
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: "#E8EBE7",
+    backgroundColor: colors.beige,
   },
-  tabOn: { backgroundColor: "#0E9F6E" },
-  tabText: { fontWeight: "600", color: "#5C636A" },
-  tabTextOn: { color: "#FFF" },
+  tabOn: { backgroundColor: colors.orange },
+  tabText: { fontWeight: "600", color: colors.muted },
+  tabTextOn: { color: colors.onAccent },
   pad: { padding: 16, paddingBottom: 48 },
   row: {
-    backgroundColor: "#FFF",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#E4E7E2",
+    borderColor: colors.border,
   },
-  rowUnread: { borderColor: "#0E9F6E" },
-  rowTitle: { fontWeight: "700", color: "#1A1D21", marginBottom: 4 },
-  rowBody: { color: "#3D444B", fontSize: 14 },
-  meta: { marginTop: 6, fontSize: 12, color: "#8A9198" },
-  muted: { color: "#5C636A", fontSize: 13, marginBottom: 10 },
-  error: { color: "#C0392B", paddingHorizontal: 16 },
+  rowUnread: { borderColor: colors.orange },
+  rowTitle: { fontWeight: "700", color: colors.ink, marginBottom: 4 },
+  rowBody: { color: colors.ink, fontSize: 14 },
+  meta: { marginTop: 6, fontSize: 12, color: colors.muted },
+  muted: { color: colors.muted, fontSize: 13, marginBottom: 10 },
+  error: { color: colors.error, paddingHorizontal: 16 },
   toast: {
     marginHorizontal: 16,
     marginBottom: 8,
-    color: "#0E9F6E",
+    color: colors.orange,
     fontWeight: "600",
   },
-  section: { fontWeight: "700", fontSize: 15, marginBottom: 6, color: "#1A1D21" },
+  section: { fontWeight: "700", fontSize: 15, marginBottom: 6, color: colors.ink },
   quietRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -360,26 +404,26 @@ const styles = StyleSheet.create({
   quietInput: {
     width: 48,
     borderWidth: 1,
-    borderColor: "#D0D5CE",
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 8,
     textAlign: "center",
-    backgroundColor: "#FFF",
+    backgroundColor: colors.surface,
   },
   saveBtn: {
-    backgroundColor: "#0E9F6E",
+    backgroundColor: colors.orange,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
   },
-  saveBtnText: { color: "#FFF", fontWeight: "700" },
+  saveBtnText: { color: colors.onAccent, fontWeight: "700" },
   prefBlock: {
-    backgroundColor: "#FFF",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "#E4E7E2",
+    borderColor: colors.border,
   },
   prefCat: { fontWeight: "700", marginBottom: 8 },
   prefRow: {
@@ -388,5 +432,5 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 4,
   },
-  prefCh: { color: "#5C636A", fontSize: 13 },
+  prefCh: { color: colors.muted, fontSize: 13 },
 });

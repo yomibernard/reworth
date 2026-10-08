@@ -9,9 +9,11 @@ import { join, resolve } from 'path';
 import type { GeocodeResult } from '../providers/geocoding.provider';
 import {
   DEFAULT_CITY_KEY,
+  DEFAULT_PILOT_CITY_KEYS,
   REGION_REQUIRED_KEYS,
   type RegionConfig,
   type RegionLogistics,
+  type RegionStatus,
 } from './region-config.types';
 
 function normalizeCityKey(key: string): string {
@@ -24,6 +26,23 @@ function normalizeCityKey(key: string): string {
 
 function normalizeCommunityKey(community: string): string {
   return community.trim().toUpperCase().replace(/\s+/g, '_');
+}
+
+/** Great-circle distance in km (WGS84 sphere). */
+export function haversineKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 @Injectable()
@@ -132,11 +151,65 @@ export class RegionConfigService implements OnModuleInit {
     }
   }
 
-  listCities(): Array<{ city: string; displayName: string }> {
+  listCities(opts?: {
+    all?: boolean;
+  }): Array<{
+    city: string;
+    displayName: string;
+    status: RegionStatus;
+    key: string;
+  }> {
     this.ensureLoaded();
+    const pilotOverride = this.pilotCitiesFromEnv();
     return [...this.byCity.values()]
-      .map((c) => ({ city: c.city, displayName: c.displayName }))
+      .map((c) => {
+        const status = this.resolveStatus(c);
+        return {
+          city: c.city,
+          key: c.city,
+          displayName: c.displayName,
+          status,
+        };
+      })
+      .filter((c) => {
+        if (opts?.all) return c.status !== 'disabled';
+        if (pilotOverride) return pilotOverride.has(c.city);
+        return c.status === 'pilot';
+      })
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }
+
+  /** Cities in the active consumer pilot (SW + Abuja + PH by default). */
+  pilotCityKeys(): Set<string> {
+    return this.pilotCitiesFromEnv() ?? new Set(DEFAULT_PILOT_CITY_KEYS);
+  }
+
+  private pilotCitiesFromEnv(): Set<string> | null {
+    const fromEnv =
+      this.config.get<string>('REGION_PILOT_CITIES') ??
+      process.env.REGION_PILOT_CITIES;
+    if (!fromEnv?.trim()) return null;
+    return new Set(
+      fromEnv
+        .split(',')
+        .map((s) => normalizeCityKey(s))
+        .filter(Boolean),
+    );
+  }
+
+  private resolveStatus(cfg: RegionConfig): RegionStatus {
+    if (
+      cfg.status === 'pilot' ||
+      cfg.status === 'supply' ||
+      cfg.status === 'disabled'
+    ) {
+      return cfg.status;
+    }
+    return DEFAULT_PILOT_CITY_KEYS.includes(
+      normalizeCityKey(cfg.city) as (typeof DEFAULT_PILOT_CITY_KEYS)[number],
+    )
+      ? 'pilot'
+      : 'supply';
   }
 
   getCity(key: string): RegionConfig | null {
@@ -172,6 +245,57 @@ export class RegionConfigService implements OnModuleInit {
       geoLng: entry.lng,
       label: entry.label ?? key,
     };
+  }
+
+  /**
+   * Snap GPS to nearest community centroid (ADR-011 Phase A).
+   * Prefers pilot cities; falls back to all non-disabled configs.
+   */
+  nearestFromLatLng(
+    lat: number,
+    lng: number,
+    opts?: { pilotOnly?: boolean },
+  ): {
+    city: string;
+    displayName: string;
+    community: string;
+    label: string;
+    geoLat: number;
+    geoLng: number;
+    distanceKm: number;
+  } | null {
+    this.ensureLoaded();
+    const pilotOnly = opts?.pilotOnly !== false;
+    const cities = this.listCities({ all: !pilotOnly });
+    let best: {
+      city: string;
+      displayName: string;
+      community: string;
+      label: string;
+      geoLat: number;
+      geoLng: number;
+      distanceKm: number;
+    } | null = null;
+
+    for (const c of cities) {
+      const cfg = this.getCity(c.city);
+      if (!cfg) continue;
+      for (const [code, entry] of Object.entries(cfg.geocoding)) {
+        const distanceKm = haversineKm(lat, lng, entry.lat, entry.lng);
+        if (!best || distanceKm < best.distanceKm) {
+          best = {
+            city: cfg.city,
+            displayName: cfg.displayName,
+            community: code,
+            label: entry.label ?? code,
+            geoLat: entry.lat,
+            geoLng: entry.lng,
+            distanceKm,
+          };
+        }
+      }
+    }
+    return best;
   }
 
   getDeliveryRates(city?: string | null): RegionLogistics {

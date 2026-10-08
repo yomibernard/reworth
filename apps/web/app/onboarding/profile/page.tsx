@@ -9,13 +9,20 @@ import {
   clearOnboardingPhone,
   getAccessToken,
 } from "../../../lib/auth";
-import { COMMUNITIES, type Community } from "../../../lib/communities";
+import {
+  COMMUNITIES,
+  communitiesForCity,
+  type Community,
+} from "../../../lib/communities";
+import { listRegions, type RegionCity } from "../../../lib/region";
 import type { MeResponse } from "../../../lib/types";
 
 export default function OnboardingProfilePage() {
   const router = useRouter();
   const [displayName, setDisplayName] = useState("");
   const [community, setCommunity] = useState<Community | "">("");
+  const [cityKey, setCityKey] = useState("lagos");
+  const [cities, setCities] = useState<RegionCity[]>([]);
   const [bio, setBio] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,6 +34,14 @@ export default function OnboardingProfilePage() {
       router.replace("/onboarding/phone");
       return;
     }
+    void listRegions()
+      .then((list) => {
+        setCities(list);
+        if (list[0]?.key) setCityKey(list[0].key);
+      })
+      .catch(() => {
+        /* keep Lagos default */
+      });
     apiFetch<MeResponse>("/me", { token })
       .then((me) => {
         if (me.profile?.displayName) setDisplayName(me.profile.displayName);
@@ -98,7 +113,7 @@ export default function OnboardingProfilePage() {
     <OnboardingShell
       step={4}
       title="Customise your profile"
-      subtitle="Name, bio, and community — how Lagos neighbours see you."
+      subtitle="Name, bio, and community — how neighbours in your city see you."
     >
       <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-8" noValidate>
         <Input
@@ -121,6 +136,37 @@ export default function OnboardingProfilePage() {
           hint="A short line about you"
         />
 
+        {cities.length > 0 ? (
+          <fieldset>
+            <legend className="mb-3 text-sm font-medium text-[var(--rw-ink)]">
+              City
+            </legend>
+            <div
+              className="flex flex-wrap gap-2"
+              role="listbox"
+              aria-label="City"
+            >
+              {cities.map((c) => {
+                const key = c.key || c.city || "";
+                return (
+                  <Chip
+                    key={key}
+                    selected={cityKey === key}
+                    onClick={() => {
+                      setCityKey(key);
+                      setCommunity("");
+                    }}
+                    disabled={loading}
+                    aria-label={c.displayName || key}
+                  >
+                    {c.displayName || key}
+                  </Chip>
+                );
+              })}
+            </div>
+          </fieldset>
+        ) : null}
+
         <fieldset>
           <legend className="mb-3 text-sm font-medium text-[var(--rw-ink)]">
             Preferred community
@@ -130,11 +176,11 @@ export default function OnboardingProfilePage() {
             role="listbox"
             aria-label="Preferred community"
           >
-            {COMMUNITIES.map((c) => (
+            {communitiesForCity(cityKey).map((c) => (
               <Chip
                 key={c}
                 selected={community === c}
-                onClick={() => setCommunity(c)}
+                onClick={() => setCommunity(c as Community)}
                 disabled={loading}
                 aria-label={c}
               >

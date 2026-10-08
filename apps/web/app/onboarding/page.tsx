@@ -3,19 +3,23 @@
 import Link from "next/link";
 import { Button } from "@reworth/ui-web";
 import { OnboardingShell } from "../../components/OnboardingShell";
+import { brandPublic } from "../../lib/brand";
 
 const STEPS = [
   {
     title: "Sell fast",
     body: "Photograph an item, get an AI draft, and go live in about a minute.",
+    icon: brandPublic.actionSell,
   },
   {
     title: "Local trust",
     body: "Trade with verified neighbours across Lekki, Ikoyi, VI, and nearby estates.",
+    icon: brandPublic.verifiedSeller,
   },
   {
     title: "AI listing",
     body: "Titles, prices, and categories suggested for Lagos — you stay in control.",
+    icon: brandPublic.actionOffer,
   },
 ];
 
@@ -25,16 +29,18 @@ export default function OnboardingWelcomePage() {
       step={1}
       title="Welcome to ReWorth"
       subtitle="Lagos, your unused things are worth something."
+      illustration={brandPublic.onboarding}
+      illustrationAlt=""
     >
       <ol className="flex flex-col gap-6">
-        {STEPS.map((item, index) => (
+        {STEPS.map((item) => (
           <li key={item.title} className="flex gap-4">
-            <span
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--rw-accent-muted)] text-sm font-semibold text-[var(--rw-accent)]"
-              aria-hidden
-            >
-              {index + 1}
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={item.icon}
+              alt=""
+              className="h-9 w-9 shrink-0 object-contain"
+            />
             <div>
               <h2 className="text-lg font-semibold text-[var(--rw-ink)]">
                 {item.title}

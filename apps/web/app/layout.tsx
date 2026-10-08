@@ -5,9 +5,23 @@ import "@reworth/ui-web/tokens.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ReWorth",
+  title: {
+    default: "ReWorth",
+    template: "%s · ReWorth",
+  },
   description:
     "Lagos, your unused things are worth something. Sell locally with trust.",
+  applicationName: "ReWorth",
+  icons: {
+    icon: "/brand/icons/favicon.png",
+    apple: "/brand/icons/app-icon.png",
+  },
+  openGraph: {
+    title: "ReWorth",
+    description: "Lagos, your unused things are worth something.",
+    siteName: "ReWorth",
+    images: [{ url: "/brand/landing-page.png" }],
+  },
 };
 
 export default function RootLayout({

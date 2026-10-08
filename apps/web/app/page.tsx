@@ -1,31 +1,39 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Chip, EmptyState, Skeleton } from "@reworth/ui-web";
 import { DiscoveryListingCard } from "../components/discovery/DiscoveryListingCard";
 import { ApiError } from "../lib/api";
 import { getAccessToken } from "../lib/auth";
-import { COMMUNITIES } from "../lib/communities";
 import {
-  RADIUS_OPTIONS,
+  cityDisplayName,
+  communitiesForCity,
+  normalizeCityKey,
+} from "../lib/communities";
+import {
   fetchCategories,
   fetchHome,
   looksLikeNaturalLanguage,
   loadDiscoveryLocation,
+  radiusOptionsForCity,
   saveDiscoveryLocation,
   type DiscoveryLocation,
 } from "../lib/discovery";
+import { listRegions, type RegionCity } from "../lib/region";
 import { formatNgn } from "@reworth/shared";
 import type { CategoryNode, HomeRail, RadiusKm } from "../lib/types";
+import { brandPublic, categoryBrandIcon } from "../lib/brand";
 
 export default function HomePage() {
   const router = useRouter();
   const [loc, setLoc] = useState<DiscoveryLocation>({
+    city: "lagos",
     community: "",
     radiusKm: "all",
   });
+  const [cities, setCities] = useState<RegionCity[]>([]);
   const [query, setQuery] = useState("");
   const [useNl, setUseNl] = useState(false);
   const [categories, setCategories] = useState<CategoryNode[]>([]);
@@ -33,8 +41,48 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const cityLabel = useMemo(
+    () =>
+      cities.find(
+        (c) =>
+          normalizeCityKey(c.key || c.city) === normalizeCityKey(loc.city),
+      )?.displayName ?? cityDisplayName(loc.city),
+    [cities, loc.city],
+  );
+  const communityOptions = useMemo(
+    () => communitiesForCity(loc.city),
+    [loc.city],
+  );
+  const radiusOptions = useMemo(
+    () => radiusOptionsForCity(cityLabel),
+    [cityLabel],
+  );
+
   useEffect(() => {
     setLoc(loadDiscoveryLocation());
+    void listRegions()
+      .then((items) => {
+        setCities(items);
+        if (!items.length) return;
+        const saved = loadDiscoveryLocation();
+        const match =
+          items.find(
+            (c) =>
+              normalizeCityKey(c.key || c.city) ===
+              normalizeCityKey(saved.city),
+          ) ??
+          items.find((c) => normalizeCityKey(c.key || c.city) === "lagos") ??
+          items[0];
+        if (match) {
+          const next = {
+            ...saved,
+            city: normalizeCityKey(match.key || match.city),
+          };
+          setLoc(next);
+          saveDiscoveryLocation(next);
+        }
+      })
+      .catch(() => undefined);
   }, []);
 
   const load = useCallback(async (location: DiscoveryLocation) => {
@@ -49,6 +97,7 @@ export default function HomePage() {
         fetchHome(
           {
             community: location.community || undefined,
+            city: cityDisplayName(location.city),
             radiusKm,
           },
           getAccessToken(),
@@ -79,6 +128,7 @@ export default function HomePage() {
     const q = query.trim();
     const params = new URLSearchParams();
     if (q) params.set("q", q);
+    if (loc.city) params.set("city", cityDisplayName(loc.city));
     if (loc.community) params.set("community", loc.community);
     if (loc.radiusKm !== "all") params.set("radiusKm", String(loc.radiusKm));
     const nl = useNl || looksLikeNaturalLanguage(q);
@@ -90,10 +140,10 @@ export default function HomePage() {
     <main className="relative min-h-[100dvh] bg-[var(--rw-bg)] text-[var(--rw-ink)]">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[42vh]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[48vh]"
         style={{
           background:
-            "radial-gradient(ellipse 80% 50% at 70% 0%, rgba(14,159,110,0.16), transparent 55%), radial-gradient(ellipse 40% 30% at 10% 20%, rgba(201,162,39,0.1), transparent 50%), linear-gradient(180deg, #F3F0EA 0%, var(--rw-bg) 100%)",
+            "radial-gradient(ellipse 70% 45% at 85% 0%, rgba(217,106,50,0.14), transparent 55%), radial-gradient(ellipse 45% 35% at 8% 15%, rgba(242,231,213,0.9), transparent 50%), linear-gradient(180deg, #F7F1E8 0%, var(--rw-bg) 100%)",
         }}
       />
 
@@ -101,9 +151,15 @@ export default function HomePage() {
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
           <Link
             href="/"
-            className="shrink-0 text-lg font-semibold tracking-tight sm:text-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+            className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+            aria-label="ReWorth home"
           >
-            ReWorth
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={brandPublic.logo}
+              alt="ReWorth"
+              className="h-8 w-auto sm:h-9"
+            />
           </Link>
 
           <form
@@ -118,7 +174,7 @@ export default function HomePage() {
               id="home-search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search Lagos…"
+              placeholder={`Search ${cityLabel}…`}
               className="min-w-0 flex-1 rounded-[var(--rw-radius)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-2 text-sm sm:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
             />
             <label className="hidden items-center gap-1 text-xs text-[var(--rw-ink-muted)] sm:flex">
@@ -135,6 +191,12 @@ export default function HomePage() {
             </Button>
           </form>
 
+          <Link
+            href="/welcome"
+            className="hidden text-sm font-medium text-[var(--rw-ink-muted)] hover:text-[var(--rw-ink)] sm:inline"
+          >
+            About
+          </Link>
           <Link href="/my" className="hidden text-sm font-medium text-[var(--rw-ink-muted)] hover:text-[var(--rw-ink)] sm:inline">
             Saved
           </Link>
@@ -152,18 +214,66 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6">
-        <section className="rw-fade-up">
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Find something worth keeping.
-          </h1>
-          <p className="mt-2 max-w-xl text-[var(--rw-ink-muted)]">
-            Lagos, your unused things are worth something.
-          </p>
-          <nav
-            aria-label="AI & platform tools"
-            className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium"
-          >
+      <div className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
+        <section className="rw-fade-up relative overflow-hidden rounded-[1.25rem] border border-[var(--rw-border)] bg-[var(--rw-navy)] text-[var(--rw-soft-white)] shadow-[var(--rw-shadow-float)]">
+          <div className="absolute inset-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={brandPublic.landingPage}
+              alt=""
+              className="h-full w-full object-cover opacity-55"
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(105deg, rgba(23,42,58,0.92) 0%, rgba(23,42,58,0.72) 48%, rgba(23,42,58,0.35) 100%)",
+              }}
+            />
+          </div>
+          <div className="relative grid gap-6 px-5 py-8 sm:grid-cols-[1.2fr_0.8fr] sm:items-end sm:px-8 sm:py-10">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--rw-orange)]">
+                Lagos recommerce
+              </p>
+              <h1 className="mt-2 max-w-lg text-3xl font-semibold tracking-tight sm:text-4xl">
+                Find something worth keeping.
+              </h1>
+              <p className="mt-2 max-w-md text-sm text-white/75 sm:text-base">
+                {cityLabel}, your unused things are worth something.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Link href="/sell">
+                  <Button variant="sell" size="md">
+                    Start selling
+                  </Button>
+                </Link>
+                <Link href="/onboarding">
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    className="border-white/40 text-white hover:bg-white/10"
+                  >
+                    Join ReWorth
+                  </Button>
+                </Link>
+              </div>
+            </div>
+            <div className="hidden justify-end sm:flex">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={brandPublic.splashCentred}
+                alt=""
+                className="h-36 w-auto drop-shadow-lg"
+              />
+            </div>
+          </div>
+        </section>
+
+        <nav
+          aria-label="AI & platform tools"
+          className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium"
+        >
             <Link
               href="/ask"
               className="text-[var(--rw-accent)] underline-offset-2 hover:underline"
@@ -189,40 +299,110 @@ export default function HomePage() {
               Consign
             </Link>
           </nav>
-        </section>
 
         <section
           aria-label="Location"
-          className="mt-6 flex flex-wrap items-center gap-2"
+          className="mt-6 space-y-3 rounded-[var(--rw-radius-lg)] border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)]/80 p-3 sm:p-4"
         >
-          <label className="sr-only" htmlFor="home-community">
-            Community
-          </label>
-          <select
-            id="home-community"
-            value={loc.community}
-            onChange={(e) =>
-              updateLoc({ ...loc, community: e.target.value })
-            }
-            className="rounded-full border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-1.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--rw-accent)]"
+          <div>
+            <p className="text-sm font-semibold tracking-tight">
+              Where are you shopping?
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--rw-ink-muted)] sm:text-sm">
+              Pilot cities: Lagos and Abuja. Pick a city, then a community or
+              keep it city-wide.
+            </p>
+          </div>
+
+          <div
+            className="grid grid-cols-2 gap-2"
+            role="group"
+            aria-label="Pilot city"
           >
-            <option value="">All communities</option>
-            {COMMUNITIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Radius">
-            {RADIUS_OPTIONS.map((opt) => (
+            {(cities.length
+              ? cities
+              : [
+                  { key: "lagos", displayName: "Lagos" },
+                  { key: "abuja", displayName: "Abuja" },
+                ]
+            ).map((c) => {
+              const key = normalizeCityKey(c.key || c.city);
+              const selected = key === normalizeCityKey(loc.city);
+              const areas = communitiesForCity(key)
+                .filter((a) => !a.startsWith("Other"))
+                .slice(0, 4)
+                .join(" · ");
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    const allowed = communitiesForCity(key);
+                    const community =
+                      loc.community &&
+                      (allowed as readonly string[]).includes(loc.community)
+                        ? loc.community
+                        : "";
+                    updateLoc({ ...loc, city: key, community });
+                  }}
+                  aria-pressed={selected}
+                  className={[
+                    "rounded-[var(--rw-radius)] border px-3 py-3 text-left transition",
+                    selected
+                      ? "border-[var(--rw-accent)] bg-[var(--rw-accent-muted,rgba(217,106,50,0.08))]"
+                      : "border-[var(--rw-border)] bg-[var(--rw-bg)] hover:border-[var(--rw-ink-muted)]",
+                  ].join(" ")}
+                >
+                  <span className="block text-sm font-semibold sm:text-base">
+                    {c.displayName || c.key}
+                  </span>
+                  <span className="mt-1 block text-[11px] leading-snug text-[var(--rw-ink-muted)] sm:text-xs">
+                    {areas}
+                    {selected ? " · Selected" : ""}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[var(--rw-ink-muted)]">
+              Community in {cityLabel}
+            </label>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
               <Chip
-                key={String(opt.value)}
-                selected={loc.radiusKm === opt.value}
-                onClick={() => updateLoc({ ...loc, radiusKm: opt.value })}
+                selected={!loc.community}
+                onClick={() => updateLoc({ ...loc, community: "" })}
               >
-                {opt.label}
+                All {cityLabel}
               </Chip>
-            ))}
+              {communityOptions.map((name) => (
+                <Chip
+                  key={name}
+                  selected={loc.community === name}
+                  onClick={() => updateLoc({ ...loc, community: name })}
+                >
+                  {name}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-[var(--rw-ink-muted)]">
+              Distance
+            </p>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Radius">
+              {radiusOptions.map((opt) => (
+                <Chip
+                  key={String(opt.value)}
+                  selected={loc.radiusKm === opt.value}
+                  onClick={() => updateLoc({ ...loc, radiusKm: opt.value })}
+                >
+                  {opt.label}
+                </Chip>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -236,16 +416,60 @@ export default function HomePage() {
                     label="Loading category"
                   />
                 ))
-              : categories.map((cat) => (
-                  <Link
-                    key={cat.id}
-                    href={`/search?categoryId=${encodeURIComponent(cat.id)}`}
-                    className="shrink-0"
-                  >
-                    <Chip>{cat.name}</Chip>
-                  </Link>
-                ))}
+              : categories.map((cat) => {
+                  const icon = categoryBrandIcon(cat.name);
+                  return (
+                    <Link
+                      key={cat.id}
+                      href={`/search?categoryId=${encodeURIComponent(cat.id)}`}
+                      className="shrink-0"
+                    >
+                  <Chip className="inline-flex min-w-[5.5rem] flex-col items-center gap-1.5 !rounded-2xl !px-3 !py-2.5">
+                        {icon ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={icon}
+                            alt=""
+                            width={28}
+                            height={28}
+                            className="h-7 w-7 object-contain"
+                          />
+                        ) : null}
+                        <span className="text-xs font-semibold">{cat.name}</span>
+                      </Chip>
+                    </Link>
+                  );
+                })}
           </div>
+        </section>
+
+        <section
+          aria-label="Trust"
+          className="mt-4 flex flex-wrap gap-2 text-[var(--rw-ink-muted)]"
+        >
+          {(
+            [
+              ["Buyer protection", brandPublic.buyerProtection],
+              ["Secure payment", brandPublic.securePayment],
+              ["Safe meetup", brandPublic.safeMeetup],
+              ["Verified sellers", brandPublic.verifiedSeller],
+            ] as const
+          ).map(([label, src]) => (
+            <span
+              key={label}
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--rw-border)] bg-[var(--rw-bg-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--rw-ink)]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                width={22}
+                height={22}
+                className="h-[22px] w-[22px] object-contain"
+              />
+              {label}
+            </span>
+          ))}
         </section>
 
         {error ? (
@@ -253,6 +477,14 @@ export default function HomePage() {
             <EmptyState
               title="Couldn’t load discovery"
               description={error}
+              icon={
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={brandPublic.emptyListings}
+                  alt=""
+                  className="mx-auto h-28 w-28 object-contain"
+                />
+              }
               action={
                 <Button variant="primary" onClick={() => void load(loc)}>
                   Retry
@@ -349,6 +581,14 @@ export default function HomePage() {
               <EmptyState
                 title="No listings nearby"
                 description="Try another community or be the first to sell."
+                icon={
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={brandPublic.emptyListings}
+                    alt=""
+                    className="mx-auto h-28 w-28 object-contain"
+                  />
+                }
                 action={
                   <Link href="/sell">
                     <Button variant="sell">SELL</Button>
