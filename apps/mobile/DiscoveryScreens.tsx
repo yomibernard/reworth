@@ -14,6 +14,10 @@ import { EmptyState } from "./components/EmptyState";
 import { ListingCard } from "./components/ListingCard";
 import { HomeSkeleton } from "./components/Skeleton";
 import { BottomSheet } from "./components/BottomSheet";
+import {
+  LocateMapSheet,
+  type LocateMapPayload,
+} from "./components/LocateMapSheet";
 import { brandAssets, HOME_CATEGORIES } from "./lib/brandAssets";
 import {
   cacheHome,
@@ -29,6 +33,7 @@ import {
   communityLabelsForCity,
   type RegionCity,
 } from "./lib/region";
+import { locateMe } from "./lib/locate";
 import { formatNgnFromKobo, type PublicListing } from "./lib/types";
 import { useColors } from "./theme/ThemeProvider";
 import { hapticLight } from "./theme/haptics";
@@ -40,7 +45,10 @@ type Props = {
   cityLabel?: string;
   cityKey?: string;
   cities?: RegionCity[];
-  onChangeCity?: (city: RegionCity) => void;
+  onChangeCity?: (
+    city: RegionCity,
+    opts?: { communityLabel?: string },
+  ) => void;
   onOpenSearch: () => void;
   onOpenListing: (id: string) => void;
   onOpenTool?: (tool: "ask" | "worth" | "scan" | "consign" | "pickup") => void;
@@ -69,6 +77,10 @@ export function DiscoveryHome({
   const [error, setError] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
   const [citySheetOpen, setCitySheetOpen] = useState(false);
+  const [locateBusy, setLocateBusy] = useState(false);
+  const [locateHint, setLocateHint] = useState<string | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [mapPayload, setMapPayload] = useState<LocateMapPayload | null>(null);
 
   const load = useCallback(
     async (opts?: { soft?: boolean }) => {
@@ -430,7 +442,7 @@ export function DiscoveryHome({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.railRow}
           >
-            {forYou.map((item) => {
+            {forYou.map((item, index) => {
               const price =
                 item.sellingMode === "GIVE_AWAY"
                   ? "Free"
@@ -448,6 +460,7 @@ export function DiscoveryHome({
                   }
                   verified={Boolean(item.seller?.verificationBadge)}
                   onPress={() => onOpenListing(item.id)}
+                  testID={index === 0 ? "listing-card-0" : undefined}
                 />
               );
             })}
@@ -571,9 +584,76 @@ export function DiscoveryHome({
       onClose={() => setCitySheetOpen(false)}
     >
       <Text style={[styles.nlHint, { color: c.muted, marginBottom: 8 }]}>
-        ReWorth pilot · Lagos and Abuja. Switch city to see local communities
-        and radius.
+        Pilot cities across SW, Edo, Abuja, PH, and Kano. Use your location to
+        snap to the nearest community — we never show your exact home on browse.
       </Text>
+      <Pressable
+        onPress={() => {
+          if (locateBusy) return;
+          void (async () => {
+            setLocateBusy(true);
+            setLocateHint(null);
+            try {
+              void hapticLight();
+              const hit = await locateMe();
+              onChangeCity?.(hit.city, {
+                communityLabel: hit.communityLabel,
+              });
+              const payload: LocateMapPayload = {
+                userLat: hit.userLat,
+                userLng: hit.userLng,
+                communityLat: hit.communityLat,
+                communityLng: hit.communityLng,
+                communityLabel: hit.communityLabel,
+                cityLabel: hit.city.displayName,
+                distanceKm: hit.distanceKm,
+              };
+              setMapPayload(payload);
+              setLocateHint(
+                `Near ${hit.communityLabel} · ${hit.city.displayName}` +
+                  (hit.distanceKm
+                    ? ` (~${hit.distanceKm.toFixed(1)} km)`
+                    : ""),
+              );
+              setCitySheetOpen(false);
+              setMapOpen(true);
+            } catch (err) {
+              setLocateHint(
+                err instanceof Error ? err.message : "Could not get location",
+              );
+            } finally {
+              setLocateBusy(false);
+            }
+          })();
+        }}
+        style={({ pressed }) => [
+          styles.cityCard,
+          {
+            backgroundColor: pressed ? c.surfaceWarm : c.beige,
+            borderColor: c.orange,
+            marginBottom: 10,
+          },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel="Use my location"
+        testID="btn-locate-me"
+        disabled={locateBusy}
+      >
+        <Text style={[styles.railTitle, { color: c.ink }]}>
+          {locateBusy ? "Finding your area…" : "Use my location"}
+        </Text>
+        <Text style={[styles.cityAreas, { color: c.muted }]}>
+          GPS once → nearest ReWorth community (Uber-style locate, privacy-safe)
+        </Text>
+      </Pressable>
+      {locateHint ? (
+        <Text
+          style={[styles.nlHint, { color: c.muted, marginBottom: 8 }]}
+          accessibilityLiveRegion="polite"
+        >
+          {locateHint}
+        </Text>
+      ) : null}
       {(cities.length
         ? cities
         : [
@@ -644,7 +724,24 @@ export function DiscoveryHome({
           Open search & radius →
         </Text>
       </Pressable>
+      {mapPayload ? (
+        <Pressable
+          onPress={() => setMapOpen(true)}
+          style={{ marginTop: 4, paddingVertical: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Open area map"
+        >
+          <Text style={{ color: c.orange, fontWeight: "600" }}>
+            View area on map →
+          </Text>
+        </Pressable>
+      ) : null}
     </BottomSheet>
+    <LocateMapSheet
+      visible={mapOpen}
+      payload={mapPayload}
+      onClose={() => setMapOpen(false)}
+    />
     </>
   );
 }

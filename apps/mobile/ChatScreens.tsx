@@ -27,6 +27,8 @@ import {
   muteConversation,
   nairaToKobo,
   offerStatusLabel,
+  parseMeetupPin,
+  postMeetupPin,
   postMessage,
   rejectOffer,
   reportUser,
@@ -34,6 +36,7 @@ import {
   withdrawOffer,
   type ChatMessage,
   type ConversationListItem,
+  type MeetupPinPayload,
   type OfferDto,
 } from "./lib/chat";
 import {
@@ -43,6 +46,8 @@ import {
 } from "./lib/swap";
 import { formatNgnFromKobo } from "./lib/types";
 import { EmptyState } from "./components/EmptyState";
+import { MeetupPinSheet } from "./components/MeetupPinSheet";
+import { LocateMapSheet } from "./components/LocateMapSheet";
 import { brandAssets } from "./lib/brandAssets";
 import { useColors } from "./theme/ThemeProvider";
 import { colors } from "./theme/tokens";
@@ -151,7 +156,11 @@ export function ChatsPanel({
 
   return (
     <View style={[styles.flex, { backgroundColor: theme.canvas }]}>
-      <Text style={[styles.brand, { color: theme.ink }]} accessibilityRole="header">
+      <Text
+        style={[styles.brand, { color: theme.ink }]}
+        accessibilityRole="header"
+        testID="chats-title"
+      >
         Chats
       </Text>
       <Text style={[styles.copy, { color: theme.muted }]}>
@@ -304,6 +313,8 @@ function ChatThread({
   const [toast, setToast] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [swapBusyId, setSwapBusyId] = useState<string | null>(null);
+  const [pinOpen, setPinOpen] = useState(false);
+  const [viewPin, setViewPin] = useState<MeetupPinPayload | null>(null);
   const marked = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -393,6 +404,31 @@ function ChatThread({
     for (const o of offers) map.set(o.id, o);
     return map;
   }, [offers]);
+
+  async function shareMeetupPin(pin: {
+    lat: number;
+    lng: number;
+    label: string;
+  }) {
+    const token = await ensureAccessToken();
+    if (!token) return;
+    setSending(true);
+    try {
+      const saved = await postMeetupPin(token, conversationId, {
+        lat: pin.lat,
+        lng: pin.lng,
+        label: pin.label,
+        clientMsgId: clientMsgId(),
+      });
+      setMessages((prev) => [...prev, saved]);
+      setPinOpen(false);
+      setToast("Meetup pin shared");
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "Could not share pin");
+    } finally {
+      setSending(false);
+    }
+  }
 
   async function sendText() {
     const token = await ensureAccessToken();
@@ -817,6 +853,29 @@ function ChatThread({
                   <View style={styles.offerWrap}>{renderOfferCard(linked)}</View>
                 ) : m.type === "SWAP_PROPOSAL_CARD" ? (
                   <View style={styles.offerWrap}>{renderSwapCard(m)}</View>
+                ) : m.type === "SYSTEM" && parseMeetupPin(m.body) ? (
+                  <Pressable
+                    style={[
+                      styles.pinCard,
+                      {
+                        backgroundColor: theme.surfaceWarm,
+                        borderColor: theme.orange,
+                      },
+                    ]}
+                    onPress={() => setViewPin(parseMeetupPin(m.body))}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open meetup pin on map"
+                  >
+                    <Text style={[styles.offerLabel, { color: theme.orange }]}>
+                      Meetup pin
+                    </Text>
+                    <Text style={[styles.offerAmount, { color: theme.ink }]}>
+                      {parseMeetupPin(m.body)?.label}
+                    </Text>
+                    <Text style={[styles.muted, { color: theme.muted }]}>
+                      Private to this chat · Tap to open map
+                    </Text>
+                  </Pressable>
                 ) : m.type === "SYSTEM" ? (
                   <Text style={[styles.muted, styles.centerText]}>{m.body}</Text>
                 ) : (
@@ -889,28 +948,73 @@ function ChatThread({
           />
         </Pressable>
       </View>
-      <Pressable
-        style={[
-          styles.offerBtn,
-          {
-            borderColor: theme.border,
-            backgroundColor: theme.surface,
-          },
-        ]}
-        onPress={() => setOfferOpen(true)}
-        disabled={!meta}
-        accessibilityRole="button"
-        accessibilityLabel="Make offer"
-      >
-        <Image
-          source={brandAssets.actionOffer}
-          style={styles.offerBtnIcon}
-          resizeMode="contain"
-        />
-        <Text style={[styles.offerBtnText, { color: theme.ink }]}>
-          Make offer
-        </Text>
-      </Pressable>
+      <View style={styles.actionRow}>
+        <Pressable
+          style={[
+            styles.offerBtn,
+            styles.actionHalf,
+            {
+              borderColor: theme.border,
+              backgroundColor: theme.surface,
+            },
+          ]}
+          onPress={() => setPinOpen(true)}
+          disabled={!meta || sending}
+          accessibilityRole="button"
+          accessibilityLabel="Share meetup pin"
+          testID="chat-meetup-pin"
+        >
+          <Text style={[styles.offerBtnText, { color: theme.ink }]}>
+            Meetup pin
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[
+            styles.offerBtn,
+            styles.actionHalf,
+            {
+              borderColor: theme.border,
+              backgroundColor: theme.surface,
+            },
+          ]}
+          onPress={() => setOfferOpen(true)}
+          disabled={!meta}
+          accessibilityRole="button"
+          accessibilityLabel="Make offer"
+        >
+          <Image
+            source={brandAssets.actionOffer}
+            style={styles.offerBtnIcon}
+            resizeMode="contain"
+          />
+          <Text style={[styles.offerBtnText, { color: theme.ink }]}>
+            Make offer
+          </Text>
+        </Pressable>
+      </View>
+
+      <MeetupPinSheet
+        visible={pinOpen}
+        onClose={() => setPinOpen(false)}
+        onShare={(pin) => void shareMeetupPin(pin)}
+      />
+      <LocateMapSheet
+        visible={Boolean(viewPin)}
+        payload={
+          viewPin
+            ? {
+                userLat: viewPin.lat,
+                userLng: viewPin.lng,
+                communityLat: viewPin.lat,
+                communityLng: viewPin.lng,
+                communityLabel: viewPin.label,
+                cityLabel: "Meetup",
+                distanceKm: 0,
+              }
+            : null
+        }
+        onClose={() => setViewPin(null)}
+      />
 
       <Modal visible={offerOpen} animationType="slide" transparent>
         <View style={styles.sheetBackdrop}>
@@ -1210,6 +1314,15 @@ const styles = StyleSheet.create({
   miniDanger: { backgroundColor: colors.error, borderColor: colors.error },
   miniText: { fontSize: 13, fontWeight: "700", color: colors.ink },
   miniTextOn: { color: colors.onAccent },
+  actionRow: { flexDirection: "row", gap: 8 },
+  actionHalf: { flex: 1 },
+  pinCard: {
+    alignSelf: "stretch",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    gap: 4,
+  },
   composer: { flexDirection: "row", gap: 8, alignItems: "center" },
   composerInput: {
     flex: 1,

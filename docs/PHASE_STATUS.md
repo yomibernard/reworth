@@ -90,6 +90,11 @@
 
 ## Resume
 
-1. Maestro on device: `maestro test e2e/mobile/00_demo_60s.yaml` + ≤60s screen record  
-2. Staging k6: overwrite `infra/k6/results-phase9-summary.json` (`docs/PERF.md`)  
-3. Termii live keys in staging `.env` when available
+1. Nigeria sell-well order: `docs/NIGERIA_MARKET_LAUNCH.md` (Lagos density → Paystack + Termii → stores + push → founding sellers)  
+2. Launch gates: Maestro ≤60s · staging k6 · Termii · store AASA/Play SHA — maps A–C done (locate, map sheet, chat meetup pin mobile+web)  
+
+
+3. Maestro on device: `maestro test e2e/mobile/00_demo_60s.yaml` (+ `pwsh scripts/record-maestro-demo.ps1`); archive ≤60s screen record for PO  
+
+4. Staging k6: overwrite `infra/k6/results-phase9-summary.json` (`docs/PERF.md`)  
+5. Termii live keys in staging `.env` when available
