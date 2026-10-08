@@ -90,11 +90,8 @@
 
 ## Resume
 
-1. Nigeria sell-well order: `docs/NIGERIA_MARKET_LAUNCH.md` (Lagos density → Paystack + Termii → stores + push → founding sellers)  
-2. Launch gates: Maestro ≤60s · staging k6 · Termii · store AASA/Play SHA — maps A–C done (locate, map sheet, chat meetup pin mobile+web)  
-
-
-3. Maestro on device: `maestro test e2e/mobile/00_demo_60s.yaml` (+ `pwsh scripts/record-maestro-demo.ps1`); archive ≤60s screen record for PO  
-
-4. Staging k6: overwrite `infra/k6/results-phase9-summary.json` (`docs/PERF.md`)  
-5. Termii live keys in staging `.env` when available
+1. Staging rails: `docs/STAGING_RAILS.md` (Termii → Paystack test keys + webhook → Expo push) — secrets in host env only  
+2. Nigeria GTM: `docs/NIGERIA_MARKET_LAUNCH.md` (Lagos founding-seller density in parallel)  
+3. Maestro ≤60s device record: `maestro test e2e/mobile/00_demo_60s.yaml` / `pwsh scripts/record-maestro-demo.ps1`  
+4. Staging k6 500 VU: `docs/PERF.md`  
+5. Store: EAS `projectId` · AASA TEAMID · Play SHA
