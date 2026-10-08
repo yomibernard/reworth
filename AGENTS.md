@@ -31,7 +31,7 @@ Functional · UX · **mobile behaviour verified on iOS + Android; web parity del
 | MVP Admin | **`v0.8-admin`** (+ harden) |
 | MVP Risk / Security | **`v0.9-risk-security`** (+ harden) |
 | Status | **Near complete** — tokens + brand + Maestro testIDs/`com.reworth.app` + listing App Links stubs; device recording / staging k6 / Termii remain |
-| Next | Maestro ≤60s; staging k6; Termii; AASA TEAMID + Play SHA; optional maps live-track |
+| Next | Execute `docs/STAGING_RAILS.md` (Termii → Paystack test → Expo push); Maestro ≤60s on device; staging k6; store AASA/Play SHA |
 
 ## MVP / post-launch
 
@@ -48,4 +48,4 @@ Post-launch through `v2.2-monetization`: swap → communities → intelligence �
 - Termii live SMS/WhatsApp keys still pending (dual-channel mock verified)
 - Maps: Phase A locate + Phase B map + Phase C chat meetup pins shipped; live track deferred (ADR-011)
 
-See `docs/PHASE_STATUS.md`, `docs/NIGERIA_MARKET_LAUNCH.md`, `docs/PRODUCT_ECOSYSTEM_PO_REVIEW.md`, `docs/ReWorth-Product-Deck.html`, `docs/BUYER_JOURNEY_AUDIT.md`, `docs/METRICS.md`, `docs/ADRS/011-maps-locate-me.md`.
+See `docs/PHASE_STATUS.md`, `docs/STAGING_RAILS.md`, `docs/NIGERIA_MARKET_LAUNCH.md`, `docs/PRODUCT_ECOSYSTEM_PO_REVIEW.md`, `docs/ReWorth-Product-Deck.html`, `docs/BUYER_JOURNEY_AUDIT.md`, `docs/METRICS.md`, `docs/ADRS/011-maps-locate-me.md`.

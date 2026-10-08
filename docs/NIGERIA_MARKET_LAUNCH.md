@@ -40,7 +40,7 @@ Still mock-default in local. Conversion vs WhatsApp “transfer / pay on deliver
 | Escrow release / refund dry-run on staging | Payments Eng | ☐ |
 | PSP merchant / licensing sign-off | Legal / Finance | ☐ |
 
-Detail: `docs/LAUNCH.md` §A · ADR-002.
+Detail: `docs/LAUNCH.md` §A · `docs/STAGING_RAILS.md` · ADR-002.
 
 ---
 
@@ -54,7 +54,7 @@ Auth spine is SMS + WhatsApp OTP. If codes don’t land, every first session is 
 | OTP templates approved | Product | ☐ |
 | Wallet balance alerts | Ops | ☐ |
 
-Detail: `docs/LAUNCH.md` §B.
+Detail: `docs/LAUNCH.md` §B · `docs/STAGING_RAILS.md`.
 
 ---
 
